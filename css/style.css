@@ -540,3 +540,52 @@ table.t3-rounds { min-width: 1000px; }
   .t3-w { grid-template-columns: minmax(0, 1fr) minmax(64px, 1.3fr) minmax(0, 1fr); gap: 6px; font-size: .8rem; }
   .t3-wn { padding-inline: 4px; gap: 4px; }
 }
+
+/* ---------------------------------------------------------------- 質問カードのスワイプ（js/ui/swipe.js）。タップ・ボタン・キーボードの操作は従来どおり */
+/* touch-action: none はこのカードだけ。カードの外（ボタン・折りたたみ・フッター）では縦スクロールできる */
+.t3-qcard { position: relative; touch-action: none; transform-origin: 50% 85%; -webkit-tap-highlight-color: transparent; }
+@media (hover: hover) { .t3-qcard { cursor: grab; } }
+html.t3-swiping { overflow-x: clip; user-select: none; -webkit-user-select: none; }
+html.t3-swiping, html.t3-swiping * { cursor: grabbing !important; }
+
+/* いま出ようとしている操作のラベル（カードの上辺にまたがって、カードと一緒に動く） */
+.t3-swipe-badge {
+  position: absolute; left: 50%; top: 0; z-index: 2; pointer-events: none; opacity: 0;
+  transform: translate(-50%, -50%) rotate(-3deg);
+  padding: 2px 16px; border: 2px solid var(--ink); border-radius: 999px; white-space: nowrap;
+  font-weight: 800; font-size: 1.05rem; line-height: 1.7; letter-spacing: .06em; color: var(--ink); background: var(--surface);
+}
+.t3-qcard:not(.t3-dragging) .t3-swipe-badge { transition: opacity .15s ease-out; }
+.t3-qcard[data-swipe] .t3-swipe-badge { opacity: var(--t3-p, 0); }
+.t3-qcard[data-swipe="up"] .t3-swipe-badge { border-color: var(--warn); color: var(--warn); }
+.t3-qcard[data-swipe="down"] .t3-swipe-badge { border-color: var(--muted); color: var(--ink-2); }
+.t3-qcard.t3-ready .t3-swipe-badge { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+.t3-qcard.t3-ready[data-swipe="up"] .t3-swipe-badge { background: var(--warn); border-color: var(--warn); }
+.t3-qcard.t3-ready[data-swipe="down"] .t3-swipe-badge { background: var(--ink-2); border-color: var(--ink-2); }
+/* 離すと選ばれる側の選択肢を濃く、反対側を薄く */
+.t3-card.t3-hot { border-color: var(--ink); background: var(--surface-2); box-shadow: 0 0 0 1px var(--ink); }
+.t3-qcard[data-swipe="left"] .t3-card.t3-right, .t3-qcard[data-swipe="right"] .t3-card.t3-left { opacity: .5; }
+
+/* 次の質問は、飛ばした向きの反対側から短く滑り込む */
+.t3-qcard.t3-enter-right { animation: t3-in-right .22s ease-out; }
+.t3-qcard.t3-enter-left { animation: t3-in-left .22s ease-out; }
+.t3-qcard.t3-enter-bottom { animation: t3-in-bottom .22s ease-out; }
+.t3-qcard.t3-enter-top { animation: t3-in-top .22s ease-out; }
+@keyframes t3-in-right { from { transform: translateX(56px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes t3-in-left { from { transform: translateX(-56px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes t3-in-bottom { from { transform: translateY(48px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes t3-in-top { from { transform: translateY(-48px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.t3-hint { margin-top: 10px; font-size: .85rem; color: var(--muted); text-align: center; }
+.t3-tip {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap;
+  margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-size: .85rem; line-height: 1.6; color: var(--ink-2); background: var(--surface-2);
+}
+.t3-tip > span { flex: 1 1 12em; min-width: 0; }
+.t3-tip-close { flex: none; font: inherit; font-size: .85rem; background: none; border: 0; padding: 6px 4px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+@media (hover: hover) { .t3-tip-close:hover { color: var(--ink); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .t3-qcard[class*="t3-enter-"] { animation: none; }
+  .t3-qcard:not(.t3-dragging) .t3-swipe-badge { transition: none; }
+}
