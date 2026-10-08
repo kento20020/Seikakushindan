@@ -118,10 +118,16 @@ node tests/adaptive.test.mjs   # 可変質問票（サンプル再現・追加�
 
 ## GitHub Pages で公開する
 
-1. このリポジトリを GitHub に push する（`main` ブランチ）
-2. リポジトリの Settings → Pages を開く
-3. Source を「Deploy from a branch」、Branch を `main`・フォルダを `/ (root)` にして Save
+`.github/workflows/pages.yml` に、push のたびにテストを走らせてから Pages へデプロイするワークフローが入っています。
+初回だけ Pages を有効にする操作が必要です（API からは有効化できないため）。
+
+1. リポジトリの Settings → Pages を開く
+2. Build and deployment の Source を「**GitHub Actions**」にする（保存ボタンは不要）
+3. Actions タブで失敗している「Deploy to GitHub Pages」を Re-run するか、何か push する
 4. 数分後に https://kento20020.github.io/Seikakushindan/ で公開される
+
+ワークフローを使わず Source を「Deploy from a branch」（`main` / `/ (root)`）にしても公開できます。
+その場合は `.github/workflows/pages.yml` を削除してください（Actions 側のデプロイが失敗として残るため）。
 
 パスはすべて相対（`./js/app.js` など）なので、サブパスでもそのまま動きます。`.nojekyll` は Jekyll の処理を止めるために置いています。
 
