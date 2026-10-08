@@ -16,15 +16,25 @@ const HI = TH3.high, LO = TH3.low + 1;
 let root = null;
 let lastSub = null;
 let detachSwipe = null;   // 質問カードのスワイプ。再描画のたびに外して付け直す
+let lastAsking = false;   // 直前の描画が質問画面だったか（質問から質問への再描画かどうかの判定用）
+let lastEpoch = -1, tabEpoch = 0;   // タブを離れて戻った（hashchange があった）ときは、スクロール位置を引き継がない
+let renderSeq = 0;
+window.addEventListener("hashchange", () => { tabEpoch++; });
 
 export function renderThree(el) {
   detachSwipe?.(); detachSwipe = null;
+  stopDemo();
   root = el;
   restore3();
   const sub = store3.sub;
   el.classList.toggle("view-wide", sub === "logic" || sub === "questions");
   const s = store3.session;
   const asking = sub === "diagnose" && store3.screen === "question" && s && !s.isDone();
+  // 質問から質問へ（回答・差し替え・戻る）の再描画では、画面をスクロールさせない。
+  //   中身を作り直す間にページが短くなってもスクロール位置が押し戻されないよう、いまの高さを下限にしておく。
+  const keep = !!asking && lastAsking && lastEpoch === tabEpoch;
+  const y0 = window.scrollY;
+  el.style.minHeight = keep ? `${el.offsetHeight}px` : "";
   let body;
   try {
     body = sub === "result" ? resultView()
@@ -35,24 +45,64 @@ export function renderThree(el) {
     console.error(err);
     body = h("p", { class: "error" }, `表示中にエラーが起きました：${err.message}`);
   }
-  mount(el,
+  // 質問から質問へは、質問画面（.t3-q）だけを1回の replaceWith で差し替える。サブ画面の切り替えと枠は残すので、
+  //   中身が空になる瞬間がなく、ページの高さが縮んでスクロール位置が押し戻されることもない。それ以外は節ごと作り直す
+  const prevQ = keep ? el.querySelector(":scope > .t3-body > .t3-q") : null;
+  if (prevQ && body instanceof Element && body.classList.contains("t3-q")) prevQ.replaceWith(body);
+  else mount(el,
     h("nav", { class: "t3-subnav", "aria-label": "三択診断の画面" },
       h("span", { class: "t3-mode-badge", title: "左／右／問題を変える の3つだけで答える版（5択版とは別に動きます）" }, "三択版"),
       SUBS.map(([k, label]) => h("button", { type: "button", "data-sub": k, "aria-current": k === sub ? "page" : null, onclick: () => setSub(k) }, label))),
     h("div", { class: "t3-body" }, body));
 
   const changed = lastSub !== null && lastSub !== sub;
-  lastSub = sub;
+  lastSub = sub; lastAsking = !!asking; lastEpoch = tabEpoch;
+  const seq = ++renderSeq;
   if (asking) {
     const card = el.querySelector(".t3-qcard");
     bindSwipe(card, s.current());
-    if (card?.className.includes("t3-enter-")) { holdClip(); releaseClip(ENTER_MS + 100); }   // 滑り込む間も横にはみ出さないように
     document.getElementById("t3-q")?.focus({ preventScroll: true });
-    const top = el.getBoundingClientRect().top;
-    if (top < 0) window.scrollTo(0, window.scrollY + top);
+    if (keep) {
+      if (Math.abs(window.scrollY - y0) > 1) window.scrollTo(0, y0);   // 同期で戻す（短くなったページに押し戻された分）
+      revealCard(card);
+      settleScroll(el, seq);                                           // 次のフレームでも戻してから、高さの下限を外す
+    } else {
+      // 質問画面を開いたとき（開始画面から・別のタブから）だけ、節の先頭が画面の上に出ていれば先頭まで戻す
+      const top = el.getBoundingClientRect().top;
+      if (top < 0) window.scrollTo(0, window.scrollY + top);
+    }
+    startEnter(card);
+    planDemo(card, s);
   } else if (changed) {
     window.scrollTo(0, 0);
   }
+}
+
+// 次のカードが画面から一部はみ出していたら、見える最小限だけ動かす（block: "nearest"。"start" にはしない）。
+//   画面より高いカードは動かさない。滑り込みのアニメーション（transform）を付ける前に測るので、位置がずれない
+function revealCard(card) {
+  if (!card || card.offsetHeight > window.innerHeight) return;
+  const r = card.getBoundingClientRect();
+  if (r.top >= 0 && r.bottom <= window.innerHeight) return;
+  card.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+
+function settleScroll(el, seq) {
+  const y = window.scrollY;
+  requestAnimationFrame(() => {
+    if (seq !== renderSeq) return;     // 続けて再描画された（新しい描画が自分の面倒を見る）
+    if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+    el.style.minHeight = "";
+  });
+}
+
+// 飛ばした向きの反対側から滑り込ませる（スクロール位置を決めたあとにクラスを付ける）
+function startEnter(card) {
+  const dir = card?.dataset.enter;
+  if (!dir) return;
+  delete card.dataset.enter;
+  card.classList.add(`t3-enter-${dir}`);
+  holdClip(); releaseClip(ENTER_MS + 100);   // 滑り込む間も横にはみ出さないように
 }
 
 onChange3(() => { if (root && !root.hidden) renderThree(root); });
@@ -183,13 +233,19 @@ function questionView(s) {
     h("div", { class: "q-progress" }, stagePills, bar,
       h("p", { class: "q-count" }, h("b", null, `${c.stage} ${c.stageIndex + 1}/${c.stageTotal}`),
         h("span", null, `全体 ${p.answered}/${p.total}問 回答済み${s.config.adaptive && (s.plan.s3 === null || s.plan.s4 === null) ? `（最大${p.max}問）` : ""}`))),
-    h("div", { class: ["q-card", "t3-qcard", `t3-kind-${c.kind}`, enter && `t3-enter-${enter}`] }, notice,
+    h("div", { class: ["q-card", "t3-qcard", `t3-kind-${c.kind}`], "data-enter": enter },
+      h("div", { class: "t3-grip", "aria-hidden": "true" }, h("i", { class: "t3-grip-bar" }), h("span", null, "スワイプで回答")),
+      notice,
       h("p", { class: "t3-kicker" }, c.kind === "W" ? "この場面で" : "別々の場面の行動を比べて"),
       h("p", { class: "q-text t3-stem", id: "t3-q", tabindex: "-1" }, q.kind === "W" ? q.stem : q.prompt),
       q.kind === "W" ? h("p", { class: "t3-ask" }, q.prompt) : null,
       h("div", { class: "t3-pair", role: "group", "aria-labelledby": "t3-q" }, card("left"), card("right")),
-      h("div", { class: "t3-swipe-badge", "aria-hidden": "true" })),
-    coarse ? h("p", { class: "hint t3-hint", id: "t3-swipe-hint" }, `← 左へスワイプ ／ 右へスワイプ → ／ ↑ ${c.canSwap ? "問題を変える" : "答えずに進む"}`) : null,
+      h("div", { class: "t3-swipe-badge", "aria-hidden": "true" }),
+      // 四方の手がかり（カードの縁に薄く出す。ドラッグした向きのものだけ濃くなる）
+      cue("l", "← 左", true), cue("r", "右 →", true), cue("u", c.canSwap ? "↑ 変える" : "↑ 進む")),
+    h("p", { class: "hint t3-hint", id: "t3-swipe-hint" }, coarse
+      ? `← 左へスワイプ ／ 右へスワイプ → ／ ↑ ${c.canSwap ? "問題を変える" : "答えずに進む"}`
+      : "カードをドラッグ／スワイプでも回答できます"),
     tipSeen() ? null : h("div", { class: "t3-tip", id: "t3-swipe-tip", role: "note" },
       h("span", null, "カードを左右にスワイプ（マウスならドラッグ）して答えられます。上へ＝", c.canSwap ? "問題を変える" : "答えずに進む", "、下へ＝戻る。"),
       h("button", { type: "button", class: "t3-tip-close", id: "t3-swipe-tip-close", onclick: dismissTip }, "閉じる")),
@@ -205,6 +261,11 @@ function questionView(s) {
     aim,
     h("p", { class: "q-foot" }, coarse ? null : h("span", { class: "hint" }, "キーボード：← 左 ／ → 右 ／ Space 問題を変える（使い切ったら答えずに進む）"),
       h("button", { type: "button", class: "linkish", onclick: toStart3 }, "中断して最初の画面へ（回答は保存されています）")));
+}
+
+// カードの縁の手がかり（左右は縦書きで細く、上は上辺にまたがる小さなラベル）
+function cue(pos, text, chevron = false) {
+  return h("span", { class: ["t3-cue", `t3-cue-${pos}`], "aria-hidden": "true" }, chevron ? h("i", { class: "t3-chev" }) : null, h("span", { class: "t3-cue-txt" }, text));
 }
 
 // キーボード：← → で回答、Space で問題を変える（使い切ったら答えずに進む）
@@ -246,7 +307,84 @@ function tipSeen() {
 function dismissTip() {
   tipDone = true;
   try { localStorage.setItem(SWIPE_TIP_KEY, "1"); } catch { /* 保存できなくても、この読み込みの間は出さない */ }
-  document.getElementById("t3-swipe-tip")?.remove();
+  const tip = document.getElementById("t3-swipe-tip");
+  if (!tip) return;
+  if (root) root.style.minHeight = `${root.offsetHeight}px`;   // 消した分だけページが短くなって、スクロール位置が押し戻されないように（次の再描画で外れる）
+  tip.remove();
+}
+
+// ---------------------------------------------------------------- スワイプできることを見せる（最初の設問で一度だけ、カードが右・左へ軽く動く）
+//   最初の設問を開いて何も触らないまま 600ms たつと、右へ 24px →戻る→左へ 24px →戻る（あわせて 1.2 秒）。
+//   触った（タップ・ドラッグ・キー）／一度見せた／ヒントを閉じたことがあれば出さない。動きを減らす設定のときも出さない。
+const DEMO_KEY = "seikaku16:three:swipe-demo";        // SWIPE_TIP_KEY の兄弟。「見せた、または触った」
+const DEMO_DELAY = 600, DEMO_MS = 1200, DEMO_PX = 24;
+let demoDone = false;     // localStorage が使えなくても、この読み込みの間は二度見せない
+let demoTimer = 0;
+let demoStop = null;      // 動いている最中のデモを止める関数
+
+function demoSeen() {
+  if (demoDone) return true;
+  try { return localStorage.getItem(DEMO_KEY) === "1"; } catch { return false; }
+}
+function markDemo() {
+  demoDone = true;
+  try { localStorage.setItem(DEMO_KEY, "1"); } catch { /* 保存できなくても、この読み込みの間は出さない */ }
+}
+function stopDemo() {
+  clearTimeout(demoTimer); demoTimer = 0;
+  const stop = demoStop; demoStop = null;
+  stop?.();
+}
+// 触られたら、待っているデモは取りやめ、動いているデモはその場で止める（以後は出さない）
+function touched(e) {
+  if (!demoTimer && !demoStop) return;
+  if (e.type === "pointerdown" && !(root && e.target instanceof Node && root.contains(e.target))) return;
+  markDemo(); stopDemo();
+}
+document.addEventListener("pointerdown", touched, true);
+document.addEventListener("keydown", touched, true);
+
+function planDemo(card, s) {
+  stopDemo();
+  const p = s.progress();
+  if (!card || s.current().index !== 0 || p.answered > 0 || tipSeen() || demoSeen() || prefersReducedMotion() || typeof card.animate !== "function") return;
+  demoTimer = setTimeout(() => {
+    demoTimer = 0;
+    if (!card.isConnected || document.hidden || card.getClientRects().length === 0) return;   // 別のタブにいる・隠れているときは見せない（印も付けない）
+    const r = card.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > window.innerHeight) return;   // 見えていないときは見せない（印も付けない）
+    markDemo();
+    runDemo(card);
+  }, DEMO_DELAY);
+}
+
+function runDemo(card) {
+  const badge = card.querySelector(".t3-swipe-badge");
+  const half = DEMO_MS / 2;
+  const anims = [], timers = [];
+  const phase = (dir, text) => {
+    card.dataset.demo = dir;
+    badge.textContent = text;
+    anims.push(badge.animate([{ opacity: 0 }, { opacity: 1, offset: .35 }, { opacity: 1, offset: .65 }, { opacity: 0 }], { duration: half, easing: "ease-in-out" }));
+  };
+  const ease = "ease-in-out";
+  anims.push(card.animate([
+    { transform: "translateX(0)", easing: ease },
+    { transform: `translateX(${DEMO_PX}px) rotate(1.5deg)`, easing: ease, offset: .25 },
+    { transform: "translateX(0)", easing: ease, offset: .5 },
+    { transform: `translateX(${-DEMO_PX}px) rotate(-1.5deg)`, easing: ease, offset: .75 },
+    { transform: "translateX(0)" },
+  ], { duration: DEMO_MS, easing: "linear" }));
+  holdClip();
+  phase("right", "右");
+  timers.push(setTimeout(() => phase("left", "左"), half), setTimeout(() => stopDemo(), DEMO_MS));
+  demoStop = () => {
+    timers.forEach(clearTimeout);
+    anims.forEach(a => { try { a.cancel(); } catch { /* 無視 */ } });
+    delete card.dataset.demo;
+    badge.textContent = "";
+    releaseClip(0);
+  };
 }
 
 function bindSwipe(card, c) {

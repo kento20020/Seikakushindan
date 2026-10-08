@@ -545,7 +545,11 @@ table.t3-rounds { min-width: 1000px; }
 /* touch-action: none はこのカードだけ。カードの外（ボタン・折りたたみ・フッター）では縦スクロールできる */
 .t3-qcard { position: relative; touch-action: none; transform-origin: 50% 85%; -webkit-tap-highlight-color: transparent; }
 @media (hover: hover) { .t3-qcard { cursor: grab; } }
-html.t3-swiping { overflow-x: clip; user-select: none; -webkit-user-select: none; }
+/* 飛ばす・滑り込む間にカードが画面の横にはみ出しても、ページが横に広がらないようにする。
+   <html>/<body> の overflow は画面全体（viewport）の設定になり、切り替えるとスマホでスクロール位置が戻ることがあるので、
+   viewport ではない <main> に clip を掛ける（clip はスクロール領域を作らず、高さも変えない） */
+html.t3-swiping { user-select: none; -webkit-user-select: none; }
+html.t3-swiping #main { overflow-x: clip; }
 html.t3-swiping, html.t3-swiping * { cursor: grabbing !important; }
 
 /* いま出ようとしている操作のラベル（カードの上辺にまたがって、カードと一緒に動く） */
@@ -588,4 +592,34 @@ html.t3-swiping, html.t3-swiping * { cursor: grabbing !important; }
 @media (prefers-reduced-motion: reduce) {
   .t3-qcard[class*="t3-enter-"] { animation: none; }
   .t3-qcard:not(.t3-dragging) .t3-swipe-badge { transition: none; }
+}
+
+/* ---------------------------------------------------------------- スワイプできることの手がかり（カードの縁・つまみ・初回のデモ）。js/ui/three.js */
+/* つまみ（ボトムシートの取っ手のような短い棒）と「スワイプで回答」 */
+.t3-grip { display: flex; align-items: center; justify-content: center; gap: 8px; height: 12px; margin: -6px 0 8px; color: var(--muted); font-size: .68rem; font-weight: 700; letter-spacing: .06em; line-height: 1; }
+.t3-grip-bar { flex: none; width: 32px; height: 4px; border-radius: 2px; background: var(--line-strong); }
+
+/* 縁の手がかり。左右はカードの余白（スマホで16px）に収まる縦書き、上は上辺にまたがる小さなラベル。ふだんは薄く、ドラッグした向きだけ濃くなる */
+.t3-cue { position: absolute; z-index: 1; pointer-events: none; display: flex; align-items: center; color: var(--muted); opacity: .6; font-size: .66rem; font-weight: 700; line-height: 1; white-space: nowrap; }
+.t3-qcard:not(.t3-dragging) .t3-cue { transition: opacity .18s ease-out, color .18s ease-out; }
+.t3-cue-l, .t3-cue-r { top: 50%; width: 14px; flex-direction: column; gap: 4px; transform: translateY(-50%); }
+.t3-cue-l { left: 1px; }
+.t3-cue-r { right: 1px; }
+.t3-cue-l .t3-cue-txt, .t3-cue-r .t3-cue-txt { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 0; word-spacing: -.55em; }
+.t3-chev { flex: none; display: block; width: 7px; height: 7px; border: solid currentColor; border-width: 0 0 1.5px 1.5px; transform: rotate(45deg); }
+.t3-cue-r .t3-chev { transform: rotate(-135deg); }
+.t3-cue-u { left: 50%; top: 0; transform: translate(-50%, -50%); height: 16px; padding: 0 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); opacity: .8; }
+.t3-qcard[data-swipe="left"] .t3-cue-l, .t3-qcard[data-swipe="right"] .t3-cue-r,
+.t3-qcard[data-demo="left"] .t3-cue-l, .t3-qcard[data-demo="right"] .t3-cue-r { color: var(--ink); opacity: calc(.6 + .4 * var(--t3-p, 1)); }
+/* 上のラベルは、どの向きでもドラッグが始まったら（デモ中も）、同じ位置に出る本物のラベル（t3-swipe-badge）に入れ替わる。重ならないよう消す */
+.t3-qcard[data-swipe] .t3-cue-u, .t3-qcard[data-demo] .t3-cue-u { opacity: 0; }
+
+@media (min-width: 641px) {   /* 余白が広い（24px）ので少し大きく */
+  .t3-cue { font-size: .72rem; }
+  .t3-cue-l, .t3-cue-r { width: 20px; }
+  .t3-cue-l { left: 2px; }
+  .t3-cue-r { right: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .t3-qcard:not(.t3-dragging) .t3-cue { transition: none; }
 }
