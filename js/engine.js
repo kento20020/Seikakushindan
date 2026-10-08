@@ -143,10 +143,10 @@ export function evaluateAll(profile) {
 
 const isShape = (m) => m.kind === "special" && m.group === "D";
 
-/** 制約つき貪欲選択。trace に各ステップの候補と理由を残す */
+/** 制約つき貪欲選択。trace に各ステップの候補と理由を残す（opts.evaluate で評価関数を差し替え可。既定は evaluateAll） */
 export function select(profile, opts = {}) {
   const maxN = opts.maxN ?? 4, minN = opts.minN ?? 2;
-  const hits = evaluateAll(profile);
+  const hits = (opts.evaluate ?? evaluateAll)(profile);
   const chosen = [];
   const usedBasicDomains = new Set(), covered = new Set(), coveredSets = [], usedPairs = new Set();
   const domainCount = {}; let hasShape = false, nContra = 0;

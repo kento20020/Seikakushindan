@@ -1,4 +1,4 @@
-// 16次元診断：画面の入口。ハッシュでタブを切り替える（#diagnose #result #logic #questions #design）。
+// 16次元診断：画面の入口。ハッシュでタブを切り替える（#diagnose #result #logic #questions #design #three）。
 // ビルドなし・ES モジュールのみ。パスはすべて相対（GitHub Pages のサブパスで動かすため）。
 import { onChange, restore } from "./ui/store.js";
 import { renderDiagnose } from "./ui/diagnose.js";
@@ -6,6 +6,7 @@ import { renderResult } from "./ui/result.js";
 import { renderLogic } from "./ui/logic.js";
 import { renderQuestions } from "./ui/questions.js";
 import { renderDesign } from "./ui/design.js";
+import { renderThree } from "./ui/three.js";
 
 const VIEWS = {
   diagnose: renderDiagnose,
@@ -13,8 +14,9 @@ const VIEWS = {
   logic: renderLogic,
   questions: renderQuestions,
   design: renderDesign,
+  three: renderThree,
 };
-const TITLES = { diagnose: "診断", result: "結果", logic: "ロジック", questions: "設問", design: "設計" };
+const TITLES = { diagnose: "診断", result: "結果", logic: "ロジック", questions: "設問", design: "設計", three: "三択診断" };
 let currentTab = null;
 
 function tabFromHash() {

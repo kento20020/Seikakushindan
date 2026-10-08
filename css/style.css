@@ -437,3 +437,106 @@ table.qtable { min-width: 1080px; }
 }
 .qtable td:nth-child(2) { white-space: nowrap; }
 .qtable td:nth-child(3) { min-width: 8.5em; }
+
+/* ---------------------------------------------------------------- 三択診断（別タブ #three）。既存の規則は変えず、ここから下に追記 */
+.t3-subnav { display: flex; align-items: flex-end; gap: 2px; border-bottom: 1px solid var(--line); }
+.t3-mode-badge { flex: none; align-self: center; margin-right: 10px; font-weight: 800; font-size: .78rem; letter-spacing: .04em; color: var(--paper); background: var(--ink); padding: 1px 10px; border-radius: 999px; cursor: help; }
+.t3-subnav button {
+  font: inherit; font-size: .92rem; font-weight: 600; color: var(--muted); background: none; cursor: pointer; white-space: nowrap;
+  border: 0; border-bottom: 3px solid transparent; padding: 8px 14px 7px; margin-bottom: -1px;
+}
+@media (hover: hover) { .t3-subnav button:hover { color: var(--ink); } }
+.t3-subnav button[aria-current="page"] { color: var(--ink); border-bottom-color: var(--ink); }
+.t3-body { margin-top: 24px; }
+.t3-list { margin: 10px 0 0; padding-left: 1.3em; color: var(--ink-2); }
+.t3-list li { margin-top: 4px; }
+.t3-diff .note { margin-top: 12px; }
+.t3-phrase { display: inline-block; }
+
+/* 質問 */
+.t3-kicker { font-size: .8rem; font-weight: 700; letter-spacing: .04em; color: var(--muted); margin-bottom: 4px; }
+.t3-stem { min-height: 0; }
+.t3-ask { margin-top: 2px; font-size: .92rem; color: var(--ink-2); }
+.t3-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+.t3-card {
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 10px; min-height: 150px; padding: 14px 16px 18px;
+  background: var(--paper); border: 1px solid var(--line-strong); border-radius: var(--radius);
+}
+@media (hover: hover) { .t3-card:hover { border-color: var(--ink-2); background: var(--surface); } }
+.t3-card .t3-key { font-size: .78rem; font-weight: 700; letter-spacing: .06em; color: var(--muted); }
+.t3-card.t3-right .t3-key { text-align: right; }
+.t3-card .t3-text { font-family: var(--serif); font-size: 1.12rem; line-height: 1.75; font-weight: 600; text-wrap: pretty; }
+.t3-card.picked { border: 2px solid var(--ink); background: var(--surface-2); padding: 13px 15px 17px; }
+.t3-remain { font-size: .78rem; color: var(--muted); }
+.t3-skipnote { margin-top: 8px; }
+.t3-estimate { margin-top: 12px; padding: 10px 14px; border-radius: 8px; font-size: .88rem; color: var(--ink-2); background: var(--warn-soft); max-width: 48em; }
+.t3-estimate b { color: var(--warn); margin-right: .6em; }
+.t3-estimate.warn { background: var(--ng-soft); }
+.t3-estimate.warn b { color: var(--ng); }
+.t3-cmp-mini { margin-top: 8px; font-size: .88rem; color: var(--ink-2); }
+.t3-cmp-mini .linkish { margin-left: .6em; }
+.refcheck.t3-partial { color: var(--ink-2); background: var(--surface-2); }
+
+/* 結果：5択版との比較 */
+.t3-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.t3-cmp-col { min-width: 0; padding: 12px 14px 6px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.t3-cmp-col h3 { margin-top: 0; font-size: .95rem; }
+.t3-cmp-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.t3-cmp-list li { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-top: 1px solid var(--line); }
+.t3-cmp-id { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.t3-cmp-id .mini-badge { margin-left: 0; }
+.t3-cmp-head { font-family: var(--serif); font-size: .92rem; line-height: 1.6; color: var(--ink-2); }
+.t3-cmp-list li.diff .t3-cmp-head { color: var(--muted); }
+
+/* 結果：領域ごとの左右（W）と強さ（X） */
+.t3-tags { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.t3-w { display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, 2fr) minmax(0, 1fr); gap: 10px; align-items: center; margin-top: 8px; font-size: .85rem; }
+.t3-wn { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; min-width: 0; padding-inline: 8px; }
+.t3-wn b { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.t3-wn-a b { color: var(--a); }
+.t3-wn-b b { color: var(--b); }
+.t3-wbar { display: flex; gap: 2px; height: 12px; }
+.t3-wbar i { flex: 1; border-radius: 2px; background: var(--surface-2); }
+.t3-wbar i.wa { background: var(--a); }
+.t3-wbar i.wb { background: var(--b); }
+.t3-wsum { margin-top: 2px; font-size: .78rem; color: var(--muted); text-align: center; }
+.t3-drow .drow-bars { margin-top: 6px; }
+.t3-m { color: var(--muted); font-variant-numeric: tabular-nums; }
+table.t3-extra { min-width: 760px; }
+.t3-extra td:nth-child(1) code, .t3-extra td:nth-child(2) { white-space: nowrap; }
+.t3-extra td:nth-child(5) { min-width: 20em; }
+
+/* ロジック・設問 */
+table.t3-states-table { min-width: 980px; }
+.t3-states-table td.t3-neg { color: var(--muted); }
+.t3-states-table td.t3-best { font-weight: 800; color: var(--ok); background: var(--ok-soft); }
+.t3-inline { margin-left: 6px; }
+.t3-notjudged li span { color: var(--ink-2); }
+table.t3-wtable { min-width: 1000px; }
+.t3-wtable td:nth-child(2) { white-space: nowrap; }
+.t3-wtable td:nth-child(3) { min-width: 8.5em; }
+.t3-xtable td:nth-child(2) { white-space: nowrap; }
+table.t3-xtable { min-width: 820px; }
+.t3-qtable td.wtext { min-width: 200px; max-width: 300px; }
+.t3-h-swapped { color: var(--muted); }
+.t3-h-skipped { color: var(--warn); }
+table.t3-stmts { min-width: 1000px; }
+.t3-stmts td:nth-child(1) { min-width: 7em; }
+.t3-stmts td b { white-space: nowrap; }
+.t3-stmt { min-width: 170px; }
+table.t3-rounds { min-width: 1000px; }
+.t3-rounds td:nth-child(-n+2) { white-space: nowrap; }
+.t3-pairc { font-size: .8rem; min-width: 7.5em; }
+
+@media (max-width: 640px) {
+  .t3-subnav button { flex: 1; padding-inline: 2px; font-size: .88rem; }
+  .t3-mode-badge { margin-right: 4px; padding-inline: 8px; }
+  .t3-pair { grid-template-columns: 1fr; gap: 8px; }
+  .t3-card { min-height: 0; padding: 12px 14px 14px; }
+  .t3-card.picked { padding: 11px 13px 13px; }
+  .t3-card .t3-text { font-size: 1.05rem; }
+  .t3-cmp { grid-template-columns: 1fr; }
+  .t3-w { grid-template-columns: minmax(0, 1fr) minmax(64px, 1.3fr) minmax(0, 1fr); gap: 6px; font-size: .8rem; }
+  .t3-wn { padding-inline: 4px; gap: 4px; }
+}
