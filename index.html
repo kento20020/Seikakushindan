@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>16次元診断</title>
+  <meta name="description" content="恋人との喧嘩や気まずい場面での動き方を、8領域・16傾向で測る診断。判定はすべてブラウザ内で計算します。">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='9' width='12' height='14' rx='2' fill='%232E5E8C'/%3E%3Crect x='17' y='9' width='12' height='14' rx='2' fill='%23A3456F'/%3E%3C/svg%3E">
+  <!-- 相対パスのみ（GitHub Pages のサブパス /Seikakushindan/ で動かすため） -->
+  <link rel="stylesheet" href="./css/style.css">
+  <script type="module" src="./js/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">本文へ</a>
+  <header class="site-head">
+    <div class="wrap head-inner">
+      <a class="brand" href="#diagnose" aria-label="16次元診断 トップ">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+        <span class="brand-name">16次元診断</span>
+      </a>
+      <p class="brand-sub">喧嘩のときの動き方を、8つの軸の両側から測る</p>
+    </div>
+    <nav class="tabs" aria-label="ページ切り替え">
+      <div class="wrap tabs-inner">
+        <a href="#diagnose" data-tab="diagnose">診断</a>
+        <a href="#result" data-tab="result">結果</a>
+        <a href="#logic" data-tab="logic">ロジック</a>
+        <a href="#questions" data-tab="questions">設問</a>
+        <a href="#design" data-tab="design">設計</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="view" id="view-diagnose" data-view="diagnose" aria-label="診断"></section>
+    <section class="view" id="view-result" data-view="result" aria-label="結果" hidden></section>
+    <section class="view view-wide" id="view-logic" data-view="logic" aria-label="ロジック" hidden></section>
+    <section class="view view-wide" id="view-questions" data-view="questions" aria-label="設問" hidden></section>
+    <section class="view view-wide" id="view-design" data-view="design" aria-label="設計" hidden></section>
+    <noscript><p class="wrap">この診断は JavaScript で動きます。ブラウザの設定で JavaScript を有効にしてください。</p></noscript>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap foot-inner">
+      <p>判定はすべてこのブラウザの中で計算しています。回答がサーバーに送られることはありません（途中保存もこの端末の中だけです）。</p>
+      <p><a href="https://github.com/kento20020/Seikakushindan">GitHub リポジトリ</a></p>
+    </div>
+  </footer>
+</body>
+</html>
