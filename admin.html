@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>16次元診断 テスト集計</title>
+  <meta name="description" content="三択診断のテスト協力で送られてきたテキストをまとめて貼り付け、ブラウザの中だけで集計する管理者用ページ。">
+  <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='9' width='12' height='14' rx='2' fill='%232E5E8C'/%3E%3Crect x='17' y='9' width='12' height='14' rx='2' fill='%23A3456F'/%3E%3C/svg%3E">
+  <!-- 相対パスのみ（GitHub Pages のサブパス /Seikakushindan/ で動かすため） -->
+  <link rel="stylesheet" href="./css/admin.css">
+  <script type="module" src="./js/admin/admin.js"></script>
+</head>
+<body>
+  <a class="skip" href="#input">貼り付け欄へ</a>
+  <header class="ad-head">
+    <div class="wrap head-inner">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+      <div class="head-text">
+        <h1>16次元診断 テスト集計</h1>
+        <p class="head-sub">テスト協力で送られてきたテキストを、ブラウザの中だけで集計します</p>
+      </div>
+      <a class="back" href="./#three">診断ページへ</a>
+    </div>
+  </header>
+
+  <nav class="secnav" id="secnav" aria-label="この画面のセクション" hidden>
+    <div class="wrap secnav-in">
+      <a href="#s1">読み込み結果</a>
+      <a href="#s2">参加者</a>
+      <a href="#s3">領域の照合</a>
+      <a href="#s4">ブラインド</a>
+      <a href="#s5">カード評価</a>
+      <a href="#s6">設問</a>
+      <a href="#s7">見直し候補</a>
+      <a href="#s8">再採点</a>
+      <a href="#s9">出力</a>
+    </div>
+  </nav>
+
+  <main id="main" class="wrap">
+    <section class="howto" aria-labelledby="howto-h">
+      <h2 id="howto-h">使い方</h2>
+      <ol>
+        <li>参加者に次のURLを送る。
+          <div class="urlrow"><code id="fb-url"></code><button type="button" class="btn small" id="btn-copy-url">URLをコピー</button></div>
+        </li>
+        <li>送られてきたテキスト（LINE・メール・ファイルのどれでも）を、全員分まとめて下に貼る。</li>
+        <li>「集計する」を押す。</li>
+      </ol>
+      <p class="note">貼り付けたテキストは、このブラウザの中でしか処理しません（どこにも送信しません）。</p>
+    </section>
+
+    <section class="input" id="input" aria-labelledby="input-h">
+      <h2 id="input-h"><label for="fb-text">受け取ったテキストをまとめて貼り付け</label></h2>
+      <textarea id="fb-text" rows="9" spellcheck="false" autocomplete="off" placeholder="【16次元診断 テスト協力】コード: ab12 ／ …&#10;（ここから下の行も消さずに、全部送ってください）&#10;16DFB1|1a2b3c4d|{…}|END&#10;&#10;雑談や他の人の分が混ざっていても大丈夫です。複数人分をそのまま続けて貼ってください。"></textarea>
+      <p class="fb-info" id="fb-info" aria-live="polite"></p>
+      <div class="row">
+        <button type="button" class="btn primary big" id="btn-run" disabled>集計する</button>
+        <label class="btn" for="fb-files">ファイルを選ぶ（.txt・複数可）</label>
+        <input type="file" id="fb-files" class="visually-hidden" accept=".txt,text/plain" multiple>
+        <button type="button" class="btn" id="btn-sample">サンプルを読み込む</button>
+        <button type="button" class="btn ghost" id="btn-clear">消去</button>
+      </div>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <p class="note">最後に貼ったテキストは、この端末のブラウザ（localStorage）に控えとして残ります。共有のパソコンでは使い終わったら「消去」してください。</p>
+    </section>
+
+    <div id="results" class="results" hidden></div>
+    <noscript><p class="msg ng">この集計ページは JavaScript で動きます。ブラウザの設定で JavaScript を有効にしてください。</p></noscript>
+  </main>
+
+  <footer class="ad-foot">
+    <div class="wrap">
+      <p>集計の仕様：docs/feedback-spec.md §3。しきい値は js/admin/aggregate.js の先頭にまとめてあります（少人数の目安であり、判定ではありません）。</p>
+    </div>
+  </footer>
+</body>
+</html>

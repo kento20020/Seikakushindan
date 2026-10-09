@@ -11,6 +11,7 @@ import { store3, onChange3, restore3, setSub, SUBS, start3, resume3, toStart3, d
   runSample3, runProfile3, loadJSON3, sessionJSON, SAMPLES3, PROFILE_SAMPLES3 } from "./three_store.js";
 import { renderLogic3, renderQuestions3 } from "./three_logic.js";
 import { attachSwipe, isCoarsePointer, prefersReducedMotion } from "./swipe.js";
+import { fbBody, fbRendered, fbStartFields, fbStartOptions, fbStartBlocks, fbHidesDone, fbQuestionExtra, fbCard, fbResultTop, fbResultTail } from "./feedback.js";
 
 const HI = TH3.high, LO = TH3.low + 1;
 let root = null;
@@ -37,10 +38,10 @@ export function renderThree(el) {
   el.style.minHeight = keep ? `${el.offsetHeight}px` : "";
   let body;
   try {
-    body = sub === "result" ? resultView()
+    body = fbBody(sub) ?? (sub === "result" ? resultView()
       : sub === "logic" ? renderLogic3()
       : sub === "questions" ? renderQuestions3()
-      : asking ? questionView(s) : startView();
+      : asking ? questionView(s) : startView());
   } catch (err) {
     console.error(err);
     body = h("p", { class: "error" }, `表示中にエラーが起きました：${err.message}`);
@@ -57,6 +58,7 @@ export function renderThree(el) {
 
   const changed = lastSub !== null && lastSub !== sub;
   lastSub = sub; lastAsking = !!asking; lastEpoch = tabEpoch;
+  fbRendered(asking ? s.current() : null);   // テスト協力モード：回答時間の時計（質問画面が見えている間だけ進む）
   const seq = ++renderSeq;
   if (asking) {
     const card = el.querySelector(".t3-qcard");
@@ -147,16 +149,22 @@ function startView() {
     fresh ? h("div", { class: "resume" },
       h("p", null, "はじめたばかりの三択診断があります。"),
       h("div", { class: "row" }, h("button", { class: "btn primary", id: "t3-resume", onclick: resume3 }, "続きから答える"))) : null,
-    done ? h("div", { class: "resume" },
+    fbStartBlocks(),
+    done && !fbHidesDone() ? h("div", { class: "resume" },
       h("p", null, `前回の結果があります（${store3.source?.name ?? "あなたの回答"}）。`),
       h("div", { class: "row" }, h("button", { class: "btn", onclick: () => setSub("result") }, "結果を見る"))) : null,
 
-    h("form", { class: "start-form", onsubmit: (e) => { e.preventDefault(); start3({ adaptive: adaptive.checked }); } },
+    h("form", { class: "start-form", onsubmit: (e) => {
+      e.preventDefault();
+      const fb = fbStartOptions(e.currentTarget);   // テスト協力モードの同意・コード（モードがオフなら null、入力が足りなければ false）
+      if (fb !== false) start3({ adaptive: adaptive.checked, fb });
+    } },
       h("fieldset", { class: "opt" },
         h("legend", null, "聞き方"),
         h("label", { class: "check", for: "t3-adaptive" }, adaptive,
           h("span", null, h("b", null, "決めきれないところだけ追加で聞く（可変モード）"),
             h("small", null, `左右が拮抗した領域に最大${W_EXTRA_CAP}問、強さが曖昧な傾向に最大${X_EXTRA_CAP}問を足します（合計96問まで）。オフにすると固定の64問です。`)))),
+      fbStartFields(),
       h("div", { class: "row" }, h("button", { class: "btn primary big", type: "submit", id: "t3-start" }, inProgress ? "最初から診断する" : "三択で診断をはじめる"))),
 
     h("section", { class: "samples", "aria-labelledby": "t3-samples-h" },
@@ -207,7 +215,7 @@ function questionView(s) {
   const card = (side) => {
     const opt = q[side];
     return h("button", { type: "button", class: ["t3-card", `t3-${side}`, c.answer === side && "picked"], "data-side": side,
-      "aria-pressed": c.answer === side ? "true" : "false", onclick: () => answer3(side) },
+      "aria-pressed": c.answer === side ? "true" : "false", onclick: () => answer3(side, "t") },
       h("span", { class: "t3-key", "aria-hidden": "true" }, side === "left" ? "← 左" : "右 →"),
       h("span", { class: "t3-text" }, opt.text));
   };
@@ -243,6 +251,7 @@ function questionView(s) {
       h("div", { class: "t3-swipe-badge", "aria-hidden": "true" }),
       // 四方の手がかり（カードの縁に薄く出す。ドラッグした向きのものだけ濃くなる）
       cue("l", "← 左", true), cue("r", "右 →", true), cue("u", c.canSwap ? "↑ 変える" : "↑ 進む")),
+    fbQuestionExtra(c),   // テスト協力モードの「一言」（カードの外。スワイプの対象にならない）
     h("p", { class: "hint t3-hint", id: "t3-swipe-hint" }, coarse
       ? `← 左へスワイプ ／ 右へスワイプ → ／ ↑ ${c.canSwap ? "問題を変える" : "答えずに進む"}`
       : "カードをドラッグ／スワイプでも回答できます"),
@@ -276,13 +285,13 @@ document.addEventListener("keydown", (e) => {
   if (e.repeat || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.isComposing) return;
   const t = e.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
-  if (e.key === "ArrowLeft") { e.preventDefault(); answer3("left"); }
-  else if (e.key === "ArrowRight") { e.preventDefault(); answer3("right"); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); answer3("left", "k"); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); answer3("right", "k"); }
   else if (e.key === " " || e.code === "Space") {
     if (t && (t.tagName === "BUTTON" || t.tagName === "A" || t.tagName === "SUMMARY")) return;   // フォーカス中のボタンはそのまま押させる
     e.preventDefault();
     const c = s.current();
-    if (c.canSwap) swap3(); else skip3();
+    if (c.canSwap) swap3("k"); else skip3("k");
   }
 });
 
@@ -396,10 +405,10 @@ function bindSwipe(card, c) {
   const go = (dir, fn) => () => { enterFrom = ENTER_FROM[dir]; try { fn(); } finally { enterFrom = null; } };
   detachSwipe = attachSwipe(card, {
     ignore: SWIPE_IGNORE,
-    onLeft: go("left", () => answer3("left")),
-    onRight: go("right", () => answer3("right")),
-    onUp: go("up", c.canSwap ? swap3 : skip3),
-    onDown: c.index > 0 ? go("down", back3) : undefined,
+    onLeft: go("left", () => answer3("left", "s")),
+    onRight: go("right", () => answer3("right", "s")),
+    onUp: go("up", c.canSwap ? () => swap3("s") : () => skip3("s")),
+    onDown: c.index > 0 ? go("down", () => back3("s")) : undefined,
     onStart: () => { dismissTip(); holdClip(); card.classList.add("t3-dragging"); },
     onEnd: () => releaseClip(0),
     onProgress: ({ dir, progress, ready, dragging }) => {
@@ -418,11 +427,13 @@ function resultView() {
   if (!r) return emptyResult();
   return [
     resHeader(r),
+    fbResultTop(r),
     h("section", { class: "block", "aria-labelledby": "t3-res-patterns" },
       h("h2", { id: "t3-res-patterns" }, "あなたを表す解釈"),
       h("p", { class: "note" }, "左右（W）と強さ（X）から条件を満たしたパターンを集め、5択版と同じルールで重なりを避けながら2〜4本を選んでいます。"),
       h("div", { class: "pcards" }, byRole(r.select.chosen).map(hit => patternCard(hit, r))),
       r.select.chosen.length === 0 ? h("p", { class: "empty" }, "条件を満たすパターンがありませんでした。") : null),
+    fbResultTail(r),   // テスト協力モード：足りない特徴（自由記述）と「振り返りへ」
     r.source?.expected5 ? compareBlock(r) : null,
     h("section", { class: "block", "aria-labelledby": "t3-res-domains" },
       h("h2", { id: "t3-res-domains" }, "8領域の左右と16傾向の強さ"),
@@ -482,7 +493,7 @@ function patternCard(hit, r) {
   const why = `重要度 ${num(m.importance)} × 充足度 ${hit.sat.toFixed(2)}（余裕 ${signed(hit.margin)}・尺度 ${num(m.scale)}）＝ スコア ${hit.score.toFixed(2)}。` +
     (step ? `選択ステップ${step.k}で採用、有効スコア ${step.chosenEff.toFixed(2)}${reasons}。` : "") +
     ` 条件：${hit.details.map(d => `${d.label} ${signed(d.margin)}`).join("、")}。`;
-  return h("article", { class: ["pcard", `role-${ROLE_CLASS[hit.role] || "support"}`], "data-id": m.id, "data-role": hit.role },
+  return fbCard(h("article", { class: ["pcard", `role-${ROLE_CLASS[hit.role] || "support"}`], "data-id": m.id, "data-role": hit.role },
     h("div", { class: "pcard-top" },
       h("span", { class: "role-badge" }, hit.role),
       h("span", { class: "pkind" }, kindLabel(m)),
@@ -496,7 +507,7 @@ function patternCard(hit, r) {
       t.unique ? h("div", { class: "aside unique" }, h("h4", null, uniqueLabel(m)), h("p", null, t.unique)) : null,
       h("div", { class: "aside caveat" }, h("h4", null, "誤解しやすい点"), h("p", null, t.caveat)),
     ] : h("p", { class: "empty" }, "本文がありません。"),
-    h("p", { class: "why" }, h("b", null, "なぜ選ばれたか"), why));
+    h("p", { class: "why" }, h("b", null, "なぜ選ばれたか"), why)), hit);   // テスト協力モードなら評価欄を足す（それ以外はそのまま）
 }
 
 // ---------------------------------------------------------------- 5択版との比較

@@ -11,6 +11,8 @@ export const store3 = {
   result: null,      // session.result() ＋ source ＋ history
   screen: "start",   // 診断サブ画面 "start" | "question"
   sub: "diagnose",   // サブ画面 "diagnose" | "result" | "logic" | "questions"
+  fbMode: false,     // テスト協力モード（?fb=1 か開始画面のチェック）。オンのまま保存する
+  fb: null,          // テスト協力の記録（このセッションをテスト協力モードで始めたときだけ。js/feedback_collect.js）。screen "fb" はその画面
 };
 
 const listeners = new Set();
@@ -21,7 +23,8 @@ function build(session, source) { return { ...session.result(), source, history:
 
 function persist() {
   try {
-    const data = { sub: store3.sub, ...(store3.session ? { session: store3.session.toJSON(), source: store3.source } : {}) };
+    const data = { sub: store3.sub, ...(store3.fbMode ? { fbMode: true } : {}),
+      ...(store3.session ? { session: store3.session.toJSON(), source: store3.source, ...(store3.fb ? { fb: store3.fb } : {}) } : {}) };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch { /* 保存できない環境でもそのまま動かす */ }
 }
@@ -32,50 +35,74 @@ export function restore3() {
   restored = true;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const data = JSON.parse(raw);
-    if (SUBS.some(([k]) => k === data.sub)) store3.sub = data.sub;
-    if (data.session) {
-      store3.session = Session3.fromJSON(data.session);
-      store3.source = data.source || { type: "session", name: "あなたの回答" };
-      if (store3.session.isDone()) store3.result = build(store3.session, store3.source);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (SUBS.some(([k]) => k === data.sub)) store3.sub = data.sub;
+      store3.fbMode = data.fbMode === true;
+      if (data.session) {
+        store3.session = Session3.fromJSON(data.session);
+        store3.source = data.source || { type: "session", name: "あなたの回答" };
+        store3.fb = data.fb && typeof data.fb === "object" ? data.fb : null;
+        if (store3.session.isDone()) store3.result = build(store3.session, store3.source);
+      }
     }
-  } catch { store3.session = null; store3.result = null; store3.source = null; }
+  } catch { store3.session = null; store3.result = null; store3.source = null; store3.fb = null; }
+  // URL に ?fb=1 があればテスト協力モードをオンにして保存する（再読み込みしても続く）
+  try { if (new URLSearchParams(globalThis.location?.search || "").get("fb") === "1" && !store3.fbMode) { store3.fbMode = true; persist(); } } catch { /* 無視 */ }
 }
+
+// ---------------------------------------------------------------- テスト協力モード（js/ui/feedback.js から使う）
+/** 操作の通知（回答・差し替え・答えずに進む・戻る）。fn({ type, before: 操作前の current(), via: "s"|"t"|"k"|"x" }) */
+const actionHooks = new Set();
+export function onAction3(fn) { actionHooks.add(fn); }
+// via：スワイプ "s"／タップ "t"／キー "k"。ボタンの onclick に直接渡したときはイベントが来るのでタップ扱い
+const viaOf = (v) => v === "s" || v === "t" || v === "k" ? v : v && typeof v === "object" ? "t" : "x";
+function act(type, before, via) {
+  for (const fn of actionHooks) { try { fn({ type, before, via: viaOf(via) }); } catch (err) { console.error(err); } }
+}
+export function setFbMode3(on) { store3.fbMode = !!on; persist(); }
+/** 記録を書き換えたあとに保存（render: true なら再描画も） */
+export function save3({ render = false } = {}) { persist(); if (render) emit(); }
+/** テスト協力の画面（診断サブ画面の中）へ */
+export function showFb3() { store3.screen = "fb"; store3.sub = "diagnose"; persist(); emit(); }
 
 // ---------------------------------------------------------------- 画面の切り替え
 export function setSub(sub) { if (store3.sub !== sub) { store3.sub = sub; persist(); } emit(); }
 
 // ---------------------------------------------------------------- 診断
-export function start3({ adaptive }) {
+export function start3({ adaptive, fb = null }) {
   store3.session = createSession3({ adaptive });
   store3.source = { type: "session", name: "あなたの回答" };
   store3.result = null;
-  store3.screen = "question"; store3.sub = "diagnose";
+  store3.fb = fb || null;
+  store3.screen = fb && fb.phase === "code" ? "fb" : "question"; store3.sub = "diagnose";
   persist(); emit();
 }
 export function resume3() { store3.screen = "question"; store3.sub = "diagnose"; emit(); }
 export function toStart3() { store3.screen = "start"; emit(); }
 export function discard3() {
-  store3.session = null; store3.result = null; store3.source = null; store3.screen = "start";
+  store3.session = null; store3.result = null; store3.source = null; store3.fb = null; store3.screen = "start";
   persist(); emit();
 }
 
 function afterStep() {
   if (store3.session.isDone()) {
     store3.result = build(store3.session, store3.source);
-    store3.screen = "start"; store3.sub = "result";
+    // テスト協力モードでは、結果より先に質問（パート1）を出す
+    if (store3.fb) { store3.screen = "fb"; store3.sub = "diagnose"; }
+    else { store3.screen = "start"; store3.sub = "result"; }
   }
   persist(); emit();
 }
-export function answer3(side) { if (store3.session?.answer(side)) afterStep(); }
-export function skip3() { if (store3.session?.skip()) afterStep(); }
-export function swap3() { if (store3.session?.swap()) { persist(); emit(); } }
-export function back3() { if (store3.session?.back()) { persist(); emit(); } }
+// via（省略可）：どの入力で操作したか（テスト協力モードの記録用）
+export function answer3(side, via) { const before = store3.session?.current(); if (store3.session?.answer(side)) { act("answer", before, via); afterStep(); } }
+export function skip3(via) { const before = store3.session?.current(); if (store3.session?.skip()) { act("skip", before, via); afterStep(); } }
+export function swap3(via) { const before = store3.session?.current(); if (store3.session?.swap()) { act("swap", before, via); persist(); emit(); } }
+export function back3(via) { const before = store3.session?.current(); if (store3.session?.back()) { act("back", before, via); persist(); emit(); } }
 
 // ---------------------------------------------------------------- サンプル（5択回答からの推定）
 function showFinished(session, source, sub = "result") {
-  store3.session = session; store3.source = source;
+  store3.session = session; store3.source = source; store3.fb = null;
   store3.result = build(session, source);
   store3.screen = "start"; store3.sub = sub;
   persist(); emit();
@@ -105,6 +132,7 @@ export function loadJSON3(obj, filename = "JSON") {
   if (obj?.type === "seikaku16-three-session") {
     store3.session = Session3.fromJSON(obj);
     store3.source = { type: "session", name: `読み込んだ回答（${filename}）` };
+    store3.fb = null;
     if (store3.session.isDone()) return showFinished(store3.session, store3.source);
     store3.result = null; store3.screen = "question"; store3.sub = "diagnose";
     persist(); emit();
@@ -114,7 +142,7 @@ export function loadJSON3(obj, filename = "JSON") {
     if (!obj.session) throw new Error("結果JSONに回答（session）が入っていません");
     const session = Session3.fromJSON(obj.session);
     const source = { ...(obj.source || { type: "session" }), name: `${obj.source?.name ?? "結果"}（${filename}）` };
-    if (!session.isDone()) { store3.session = session; store3.source = source; store3.result = null; store3.screen = "question"; store3.sub = "diagnose"; persist(); emit(); return; }
+    if (!session.isDone()) { store3.session = session; store3.source = source; store3.result = null; store3.fb = null; store3.screen = "question"; store3.sub = "diagnose"; persist(); emit(); return; }
     return showFinished(session, source);
   }
   if (obj?.type === "seikaku16-session" || obj?.type === "seikaku16-result") {

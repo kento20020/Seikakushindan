@@ -623,3 +623,181 @@ html.t3-swiping, html.t3-swiping * { cursor: grabbing !important; }
 @media (prefers-reduced-motion: reduce) {
   .t3-qcard:not(.t3-dragging) .t3-cue { transition: none; }
 }
+
+/* ---------------------------------------------------------------- テスト協力モード（js/ui/feedback.js）。docs/feedback-spec.md */
+.fb-start { margin-top: 4px; }
+.fb-consent { margin-top: 10px; padding: 12px 14px 14px; border-radius: var(--radius); background: var(--surface-2); }
+.fb-consent-h { font-weight: 700; }
+.fb-list { margin: 6px 0 0; padding-left: 1.3em; color: var(--ink-2); font-size: .92rem; }
+.fb-list li { margin-top: 2px; }
+.fb-consent .note { margin-top: 10px; font-size: .86rem; }
+.fb-agree { margin-top: 12px; }
+.fb-field { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; }
+.fb-field-label { font-weight: 700; font-size: .92rem; }
+.fb-field-label small { font-weight: 400; color: var(--muted); }
+.fb-input { font: inherit; font-size: 1rem; min-height: 44px; padding: 8px 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; width: 100%; max-width: 20em; }
+.fb-err { margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-size: .9rem; color: var(--ng); background: var(--ng-soft); }
+
+/* 流れの目印（6段階） */
+.fb-steps { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.fb-steps-label { display: flex; align-items: baseline; gap: 10px; font-size: .82rem; color: var(--muted); }
+.fb-steps-label b { color: var(--ink); font-size: .78rem; letter-spacing: .04em; }
+.fb-steps-bar { display: flex; gap: 3px; height: 4px; }
+.fb-steps-bar i { flex: 1; border-radius: 2px; background: var(--line); }
+.fb-steps-bar i.done { background: var(--ink-2); }
+.fb-steps-bar i.now { background: var(--ink); }
+
+.fb-screen .lead { margin-top: 8px; }
+.fb-h1 { font-family: var(--serif); font-size: 1.55rem; }
+.fb-sec { margin-top: 30px; }
+.fb-sec > h2 { font-size: 1.12rem; }
+.fb-next { margin-top: 28px; }
+.fb-foot { margin-top: 26px; }
+
+/* 自動で作った参加者コード */
+.fb-code { margin-top: 10px; display: inline-block; padding: 8px 22px; font-family: var(--mono); font-size: 2.4rem; font-weight: 700; letter-spacing: .18em; line-height: 1.3; border: 2px dashed var(--ink-2); border-radius: var(--radius); background: var(--surface); }
+.fb-code-msg { margin-top: 10px; font-weight: 700; color: var(--ink); }
+.fb-codeview .row { margin-top: 22px; }
+
+/* 質問カードの下の「一言」（カードの外。スワイプの対象にしない） */
+.fb-hito { margin-top: 8px; }
+.fb-hito-row { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.fb-hito-btn {
+  font: inherit; font-size: .85rem; font-weight: 600; line-height: 1.3; min-height: 34px; padding: 4px 14px;
+  display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); background: transparent;
+  border: 1px solid var(--line-strong); border-radius: 999px; cursor: pointer;
+}
+.fb-hito-btn[aria-expanded="true"], .fb-hito-btn.on { color: var(--ink); border-color: var(--ink-2); background: var(--surface); }
+.fb-hito-count { font-size: .78rem; color: var(--ok); }
+.fb-code-chip { font-size: .75rem; color: var(--muted); }
+.fb-hito-panel { margin-top: 8px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.fb-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.fb-chip {
+  font: inherit; font-size: .85rem; line-height: 1.35; min-height: 42px; padding: 6px 8px; color: var(--ink-2);
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
+}
+.fb-chip[aria-pressed="true"] { color: var(--paper); background: var(--ink); border-color: var(--ink); font-weight: 700; }
+.fb-hito-note { margin-top: 6px; font-size: .78rem; color: var(--muted); }
+@media (hover: hover) { .fb-hito-btn:hover, .fb-chip:hover { border-color: var(--ink-2); } }
+
+/* 質問（パート1・3）の枠 */
+.fb-q { margin: 12px 0 0; padding: 12px 14px 14px; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.fb-q > legend { float: left; width: 100%; padding: 0; margin-bottom: 6px; font-weight: 700; line-height: 1.55; }
+.fb-q > legend + * { clear: both; }
+.fb-q > legend small { font-weight: 400; color: var(--muted); margin-left: .3em; }
+.fb-q .dnum { display: inline-flex; align-items: center; justify-content: center; min-width: 1.6em; height: 1.6em; margin-right: 8px; border-radius: 999px; font-size: .78rem; color: var(--paper); background: var(--ink-2); vertical-align: .1em; }
+.fb-q.fb-missing { border-color: var(--ng); box-shadow: 0 0 0 1px var(--ng); }
+.fb-q.fb-missing > legend::after { content: "未回答"; margin-left: 8px; padding: 0 8px; border-radius: 999px; font-size: .72rem; font-weight: 700; color: var(--ng); background: var(--ng-soft); vertical-align: .1em; }
+.fb-ab { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: .88rem; line-height: 1.65; color: var(--ink-2); }
+.fb-ab p { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 .6em; }
+.fb-ab b { white-space: nowrap; }
+.fb-ab-a b { color: var(--a); }
+.fb-ab-b b { color: var(--b); }
+
+/* 丸い選択肢（中身は本物のラジオボタン） */
+.fb-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.fb-pill { position: relative; display: inline-flex; cursor: pointer; }
+.fb-pill input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.fb-pill span {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 6px 14px; width: 100%;
+  font-size: .9rem; line-height: 1.4; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 999px;
+}
+.fb-pill input:checked + span { color: var(--paper); background: var(--ink); border-color: var(--ink); font-weight: 700; }
+.fb-pill input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+.fb-pill input:disabled, .fb-pill input:disabled + span { cursor: not-allowed; }
+@media (hover: hover) { .fb-pill:hover input:not(:checked):not(:disabled) + span { border-color: var(--ink-2); } }
+.fb-pills-5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.fb-pills-5 .fb-pill span { padding-inline: 4px; }
+.fb-pills-stack { flex-direction: column; }
+.fb-pills-stack .fb-pill span { justify-content: flex-start; text-align: left; border-radius: 8px; padding: 8px 14px; min-height: 44px; }
+.fb-pills-scale .fb-pill span { min-width: 44px; padding-inline: 10px; }
+.fb-pills-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fb-pills-3 .fb-pill span { padding-inline: 6px; }
+.fb-act-list.fb-off { opacity: .45; }
+.fb-recall { margin-top: 8px; padding: 10px 14px; border-left: 4px solid var(--ink-2); background: var(--surface-2); border-radius: 0 8px 8px 0; font-family: var(--serif); font-weight: 700; font-size: 1.02rem; }
+.fb-skipped { margin-top: 10px; font-size: .88rem; color: var(--warn); }
+
+/* ブラインド比較 */
+.fb-blind-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+.fb-blind-col { min-width: 0; padding: 12px 16px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.fb-blind-tag { display: inline-flex; align-items: center; justify-content: center; width: 2em; height: 2em; border-radius: 999px; font-size: 1.05rem; color: var(--paper); background: var(--ink); }
+.fb-blind-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.fb-blind-list li { padding: 10px 0; border-top: 1px solid var(--line); }
+.fb-blind-list li:first-child { border-top: 0; }
+.fb-blind-head { font-family: var(--serif); font-weight: 700; line-height: 1.6; }
+.fb-blind-one { margin-top: 4px; font-size: .9rem; color: var(--ink-2); line-height: 1.7; }
+.fb-ask { margin-top: 22px; font-weight: 700; font-size: 1.05rem; }
+.fb-blind-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.fb-blind-pick { min-height: 52px; font-weight: 700; }
+.fb-blind-pick[aria-pressed="true"] { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+
+.fb-gate { text-align: left; }
+
+/* 結果のカードごとの評価（パート2） */
+.fb-banner { margin-top: 16px; padding: 12px 14px; border-radius: var(--radius); background: var(--surface-2); font-size: .9rem; color: var(--ink-2); }
+.fb-banner .fb-steps { margin-bottom: 8px; }
+.fb-hint { margin-top: 10px; font-size: .78rem; font-weight: 700; color: var(--muted); }
+.fb-hint + .detail, .fb-hint + .scenes { margin-top: 4px; }
+.fb-sent { cursor: pointer; border-radius: 3px; -webkit-box-decoration-break: clone; box-decoration-break: clone; -webkit-tap-highlight-color: transparent; }
+@media (hover: hover) { .fb-sent:hover { background: var(--surface-2); } }
+.fb-sent[aria-pressed="true"] { color: var(--ink-2); background: var(--ng-soft); text-decoration: line-through; text-decoration-color: var(--ng); text-decoration-thickness: 1.5px; }
+.fb-sent[aria-pressed="true"]::after { content: "違う"; display: inline-block; margin: 0 .3em 0 .2em; padding: 0 6px; border-radius: 999px; font-size: .72rem; font-weight: 700; line-height: 1.6; text-decoration: none; color: var(--paper); background: var(--ng); vertical-align: .1em; }
+.fb-scene { display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; }
+.fb-yn { display: inline-flex; gap: 6px; margin: 2px 0 4px; }
+.fb-yn-btn, .fb-main-btn {
+  font: inherit; font-size: .82rem; line-height: 1.3; min-height: 34px; padding: 4px 12px; color: var(--ink-2);
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 999px; cursor: pointer;
+}
+.fb-main-btn { min-height: 40px; padding-inline: 16px; font-size: .9rem; }
+.fb-yn-btn[aria-pressed="true"], .fb-main-btn[aria-pressed="true"], .fb-rate-btn[aria-pressed="true"] { color: var(--paper); background: var(--ink); border-color: var(--ink); font-weight: 700; }
+.fb-cardfb { margin-top: 16px; padding: 12px 14px 14px; border: 1px dashed var(--line-strong); border-radius: var(--radius); background: var(--surface-2); }
+.fb-cardfb.fb-missing { border: 1px solid var(--ng); }
+.fb-cardfb-h { font-size: .82rem; color: var(--muted); letter-spacing: .04em; }
+.fb-lbl { margin-top: 8px; font-weight: 700; font-size: .9rem; }
+.fb-rate-row { display: flex; gap: 8px; margin-top: 6px; }
+.fb-rate-btn {
+  font: inherit; font-size: 1rem; font-weight: 600; width: 44px; height: 44px; padding: 0; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; cursor: pointer;
+}
+.fb-rate-ends { display: flex; justify-content: space-between; max-width: 252px; margin-top: 4px; font-size: .74rem; color: var(--muted); }
+.fb-main { margin-top: 10px; }
+.fb-main-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.fb-tail .fb-textarea { margin-top: 10px; }
+.fb-textarea { display: block; width: 100%; font: inherit; font-size: 1rem; line-height: 1.6; padding: 10px 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; resize: vertical; }
+
+/* 振り返り（パート3） */
+.fb-why { font-size: .78rem; font-weight: 600; color: var(--muted); }
+.fb-hard-stem { font-family: var(--serif); font-weight: 700; line-height: 1.6; }
+.fb-hard-stem.fb-x { font-family: var(--sans); font-size: .85rem; font-weight: 600; color: var(--muted); }
+.fb-hard-opts { margin: 6px 0 0; padding-left: 1.2em; font-size: .92rem; color: var(--ink-2); line-height: 1.7; }
+.fb-hard-opts li { margin-top: 2px; }
+.fb-hard .fb-pills { margin-top: 6px; }
+.fb-hard .fb-pill span { font-size: .84rem; padding-inline: 12px; min-height: 38px; }
+
+/* 送信画面 */
+.fb-send-lead { margin-top: 12px; padding: 12px 14px; border-left: 4px solid var(--ink); border-radius: 0 8px 8px 0; background: var(--surface-2); font-weight: 800; font-size: 1.08rem; line-height: 1.6; }
+.fb-text { display: block; width: 100%; margin-top: 14px; height: 15em; padding: 10px 12px; font-family: var(--mono); font-size: .78rem; line-height: 1.55; word-break: break-all; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; resize: vertical; }
+.fb-count { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-top: 6px; font-size: .85rem; color: var(--muted); }
+.fb-copied { color: var(--ok); font-weight: 700; }
+.fb-send-btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.fb-send-btns .btn { flex: 1 1 8em; }
+.fb-codebox { margin-top: 22px; padding: 12px 14px; border: 1px dashed var(--line-strong); border-radius: var(--radius); }
+.fb-codebox .fb-code-msg { margin-top: 4px; font-size: .9rem; }
+.fb-code-inline { font-family: var(--mono); font-size: 1.3rem; letter-spacing: .12em; margin-left: .3em; }
+.fb-send-links { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 14px; }
+.fb-restart { color: var(--ng); }
+.fb-resume-send { border-style: dashed; }
+
+.fb-hito-btn, .fb-chip, .fb-pill, .fb-yn-btn, .fb-main-btn, .fb-rate-btn, .fb-blind-pick { -webkit-tap-highlight-color: transparent; }
+
+.foot-admin { font-size: .78rem; color: var(--muted); }
+
+@media (max-width: 640px) {
+  .fb-h1 { font-size: 1.35rem; }
+  .fb-chips { grid-template-columns: 1fr 1fr; }
+  .fb-pills-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .fb-blind-grid { grid-template-columns: 1fr; }
+  .fb-q { padding: 10px 12px 12px; }
+  .fb-code { font-size: 2rem; }
+  .fb-send-btns .btn { flex-basis: 100%; }
+}

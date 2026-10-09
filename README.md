@@ -162,3 +162,13 @@ js/data/samples3.js     三択版のサンプル（samples.js を参照）と5�
 js/ui/three*.js         三択診断タブの画面
 tests/engine3.test.mjs, tests/adaptive3.test.mjs
 ```
+
+## テスト協力モード（三択版・フィードバック収集）
+
+サーバーなしで、数人に三択版を受けてもらい、回答ログと感想を「テキストをコピーして送ってもらう」だけで集める仕組みです。仕様は [docs/feedback-spec.md](docs/feedback-spec.md)。
+
+1. 参加者に `https://kento20020.github.io/Seikakushindan/?fb=1#three` を送る（三択タブの開始画面のチェックでもON）
+2. 参加者は 同意・参加者コード → 診断（回答時間・入力方法・差し替え・「一言」を自動記録）→ 結果を見る前の自己評価と直近の喧嘩での行動 → ブラインド比較 → 結果カードごとの評価 → 振り返り → 送信画面で「共有する／コピー／ファイルに保存」
+3. 受け取ったテキストを全員分まとめて [admin.html](admin.html)（フッターの「テスト集計（担当者用）」）に貼ると、参加者一覧・領域ごとの照合（診断 vs 自己評価 vs 実際の行動）・ブラインド比較・カード評価・設問ごとの表・見直し候補・現在のロジックでの再採点・CSV と「Claude に貼る用」要約が出る
+
+送信テキストの最後の行（`16DFB1|crc|JSON|END`）が機械用で、CRC で途中切れ・書き換わりを検出します。共通の読み書きは `js/feedback_format.js`。テスト用のサンプルは `node tools/make_fb_fixtures.mjs` で `tests/fixtures/` に作り直せます。
