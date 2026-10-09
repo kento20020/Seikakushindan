@@ -801,3 +801,6 @@ html.t3-swiping, html.t3-swiping * { cursor: grabbing !important; }
   .fb-code { font-size: 2rem; }
   .fb-send-btns .btn { flex-basis: 100%; }
 }
+
+/* 既定は三択診断。上部ナビ（5択版のタブ）は 5択版の画面か ?five=1 のときだけ出す（js/app.js が hidden を切り替える） */
+.tabs[hidden] { display: none; }
