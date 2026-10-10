@@ -1,10 +1,13 @@
 // 出力：参加者 CSV、設問 CSV、「Claude に貼る用」Markdown 要約。仕様：docs/feedback-spec.md §3 の9
-import { DOMAINS, STATE_LABEL } from "../engine3.js";
-import { QUESTIONS3 } from "../data/questions3.js";
+import { DOMAINS, STATE_LABEL, LOWCONF_LABEL } from "../engine3.js";
+import { THREE_VERSIONS } from "../three_version.js";
 import {
   FLAG_CODES, HARD_CODES, FLAG_SHORT, INP_LABEL, TIME_LABEL, MODE_LABEL, TYPE_LABEL, REVIEW, REVIEW_NOTE,
-  domainMatrix, itemPlain, itemTitle, tsLabel, fmtDur,
+  domainMatrix, itemPlain, itemTitle, itemIdLabel, tsLabel, fmtDur,
 } from "./aggregate.js";
+import { RESCORE_MODES } from "./rescore.js";
+
+const versionsLine = (versions) => Object.entries(versions || {}).filter(([, n]) => n).map(([v, n]) => `${v}（${THREE_VERSIONS[v].bankVersion}）${n}件`).join("・") || "なし";
 
 const DOMAIN_NOS = Object.keys(DOMAINS).map(Number);
 
@@ -32,7 +35,7 @@ export function participantCsvRows(model) {
   for (const d of DOMAIN_NOS) head.push(`領域${d}_状態`, `領域${d}_状態名`, `領域${d}_W_A`, `領域${d}_W_B`, `領域${d}_self`, `領域${d}_act`, `領域${d}_self照合`, `領域${d}_act照合`);
   head.push("self一致数", "self比較数", "act一致数", "act比較数", "ブラインド選択", "ブラインド比較対象", "ブラインド順",
     "カード平均当てはまり度", "カード評価数", "違う印の数", "場面ありそう", "場面なさそう", "主軸yes", "主軸partly", "主軸no",
-    "所要時間の体感", "スワイプ評価", "迷った設問", "足りない特徴", "ひとこと");
+    "所要時間の体感", "スワイプ評価", "迷った設問", "足りない特徴", "ひとこと", "設問の版(qv)");
   const rows = [head];
   model.sessions.forEach((s, si) => {
     const r = dm.rows[si];
@@ -48,7 +51,7 @@ export function participantCsvRows(model) {
       fbCards.reduce((n, c) => n + (Array.isArray(c[3]) ? c[3].filter(x => x === "y").length : 0), 0),
       fbCards.reduce((n, c) => n + (Array.isArray(c[3]) ? c[3].filter(x => x === "n").length : 0), 0),
       fbCards.filter(c => c[4] === "yes").length, fbCards.filter(c => c[4] === "partly").length, fbCards.filter(c => c[4] === "no").length,
-      TIME_LABEL[s.fb?.time] ?? s.fb?.time, s.fb?.swipe, (Array.isArray(s.fb?.hard) ? s.fb.hard : []).map(h => `${h[0]}:${h[1]}`).join(" "), s.fb?.missing, s.fb?.free);
+      TIME_LABEL[s.fb?.time] ?? s.fb?.time, s.fb?.swipe, (Array.isArray(s.fb?.hard) ? s.fb.hard : []).map(h => `${h[0]}:${h[1]}`).join(" "), s.fb?.missing, s.fb?.free, s.qv);
     rows.push(row);
   });
   return rows;
@@ -60,7 +63,7 @@ export function itemCsvRows(model) {
   for (const c of FLAG_CODES) head.push(`一言_${c}`);
   head.push("一言を付けた人数");
   for (const c of HARD_CODES) head.push(`振り返り_${c}`);
-  head.push("振り返りで迷った人数", "見直し理由");
+  head.push("振り返りで迷った人数", "見直し理由", "設問の版");
   const rows = [head];
   for (const x of model.items.items) {
     if (!x.shown) continue;
@@ -69,7 +72,7 @@ export function itemCsvRows(model) {
     for (const c of FLAG_CODES) row.push(x.flags[c]);
     row.push(x.flagPeople);
     for (const c of HARD_CODES) row.push(x.hard[c]);
-    row.push(x.hardNonOkPeople, x.reasons.map(r => r.text).join(" ／ "));
+    row.push(x.hardNonOkPeople, x.reasons.map(r => r.text).join(" ／ "), x.variant || "");
     rows.push(row);
   }
   return rows;
@@ -89,7 +92,7 @@ export function buildMarkdown(model, { rescore = null } = {}) {
   const { parsed, used } = model;
   const excluded = model.sessions.length - used.length;
   out.push(`# 16次元診断（三択版）テスト協力 集計`);
-  out.push(`- 設問版: ${QUESTIONS3.version}／集計対象: ${model.people}人・${used.length}セッション${excluded ? `（再検査 ${excluded}件は集計から除外。参加者一覧と再検査の比較には載せた）` : ""}`);
+  out.push(`- 設問の版: ${versionsLine(model.versions)}／集計対象: ${model.people}人・${used.length}セッション${excluded ? `（再検査 ${excluded}件は集計から除外。参加者一覧と再検査の比較には載せた）` : ""}`);
   out.push(`- 読み込み: 機械用の行 ${parsed.markers}件のうち有効 ${model.sessions.length}件、エラー ${parsed.errors.length}件、重複 ${parsed.duplicates.length}件、再検査の組 ${model.retests.length}`);
   out.push("");
   out.push(`## 読み方`);
@@ -142,7 +145,7 @@ export function buildMarkdown(model, { rescore = null } = {}) {
     const marked = c.sentences.map((s, i) => ({ s, i })).filter(x => x.s.marks);
     if (marked.length) for (const { s, i } of marked) out.push(`- 「違う」${s.marks}人（${s.by.join("、")}）: ${i + 1}文目 ${q(s.text)}`);
     else out.push(`- 「違う」の印: なし`);
-    c.scenes.forEach((sc, i) => { if (sc.y || sc.n) out.push(`- 場面${i + 1} ${q(sc.text)}: ありそう${sc.y}／なさそう${sc.n}`); });
+    c.scenes.forEach((sc, i) => { if (sc.y || sc.n) out.push(`- ${sc.label ?? `場面${i + 1}`} ${q(sc.text)}: ありそう${sc.y}／なさそう${sc.n}`); });
     if (c.axis.yes || c.axis.partly || c.axis.no) out.push(`- 「喧嘩の中心か」: はい${c.axis.yes}／一部${c.axis.partly}／いいえ${c.axis.no}`);
   }
   out.push("");
@@ -151,7 +154,7 @@ export function buildMarkdown(model, { rescore = null } = {}) {
   const sig = model.items.items.filter(x => x.flagTotal || x.swappedAway || x.skips || x.hardTotal || x.reasons.length);
   const quiet = model.items.items.filter(x => x.shown).length - sig.length;
   out.push(table(["設問", "文", "表示", "A／左", "B／右", "差替", "skip", "秒(平均/最大)", "一言", "振り返り"],
-    sig.map(x => [x.id, itemPlain(x), x.shown, x.pickFirst, x.pickSecond, x.swappedAway, x.skips, x.timeN ? `${sec(x.timeMean)}/${sec(x.timeMax)}` : "—", flagsText(x.flags, FLAG_CODES), flagsText(x.hard, HARD_CODES)])));
+    sig.map(x => [itemIdLabel(x), itemPlain(x), x.shown, x.pickFirst, x.pickSecond, x.swappedAway, x.skips, x.timeN ? `${sec(x.timeMean)}/${sec(x.timeMax)}` : "—", flagsText(x.flags, FLAG_CODES), flagsText(x.hard, HARD_CODES)])));
   out.push(`- 反応なしの設問 ${quiet}件は省略。全体の回答時間の中央値は ${sec(model.items.overallMedian)}秒。W の「A／左」「B／右」は A行動・B行動、X は左右に出る行動文（文中の「左（傾向）」「右（傾向）」）を選んだ数。`);
   out.push("");
 
@@ -172,10 +175,13 @@ export function buildMarkdown(model, { rescore = null } = {}) {
   }
 
   if (rescore && rescore.diff) {
-    out.push(`## 8. 再採点（いまのロジックで作り直した結果が当時と違う人）`);
+    const lc = (o) => Object.keys(o || {}).map(d => `領域${d}(${(o[d].reasons || []).map(x => LOWCONF_LABEL[x]).join("・")})`).join(" ") || "なし";
+    out.push(`## 8. 再採点（${RESCORE_MODES[rescore.mode || "then"]}で作り直した結果が当時と違う人）`);
+    if (rescore.mode === "v2") out.push(`- v2 のロジック（確度低 ×0.8・矛盾枠の向きの条件）で、当時答えた設問だけを採点し直した。追加質問の出し方（計画）は再現できない。`);
     for (const r of rescore.rows.filter(x => x.status === "diff")) {
-      out.push(`- ${r.session.code}（${r.session.tsLabel}）: ${[
+      out.push(`- ${r.session.code}（${r.session.tsLabel}・${r.qv}）: ${[
         r.diff.chosen.same ? null : `採用 ${r.diff.chosen.then.map(c => c.join("/")).join(" ")} → ${r.diff.chosen.now.map(c => c.join("/")).join(" ")}`,
+        r.lowConf && !r.lowConf.same ? `確度低 ${lc(r.lowConf.then)} → ${lc(r.lowConf.now)}` : null,
         ...r.diff.states.map(s => `領域${s.d}の状態 ${s.then ?? "なし"}→${s.now ?? "なし"}`),
         r.diff.w.length ? `W ${r.diff.w.map(x => `領域${x.d} ${x.then ? x.then.join(":") : "?"}→${x.now.join(":")}`).join("、")}` : null,
         r.diff.lv.length ? `level ${r.diff.lv.map(x => `${x.trait} ${x.then ?? "?"}→${x.now}`).join("、")}` : null].filter(Boolean).join("；")}`);

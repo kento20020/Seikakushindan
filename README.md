@@ -108,6 +108,7 @@ python3 -m http.server 8000
 node tests/engine.test.mjs     # エンジンが Python 参照実装（tests/expected_v2.json）と一致するか
 node tests/patterns.test.mjs   # 172本すべてに本文があり、docs/design.md と一致するか
 node tests/adaptive.test.mjs   # 可変質問票（サンプル再現・追加質問の上限・言い換えの記録・固定80問）
+for t in tests/*.test.mjs; do node "$t"; done   # 全部（三択版 v1／v2・テスト協力・集計を含む）
 ```
 
 ## パターン本文を直すには
@@ -161,13 +162,34 @@ node tests/adaptive.test.mjs   # 可変質問票（サンプル再現・追加�
 - キーボード：← 左／→ 右／Space 問題を変える（使い切ったら答えずに進む）
 
 ```
-js/engine3.js           三択版の判定（wMargin・domMargin3・7状態・パターンの余裕・select3）
-js/adaptive3.js         三択版の質問票の状態機械と、5択回答／スコアからの変換（fromLikertAnswers・fromScores）
-js/data/questions3.js   三択版の設問バンク（W 48組・X 行動文64本・xRounds）
+js/three_version.js     三択版の設問の版（v1／v2）の一覧と既定（DEFAULT_THREE_VERSION）、版の決め方（resolveVersion）
+js/engine3.js           三択版の判定（wMargin・domMargin3・7状態・パターンの余裕・select3。v2 の確度低 ×0.8・矛盾枠の向きの条件）
+js/adaptive3.js         三択版の質問票の状態機械と、5択回答／スコアからの変換（fromLikertAnswers・fromScores）。版ごとの設問の索引（bankFor）
+js/data/questions3.js   三択版の設問バンク v1（W 48組・X 行動文64本・xRounds）
+js/data/questions3_v2.js 三択版の設問バンク v2（W 10問を書き換え・X の組を4か所入れ替え。変更点は changesFromV1）
+js/data/scenes_v2.js    v2 で差し替える場面例（パターンID → [場面1, 場面2]）
 js/data/samples3.js     三択版のサンプル（samples.js を参照）と5択版の選択（比較用）
 js/ui/three*.js         三択診断タブの画面
-tests/engine3.test.mjs, tests/adaptive3.test.mjs
+tests/engine3.test.mjs, tests/adaptive3.test.mjs, tests/version3.test.mjs
 ```
+
+### 設問の版（v1／v2）と切り替え
+
+三択版には2つの版があります。**既定は v2**（5人テストの結果で直した版）で、v1 もファイル・ロジックとも残してあります。仕様は [`docs/three-choice-logic.md`](docs/three-choice-logic.md) の「v2（3choice-2026-10-10）」。
+
+| | v1（3choice-2026-10-08） | v2（3choice-2026-10-10） |
+| --- | --- | --- |
+| 設問 | `questions3.js` | `questions3_v2.js`（W 10問を書き換え、X の組を4か所入れ替え） |
+| 追加質問 | W追加は拮抗した領域だけ。上限 W16・X16（最大96問） | 拮抗 → W と X の向きが逆 → 優勢（弱）の順。X追加に向きが逆の領域の両傾向。上限 W8・X8（最大80問） |
+| 判定 | §3 のとおり | 確度低の領域を含むパターン（形状を除く）×0.8、矛盾枠は W と X の向きがそろう領域だけ |
+| 画面 | — | 1問目の前に採点しない練習カード、場面例の差し替え（`scenes_v2.js`）、結果に「確度低」 |
+
+- **一時的に v1 で開く**：URL に `?qv=v1` を付ける（例 `https://kento20020.github.io/Seikakushindan/?qv=v1#three`、テスト協力なら `?fb=1&qv=v1#three`）。`?qv=v2` で v2。開始画面の「設問の版」でも選べます
+- **既定を v1 に戻す**：`js/three_version.js` の `DEFAULT_THREE_VERSION = "v2"` を `"v1"` にする（1行。テストは `tests/version3.test.mjs` の「仕様の既定は v2」の確認1か所だけ直す）
+- 版の決まり方：URL の `?qv=` ＞ 保存中のセッションの版（途中再開は始めた版のまま）＞ 既定。サンプル（石原・別宮・P1〜P5）は開始画面で選んでいる版で流します
+- ライブラリとしての既定（`createSession3()` に `version` を渡さないとき）は互換のため v1。画面は常に解決した版を渡します
+- 送信テキスト（テスト協力モード）には `app`（設問バンクの version）と `qv` が入り、集計ページは v1・v2 を一緒に読めます（再採点で「v2 のロジック」に切り替えて比べることもできます）
+- **v1 だけの状態に完全に戻す**：コミット `2fc9f11`（v2 を入れる前の最後の v1 だけの状態）。`git checkout 2fc9f11 -- js css index.html admin.html tests docs README.md` などで戻せます
 
 ## テスト協力モード（三択版・フィードバック収集）
 

@@ -6,7 +6,8 @@
 
 import { decodeAll, FB_TAG } from "../feedback_format.js";
 import { QUESTIONS3 } from "../data/questions3.js";
-import { ITEM3, SRC_LABEL, ROUND_USE } from "../adaptive3.js";
+import { ITEM3, SRC_LABEL, ROUND_USE, bankFor } from "../adaptive3.js";
+import { THREE_VERSIONS, isVersion, versionFromBank, scenesFor, scenesChanged } from "../three_version.js";
 import { DOMAINS, STATE_LABEL, LEFT_RATE_HIGH, LEFT_RATE_LOW } from "../engine3.js";
 import { PATTERN_BY_ID } from "../data/patterns.js";
 
@@ -42,6 +43,29 @@ export const MODE_LABEL = { a: "可変", f: "固定64" };
 
 const TI = QUESTIONS3.traitIndex;
 const DOMAIN_NOS = Object.keys(DOMAINS).map(Number);
+
+// ---------------------------------------------------------------- 設問の版（v1／v2）
+/** 既知の設問バンクの version（app） */
+export const KNOWN_APPS = Object.values(THREE_VERSIONS).map(v => v.bankVersion);
+/**
+ * 送信テキストの版：qv（"v1" | "v2"）があればそれ、無ければ app（設問バンクの version）から。どちらも無い・知らない値なら v1。
+ * qv は v2 対応のあとに足した項目なので、それより前の送信（v1）には無い
+ */
+export function payloadQv(p) {
+  if (isVersion(p?.qv)) return p.qv;
+  return versionFromBank(p?.app) ?? "v1";
+}
+/** 版 qv の設問が v1 と同じ文か（W：場面・A・B、X：左右の傾向と行動文） */
+export function itemSameAsV1(id, qv) {
+  if (qv === "v1") return true;
+  const a = bankFor("v1").ITEM3[id], b = bankFor(qv).ITEM3[id];
+  if (!a || !b) return !a && !b;
+  if (a.kind !== b.kind) return false;
+  return a.kind === "W" ? a.stem === b.stem && a.a === b.a && a.b === b.b
+    : a.left === b.left && a.right === b.right && a.leftText === b.leftText && a.rightText === b.rightText;
+}
+/** 設問表の行のキー：v1 と同じ文なら id のまま（版をまたいで合算）、違えば id_版（別の行） */
+export const itemRowKey = (id, qv = "v1") => itemSameAsV1(id, qv) ? id : `${id}_${qv}`;
 
 // ---------------------------------------------------------------- 小さな道具
 export const median = (arr) => {
@@ -113,7 +137,7 @@ function buildSession(item, order) {
   const leftRate = L + R ? L / (L + R) : null;
   const s = {
     id: `${normCode(p.code)}|${p.ts}`, code: String(p.code), codeKey: normCode(p.code), ts: String(p.ts), tsMs: Date.parse(p.ts), tsLabel: tsLabel(p.ts),
-    mode: p.mode, dur: Number.isFinite(+p.dur) ? +p.dur : null, back: +p.back || 0, ua: p.ua, app: p.app, crc: item.crc, order,
+    mode: p.mode, dur: Number.isFinite(+p.dur) ? +p.dur : null, back: +p.back || 0, ua: p.ua, app: p.app, qv: payloadQv(p), crc: item.crc, order,
     payload: p, rec, badRec: bad.length,
     res: p.res && typeof p.res === "object" ? p.res : null, fb: p.fb && typeof p.fb === "object" ? p.fb : {},
     n: rec.length, answered: L + R, left: L, right: R, skips: rec.filter(r => r.ans === "K").length,
@@ -164,15 +188,17 @@ export function parseInput(text) {
   }
   const warnings = [];
   const apps = uniq(sessions.map(s => s.app).filter(Boolean));
-  const mismatched = sessions.filter(s => s.app !== QUESTIONS3.version);
-  if (mismatched.length) warnings.push(`設問版が現在（${QUESTIONS3.version}）と違うものが ${mismatched.length} 件あります（${uniq(mismatched.map(s => s.app ?? "なし")).join("、")}）。設問の文や再採点がずれる可能性があります。`);
+  const mismatched = sessions.filter(s => !KNOWN_APPS.includes(s.app));
+  if (mismatched.length) warnings.push(`設問版が既知の版（${KNOWN_APPS.join("、")}）と違うものが ${mismatched.length} 件あります（${uniq(mismatched.map(s => s.app ?? "なし")).join("、")}）。v1 として読みますが、設問の文や再採点がずれる可能性があります。`);
   for (const s of sessions) {
     if (s.badRec) warnings.push(`${s.code}（${s.tsLabel}）：回答の行 ${s.badRec} 件が読めず除きました。`);
-    const unknown = uniq(s.rec.flatMap(r => [r.itemId, ...r.shown.map(x => x.itemId)]).filter(id => !ITEM3[id]));
+    const I3 = bankFor(s.qv).ITEM3;
+    const unknown = uniq(s.rec.flatMap(r => [r.itemId, ...r.shown.map(x => x.itemId)]).filter(id => !I3[id]));
     if (unknown.length) warnings.push(`${s.code}（${s.tsLabel}）：今の設問バンクにない id があります（${unknown.slice(0, 5).join("、")}${unknown.length > 5 ? "…" : ""}）。`);
     if (!s.res) warnings.push(`${s.code}（${s.tsLabel}）：結果（res）がありません。`);
   }
-  return { sessions, errors, duplicates, markers: segs.length, groups: retests, warnings, apps };
+  const versions = Object.fromEntries(Object.keys(THREE_VERSIONS).map(v => [v, sessions.filter(s => s.qv === v).length]));
+  return { sessions, errors, duplicates, markers: segs.length, groups: retests, warnings, apps, versions };
 }
 
 // ---------------------------------------------------------------- 2. 参加者一覧
@@ -267,16 +293,26 @@ export function cardSummary(sessions) {
     if (!byId.has(c.id)) {
       const pat = PATTERN_BY_ID[c.id];
       byId.set(c.id, { id: c.id, known: !!pat, headline: pat?.headline || "（今のパターン表にない id）", one: pat?.text?.one || "", sentences: splitSentences(pat?.text?.detail).map(t => ({ text: t, marks: 0, by: [] })),
-        scenes: (pat?.text?.scenes || ["", ""]).map(t => ({ text: t, y: 0, n: 0, blank: 0 })), n: 0, ratings: [], roles: [], axis: { yes: 0, partly: 0, no: 0, blank: 0 }, people: [] });
+        scenes: (pat?.text?.scenes || ["", ""]).map((t, k) => ({ text: t, y: 0, n: 0, blank: 0, label: `場面${k + 1}`, qv: null })), vscenes: {}, n: 0, ratings: [], roles: [], axis: { yes: 0, partly: 0, no: 0, blank: 0 }, people: [] });
     }
     const x = byId.get(c.id);
+    // 場面例が版で差し替わっていれば（v2 の scenes_v2.js）、その版の文として別に数える
+    const sceneList = scenesChanged(c.id, s.qv)
+      ? (x.vscenes[s.qv] ||= scenesFor(c.id, s.qv).map((t, k) => ({ text: t, y: 0, n: 0, blank: 0, label: `場面${k + 1}（${s.qv}）`, qv: s.qv })))
+      : x.scenes;
     x.n++; x.people.push(s.code); if (c.rating > 0) x.ratings.push(c.rating);
     const role = roleOf(s, c.id); if (role) x.roles.push(role);
     for (const i of uniq(c.bad)) { const sent = x.sentences[i - base]; if (sent) { sent.marks++; sent.by.push(s.code); } }
-    c.scenes.forEach((v, k) => { const sc = x.scenes[k]; if (!sc) return; if (v === "y") sc.y++; else if (v === "n") sc.n++; else sc.blank++; });
+    c.scenes.forEach((v, k) => { const sc = sceneList[k]; if (!sc) return; if (v === "y") sc.y++; else if (v === "n") sc.n++; else sc.blank++; });
     if (role === "主軸" || c.axis) { if (c.axis in AXIS_LABEL) x.axis[c.axis]++; else x.axis.blank++; }
   }
-  const cards = [...byId.values()].map(x => ({ ...x, nRated: x.ratings.length, mean: mean(x.ratings), roles: uniq(x.roles) }));
+  const cards = [...byId.values()].map(x => {
+    const extra = Object.values(x.vscenes).flat();
+    const scenes = extra.length ? [...x.scenes.map(sc => ({ ...sc, label: `${sc.label}（v1）` })), ...extra] : x.scenes;
+    const out = { ...x, scenes, nRated: x.ratings.length, mean: mean(x.ratings), roles: uniq(x.roles) };
+    delete out.vscenes;
+    return out;
+  });
   cards.sort((a, b) => (a.mean ?? 99) - (b.mean ?? 99) || b.n - a.n || a.id.localeCompare(b.id));
   const texts = [];
   for (const s of sessions) for (const k of ["missing", "free"]) { const t = String(s.fb?.[k] ?? "").trim(); if (t) texts.push({ code: s.code, kind: k, text: t }); }
@@ -285,15 +321,16 @@ export function cardSummary(sessions) {
 }
 
 // ---------------------------------------------------------------- 6. 設問ごとの表
-export function itemInfo(id) {
-  const q = ITEM3[id];
-  if (!q) return { id, known: false, kind: id.startsWith("X") ? "X" : "W", domain: null, round: null, src: "", srcLabel: "不明", stem: "（今の設問バンクにない id）", first: { trait: null, label: "1" }, second: { trait: null, label: "2" }, textFirst: "", textSecond: "" };
+/** 設問の表示用の情報。qv（版）の設問バンクから（省略時 v1） */
+export function itemInfo(id, qv = "v1") {
+  const q = bankFor(qv).ITEM3[id];
+  if (!q) return { id, key: id, qv, variant: null, known: false, kind: id.startsWith("X") ? "X" : "W", domain: null, round: null, src: "", srcLabel: "不明", stem: "（今の設問バンクにない id）", first: { trait: null, label: "1" }, second: { trait: null, label: "2" }, textFirst: "", textSecond: "" };
   if (q.kind === "W") {
     const D = DOMAINS[q.domain];
-    return { id, known: true, kind: "W", domain: q.domain, domainName: D.name, round: null, src: q.src, srcLabel: SRC_LABEL[q.src] || q.src, stem: q.stem,
+    return { id, key: itemRowKey(id, qv), qv, variant: null, known: true, kind: "W", domain: q.domain, domainName: D.name, round: null, src: q.src, srcLabel: SRC_LABEL[q.src] || q.src, stem: q.stem,
       first: { trait: D.a, label: "A" }, second: { trait: D.b, label: "B" }, textFirst: q.a, textSecond: q.b, source: q.source || null };
   }
-  return { id, known: true, kind: "X", domain: null, round: q.round, src: "x", srcLabel: ROUND_USE[q.round] || "", stem: "", first: { trait: q.left, label: "左" }, second: { trait: q.right, label: "右" }, textFirst: q.leftText, textSecond: q.rightText };
+  return { id, key: itemRowKey(id, qv), qv, variant: null, known: true, kind: "X", domain: null, round: q.round, src: "x", srcLabel: ROUND_USE[q.round] || "", stem: "", first: { trait: q.left, label: "左" }, second: { trait: q.right, label: "右" }, textFirst: q.leftText, textSecond: q.rightText };
 }
 
 const itemOrder = (id) => {
@@ -303,6 +340,8 @@ const itemOrder = (id) => {
   return [0, 100 + (q ? +q[1] : 0), 0, id];   // 対決由来の W は W の最後に
 };
 export const compareItemIds = (a, b) => { const x = itemOrder(a), y = itemOrder(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i]; return String(x[3]).localeCompare(String(y[3])); };
+/** 設問表の行の並び（id 順、同じ id なら版の順） */
+export const compareItemRows = (a, b) => compareItemIds(a.id, b.id) || String(a.key ?? a.id).localeCompare(String(b.key ?? b.id));
 
 /** 全設問の回答時間（秒）の中央値。枠の時間は最後に表示した設問の分（差し替えのたびに測り直す）。0 は未計測として除く */
 export function overallMedianTime(sessions) {
@@ -311,15 +350,17 @@ export function overallMedianTime(sessions) {
 
 export function itemTable(sessions, { includeUnseen = false } = {}) {
   const acc = new Map();
-  const get = (id) => {
-    if (!acc.has(id)) acc.set(id, { ...itemInfo(id), shown: 0, answered: 0, pickFirst: 0, pickSecond: 0, pickOther: 0, swappedAway: 0, skips: 0, times: [],
+  // 行は設問 id ごと。版で文が違う設問（v2 で書き換えた W・組を入れ替えた X）は版ごとに別の行（key = id_版）
+  const get = (id, qv = "v1") => {
+    const key = itemRowKey(id, qv);
+    if (!acc.has(key)) acc.set(key, { ...itemInfo(id, qv), shown: 0, answered: 0, pickFirst: 0, pickSecond: 0, pickOther: 0, swappedAway: 0, skips: 0, times: [],
       flags: { none: 0, both: 0, scene: 0, words: 0 }, flagPeople: new Set(), swapPeople: new Set(), hard: { none: 0, both: 0, scene: 0, words: 0, ok: 0 }, hardNonOkPeople: new Set(), people: new Set() });
-    return acc.get(id);
+    return acc.get(key);
   };
   const addFlags = (x, flags, who) => { for (const f of flags) if (f in x.flags) { x.flags[f]++; x.flagPeople.add(who); } };
   for (const s of sessions) {
     for (const r of s.rec) {
-      const x = get(r.itemId);
+      const x = get(r.itemId, s.qv);
       x.shown++; x.people.add(s.codeKey);
       addFlags(x, r.flags, s.codeKey);
       if (r.ans === "K") x.skips++;
@@ -330,29 +371,33 @@ export function itemTable(sessions, { includeUnseen = false } = {}) {
       }
       if (r.ds > 0) x.times.push(r.ds / 10);
       for (const sh of r.shown) {
-        const y = get(sh.itemId);
+        const y = get(sh.itemId, s.qv);
         y.shown++; y.swappedAway++; y.swapPeople.add(s.codeKey); y.people.add(s.codeKey);
         addFlags(y, sh.flags, s.codeKey);
       }
     }
     for (const h of Array.isArray(s.fb?.hard) ? s.fb.hard : []) {
       if (!Array.isArray(h) || !h[0]) continue;
-      const x = get(String(h[0])), reason = h[1];
+      const x = get(String(h[0]), s.qv), reason = h[1];
       if (reason in x.hard) { x.hard[reason]++; if (reason !== "ok") x.hardNonOkPeople.add(s.codeKey); }
     }
   }
-  if (includeUnseen) for (const id of Object.keys(ITEM3)) get(id);
+  const versions = uniq(sessions.map(s => s.qv || "v1"));
+  if (includeUnseen) for (const v of (versions.length ? versions : ["v1"])) for (const id of Object.keys(bankFor(v).ITEM3)) get(id, v);
   const overall = overallMedianTime(sessions);
   const items = [...acc.values()].map(x => {
     const out = { ...x, timeN: x.times.length, timeMean: mean(x.times), timeMax: x.times.length ? Math.max(...x.times) : null, timeMedian: median(x.times),
       flagTotal: FLAG_CODES.reduce((n, c) => n + x.flags[c], 0), hardTotal: HARD_CODES.reduce((n, c) => n + x.hard[c], 0),
       flagPeople: x.flagPeople.size, swapPeople: x.swapPeople.size, hardNonOkPeople: x.hardNonOkPeople.size, shownPeople: x.people.size, overallMedian: overall };
     delete out.times; delete out.people;
+    // 複数の版が混ざっていて、版で文が違う設問には版の印（v1／v2）
+    if (versions.length > 1 && (out.qv !== "v1" || versions.some(v => v !== "v1" && !itemSameAsV1(out.id, v)))) out.variant = out.qv;
     out.reasons = itemReasons(out, overall);
     return out;
   });
-  items.sort((a, b) => compareItemIds(a.id, b.id));
-  return { items, overallMedian: overall, shownIds: items.filter(i => i.shown > 0).length, totalW: Object.values(ITEM3).filter(q => q.kind === "W").length, totalX: Object.values(ITEM3).filter(q => q.kind === "X").length };
+  items.sort(compareItemRows);
+  const keysOf = (kind) => new Set((versions.length ? versions : ["v1"]).flatMap(v => Object.values(bankFor(v).ITEM3).filter(q => q.kind === kind).map(q => itemRowKey(q.id, v)))).size;
+  return { items, overallMedian: overall, shownIds: items.filter(i => i.shown > 0).length, totalW: keysOf("W"), totalX: keysOf("X"), versions };
 }
 
 // ---------------------------------------------------------------- 7. 見直し候補（自動）
@@ -375,7 +420,7 @@ function itemReasons(x, overall) {
 /** 設問・領域・パターン・文の見直し候補を1つの一覧に */
 export function reviewCandidates({ items, domain, cards }) {
   const out = [];
-  for (const x of items.items) if (x.reasons.length) out.push({ type: "item", ref: x.id, title: itemTitle(x), reasons: x.reasons.map(r => r.text), item: x });
+  for (const x of items.items) if (x.reasons.length) out.push({ type: "item", ref: x.key ?? x.id, title: itemTitle(x), reasons: x.reasons.map(r => r.text), item: x });
   for (const p of domain.perDomain) {
     if (p.bothMismatchPeople >= REVIEW.domainBothMismatchPeople) {
       out.push({ type: "domain", ref: String(p.d), title: `領域${p.d} ${p.name}`, reasons: [`self と act の両方が診断と食い違った人 ${p.bothMismatchPeople}人`] });
@@ -390,15 +435,17 @@ export function reviewCandidates({ items, domain, cards }) {
     });
   }
   const order = { item: 0, domain: 1, pattern: 2, sentence: 3 };
-  out.sort((a, b) => order[a.type] - order[b.type] || (a.type === "item" ? compareItemIds(a.ref, b.ref) : a.ref.localeCompare(b.ref)));
+  out.sort((a, b) => order[a.type] - order[b.type] || (a.type === "item" ? compareItemRows(a.item, b.item) : a.ref.localeCompare(b.ref)));
   return out;
 }
 export const TYPE_LABEL = { item: "設問", domain: "領域", pattern: "パターン", sentence: "文" };
 
 /** 設問の1行表示用（W：場面の文、X：2つの行動文） */
+/** 設問 id（版で文が違う行には版を添える） */
+export const itemIdLabel = (x) => x.variant ? `${x.id}（${x.variant}）` : x.id;
 export function itemTitle(x) {
-  if (x.kind === "W") return `${x.id}「${x.stem}」`;
-  return `${x.id}（${x.first.trait} vs ${x.second.trait}）`;
+  if (x.kind === "W") return `${itemIdLabel(x)}「${x.stem}」`;
+  return `${itemIdLabel(x)}（${x.first.trait} vs ${x.second.trait}）`;
 }
 export function itemPlain(x) {
   if (!x.known) return x.stem;
@@ -472,5 +519,5 @@ export function analyzeParsed(parsed, { includeRetests = false } = {}) {
   const review = reviewCandidates({ items, domain, cards });
   const retests = retestComparisons(parsed.groups);
   const reflection = reflectionSummary(used);
-  return { appVersion: QUESTIONS3.version, options: { includeRetests }, parsed, sessions: parsed.sessions, used, people: peopleCount(used), domain, blind, cards, items, review, retests, reflection };
+  return { appVersion: QUESTIONS3.version, apps: KNOWN_APPS, versions: parsed.versions || {}, options: { includeRetests }, parsed, sessions: parsed.sessions, used, people: peopleCount(used), domain, blind, cards, items, review, retests, reflection };
 }

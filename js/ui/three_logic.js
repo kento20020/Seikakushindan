@@ -4,13 +4,18 @@ import { ROLE_CLASS, kindLabel } from "./labels.js";
 import { PATTERN_BY_ID } from "../data/patterns.js";
 import { DOMAINS, TRAITS, STATE_LABEL, TH } from "../engine.js";
 import { TH3, SHARE_SCALE, S18_TIE_N, S18_SCALE, LEFT_RATE_HIGH, LEFT_RATE_LOW, META3_BY_ID, STATE_ORDER,
-  describeCondition3, patternMargin3, wMargin, tieMargin } from "../engine3.js";
-import { STAGES3, MAX_SWAPS, W_ITEMS, X_ITEMS, W_BASE, W_POOL, SRC_LABEL, ROUND_USE, W_EXTRA_CAP, X_EXTRA_CAP,
-  W_EXTRA_PER_DOMAIN, X_EXTRA_PER_TRAIT, X_AMBIG_LOW, X_AMBIG_HIGH, X_MIN_M } from "../adaptive3.js";
-import { QUESTIONS3 } from "../data/questions3.js";
+  describeCondition3, patternMargin3, wMargin, tieMargin, CONFLICT_GAP, CONTRA_ALIGN_REASON, contraExcluded3 } from "../engine3.js";
+import { STAGES3, MAX_SWAPS, SRC_LABEL, ROUND_USE, X_AMBIG_LOW, X_AMBIG_HIGH, X_MIN_M, bankFor } from "../adaptive3.js";
+import { THREE_VERSIONS, versionOf } from "../three_version.js";
 import { store3, runSample3, runProfile3, SAMPLES3, PROFILE_SAMPLES3 } from "./three_store.js";
 
 const HI = TH3.high, LO = TH3.low + 1;
+
+/** 設問の版のバッジ（質問・結果・ロジック・設問の画面） */
+export function verBadge(v) {
+  const V = versionOf(v);
+  return h("span", { class: ["t3-ver", `t3-ver-${V.id}`], "data-qv": V.id, title: `設問の版 ${V.label}（${V.bankVersion}）` }, `設問 ${V.id}`);
+}
 
 // ================================================================ ロジック
 const TH3_ROWS = [
@@ -44,11 +49,14 @@ export function profilePicker3(r) {
 
 export function renderLogic3() {
   const r = store3.result;
+  const qv = r?.version ?? store3.qv, V = versionOf(qv);
   return [
     h("div", { class: "page-head" },
-      h("h1", null, "三択版の判定ロジック"),
-      h("p", { class: "lead" }, "W（同じ場面の左右）で領域内の優勢を、X（別の領域の行動文どうしの比較）で傾向ごとの強さ（0〜100）を出し、172本のパターンの条件を三択用に読み替えて充足を判定します。選択のルールは5択版と同じです。仕様は docs/three-choice-logic.md。"),
+      h("h1", null, "三択版の判定ロジック", verBadge(qv)),
+      h("p", { class: "lead" }, "W（同じ場面の左右）で領域内の優勢を、X（別の領域の行動文どうしの比較）で傾向ごとの強さ（0〜100）を出し、172本のパターンの条件を三択用に読み替えて充足を判定します。選択のルールは5択版と同じです。仕様は docs/three-choice-logic.md。",
+        `この画面は「${V.label}」のロジックです${r ? "（表示中の結果の版）" : "（開始画面で選んでいる版）"}。`),
       profilePicker3(r)),
+    h("section", { class: "block", id: "t3-logic-versions" }, h("h2", null, "設問の版（v1／v2）の違い"), versionTable(qv), V.logic.lowConf ? lowConfBlock(r) : null),
     h("section", { class: "block" }, h("h2", null, "集計"), aggregateBlock()),
     h("section", { class: "block" }, h("h2", null, "閾値（TH3）"),
       table(["名前", "値", "意味"], TH3_ROWS.map(([k, name, desc]) => h("tr", null,
@@ -59,7 +67,54 @@ export function renderLogic3() {
     r ? h("section", { class: "block" }, h("h2", null, "発火した全パターン", h("small", null, `　${r.select.hits.length}本`)), hitsTable3(r)) : null,
     r ? h("section", { class: "block" }, h("h2", null, "選択トレース"), traceBlock3(r)) : null,
     h("section", { class: "block" }, h("h2", null, "選択の制約"),
-      h("dl", { class: "rules" }, CONSTRAINTS3.map(([k, v]) => [h("dt", null, k), h("dd", null, v)]))),
+      h("dl", { class: "rules" }, [...CONSTRAINTS3, ...(V.logic.lowConf ? CONSTRAINTS3_V2 : [])].map(([k, v]) => [h("dt", null, k), h("dd", null, v)]))),
+  ];
+}
+
+const CONSTRAINTS3_V2 = [
+  ["確度低 ×0.8（v2）", `確度低の領域（優勢（弱）か、W と X の向きが逆）を含むパターンはスコア ×${THREE_VERSIONS.v2.logic.lowConfFactor}。形状（S16〜S20）は対象外。選択の前に掛ける`],
+  ["矛盾枠の向き（v2）", `矛盾枠のクロス・特殊は、条件の「優勢:t」の領域で level(t) ＞ level(反対側) のときだけ成立（同じ値は不成立。余裕 −1「${CONTRA_ALIGN_REASON}」）。基本の状態5（両方強い）は対象外`],
+];
+
+/** v1／v2 の違いの表（docs/three-choice-logic.md の表と同じ内容） */
+function versionTable(qv) {
+  const V1 = THREE_VERSIONS.v1, V2 = THREE_VERSIONS.v2;
+  const rows = [
+    ["設問バンク", `questions3.js（${V1.bankVersion}）`, `questions3_v2.js（${V2.bankVersion}）。W 10問を書き換え、X の組を4か所入れ替え（「設問」の「v1 からの変更」）`],
+    ["W追加の条件", "左右が拮抗した領域だけ", "拮抗 ＞ W と X の向きが逆 ＞ 優勢（弱）の順。同じ種類の中は領域番号順"],
+    ["X追加の条件", `level ${X_AMBIG_LOW}〜${X_AMBIG_HIGH} か回答数${X_MIN_M}未満`, "同じ＋向きが逆の領域の両傾向（最優先）"],
+    ["追加の上限", `W ${V1.caps.wExtra}・X ${V1.caps.xExtra}（領域・傾向あたり${V1.caps.wPerDomain}）`, `W ${V2.caps.wExtra}・X ${V2.caps.xExtra}（同${V2.caps.wPerDomain}）`],
+    ["確度低の扱い", "なし", `確度低の領域を含むパターン（形状 S16〜S20 を除く）のスコア ×${V2.logic.lowConfFactor}`],
+    ["矛盾枠", "条件どおり", "関係する領域で「優勢側の level ＞ 反対側の level」のときだけ"],
+    ["場面例", "本文どおり", "js/data/scenes_v2.js の差し替え（極端な場面を日常的に）"],
+    ["練習カード", "なし", "1問目の前に採点しない練習カード"],
+  ];
+  return [
+    table(["項目", "v1", "v2"], rows.map(([k, a, b]) => h("tr", null, h("th", { scope: "row" }, k),
+      h("td", { class: qv === "v1" ? "t3-ver-now" : null }, a), h("td", { class: qv === "v2" ? "t3-ver-now" : null }, b))), { class: "wide t3-ver-table" }),
+    h("p", { class: "note" }, "既定の版は js/three_version.js の DEFAULT_THREE_VERSION。URL に ?qv=v1 か ?qv=v2 を付けると、その版で始められます（途中再開は始めた版のまま）。"),
+  ];
+}
+
+/** 確度低（v2）の定義と、表示中のプロファイルでの該当（確度低の領域・向きの条件で外れた矛盾枠） */
+function lowConfBlock(r) {
+  const defs = h("dl", { class: "rules" },
+    h("dt", null, "向きが逆（conflict）"), h("dd", null, `W で傾向 t が優勢（wMargin(t) ≥ 0）なのに、level(反対側) − level(t) ≥ ${CONFLICT_GAP}`),
+    h("dt", null, "優勢（弱）（weak）"), h("dd", null, `W で t が優勢で、level(t) < ${HI}（状態 1w／3w）`),
+    h("dt", null, "確度低（lowConf）"), h("dd", null, "最終結果で weak か conflict が残った領域。結果・ロジック・AI 用テキストに「確度低」と出し、その領域を含むパターン（形状を除く）のスコアを ×0.8"),
+    h("dt", null, "矛盾枠の向き"), h("dd", null, `矛盾枠のクロス・特殊は、条件の各「優勢:t」の領域で level(t) ＞ level(反対側)。満たさなければ余裕 −1（${CONTRA_ALIGN_REASON}）`));
+  if (!r) return [h("h3", null, "確度低（v2）"), defs];
+  const lowDs = Object.keys(r.lowConf || {});
+  const excluded = contraExcluded3(r.profile3);
+  return [
+    h("h3", null, "確度低（v2）"), defs,
+    h("h3", null, "このプロファイルの確度低", h("small", null, lowDs.length ? `　${lowDs.length}領域` : "　なし")),
+    lowDs.length ? table(["領域", "理由", "内容"], lowDs.map(d => h("tr", { "data-domain": d },
+      h("td", null, `${d} ${DOMAINS[d].name}`), h("td", null, r.lowConf[d].labels.join("・")), h("td", null, r.lowConf[d].text))), { class: "wide t3-lowconf-table" }) : null,
+    h("h3", null, "向きの条件で外れた矛盾枠", h("small", null, excluded.length ? `　${excluded.length}本` : "　なし")),
+    excluded.length ? h("ul", { class: "margins t3-contra-out" }, excluded.map(x => h("li", { class: "neg" },
+      h("span", null, h("code", null, x.meta.id), `　${PATTERN_BY_ID[x.meta.id]?.headline ?? ""}：`, x.bad.map(b => `${b.t} ${num(b.L)} ≤ ${b.other} ${num(b.Lo)}`).join("、")), h("b", null, "−1")))) :
+      h("p", { class: "note" }, "v1 のロジックなら発火する矛盾枠のうち、向きの条件で外れたものはありません。"),
   ];
 }
 
@@ -140,8 +195,9 @@ function hitsTable3(r) {
     const detail = h("tr", { class: "detail-row", id: detailId, hidden: true },
       h("td", { colspan: 8 },
         h("p", null, h("b", null, "条件："), describeCondition3(m)),
-        h("ul", { class: "margins" }, hit.details.map(d => h("li", { class: d.margin < 0 ? "neg" : "" }, h("span", null, d.label), h("b", null, signed(d.margin))))),
-        h("p", { class: "note" }, `充足度 ＝ 0.4 ＋ 0.6 × min(1, 余裕 ${num(hit.margin)} ÷ 尺度 ${num(m.scale)}) ＝ ${hit.sat.toFixed(3)}`)));
+        h("ul", { class: "margins" }, hit.details.map(d => h("li", { class: d.factor ? "t3-factor" : d.margin < 0 ? "neg" : "" }, h("span", null, d.label), h("b", null, d.factor ? `×${d.factor}` : signed(d.margin))))),
+        h("p", { class: "note" }, `充足度 ＝ 0.4 ＋ 0.6 × min(1, 余裕 ${num(hit.margin)} ÷ 尺度 ${num(m.scale)}) ＝ ${hit.sat.toFixed(3)}` +
+          (hit.factor ? `。スコア ＝ 重要度 ${num(m.importance)} × 充足度 ＝ ${hit.baseScore.toFixed(2)}、確度低で ×${hit.factor} ＝ ${hit.score.toFixed(2)}` : ""))));
     const toggle = h("button", { class: "expander", "aria-expanded": "false", "aria-controls": detailId, "aria-label": `${m.id} の内訳`, onclick: (e) => {
       const open = e.currentTarget.getAttribute("aria-expanded") === "true";
       e.currentTarget.setAttribute("aria-expanded", String(!open));
@@ -155,7 +211,7 @@ function hitsTable3(r) {
       h("td", { class: "numcell" }, num(m.importance)),
       h("td", { class: "numcell" }, signed(hit.margin)),
       h("td", { class: "numcell" }, hit.sat.toFixed(2)),
-      h("td", { class: "numcell" }, hit.score.toFixed(2))));
+      h("td", { class: "numcell" }, hit.score.toFixed(2), hit.factor ? h("small", { class: "t3-lowconf-mark", title: `確度低の領域を含むため ×${hit.factor}（${hit.baseScore.toFixed(2)} → ${hit.score.toFixed(2)}）` }, ` ×${hit.factor}`) : null)));
     rows.push(detail);
   });
   const notJudged = ["S16", "S17"].map(id => { const details = []; patternMargin3(META3_BY_ID[id], r.profile3, details); return [id, details[0]]; });
@@ -191,6 +247,11 @@ let filterValue = "all";
 
 export function renderQuestions3() {
   const hist = store3.session ? store3.session.history() : {};
+  // 表示する設問バンク：セッションの版（無ければ開始画面で選んでいる版）
+  const qv = store3.session?.config?.version ?? store3.qv;
+  const B = bankFor(qv), V = versionOf(qv), caps = V.caps;
+  const { W_ITEMS, X_ITEMS, W_BASE, W_POOL } = B;
+  const QUESTIONS3 = B.bank;
   const wRows = [];
   for (const d of Object.keys(DOMAINS)) {
     [...W_BASE[d], ...W_POOL[d]].forEach((id, i) => wRows.push(wRow(W_ITEMS[id], hist[id], i === 0)));
@@ -201,15 +262,19 @@ export function renderQuestions3() {
       .map(([v, t]) => h("option", { value: v, selected: v === filterValue }, t)));
   const nodes = [
     h("div", { class: "page-head" },
-      h("h1", null, "三択版の設問"),
-      h("p", { class: "lead" }, `W は各領域6場面（基本4＋予備2）＝48組。差し替え・追加には5択版の対決 Q73〜Q80（2つの言い換え）と D1x〜D8x も使います（A行動／B行動の向きに揃えて表示）。X は16傾向×4本の行動文を xRounds の組み合わせで比べます。`)),
+      h("h1", null, "三択版の設問", verBadge(qv)),
+      h("p", { class: "lead" }, `設問の版 ${V.label}（${V.bankVersion}）${store3.session ? "＝表示中のセッションの版" : "＝開始画面で選んでいる版"}。W は各領域6場面（基本4＋予備2）＝48組。差し替え・追加には5択版の対決 Q73〜Q80（2つの言い換え）と D1x〜D8x も使います（A行動／B行動の向きに揃えて表示）。X は16傾向×4本の行動文を xRounds の組み合わせで比べます。`)),
     h("section", { class: "block" }, h("h2", null, "出し方と差し替え"),
       h("dl", { class: "rules" },
-        h("dt", null, "段階"), h("dd", null, `${STAGES3.join(" → ")}。W基本32・X基本32、W追加は領域あたり${W_EXTRA_PER_DOMAIN}・全体${W_EXTRA_CAP}、X追加は傾向あたり${X_EXTRA_PER_TRAIT}・全体${X_EXTRA_CAP}（最大96問）`),
+        h("dt", null, "段階"), h("dd", null, `${STAGES3.join(" → ")}。W基本32・X基本32、W追加は領域あたり${caps.wPerDomain}・全体${caps.wExtra}、X追加は傾向あたり${caps.xPerTrait}・全体${caps.xExtra}（最大${64 + caps.wExtra + caps.xExtra}問）`),
         h("dt", null, "左右の並び"), h("dd", null, "W は A行動を左に出す枠と右に出す枠が各領域で半々（領域＋枠番号が奇数なら B行動が左）。X は組の左右そのまま"),
         h("dt", null, "問題を変える"), h("dd", null, `1枠${MAX_SWAPS}回まで。W：未使用の予備 → 対決の言い換え（a・b）→ 追加対決 D?x。X：ラウンド7 → 未使用のラウンド5〜6（同じ傾向を含む組）。使い切ったら「答えずに進む」`),
-        h("dt", null, "W追加"), h("dd", null, `左右が拮抗した領域（差<${TH3.domDiff} または 取り分<${TH3.domShare}）に、予備 → 対決の順。1問ごとに再集計し、優勢が決まった領域は打ち切る`),
-        h("dt", null, "X追加"), h("dd", null, `level が ${X_AMBIG_LOW}〜${X_AMBIG_HIGH}、または比較の回答数が${X_MIN_M}未満の傾向を含む、ラウンド5〜6の組。左右の優勢が決まった領域の傾向を優先`))),
+        h("dt", null, "W追加"), h("dd", null, V.logic.wExtra.length > 1
+          ? `左右が拮抗した領域（差<${TH3.domDiff} または 取り分<${TH3.domShare}）→ W と X の向きが逆の領域（W で優勢なのに反対側の level が${CONFLICT_GAP}以上高い）→ 優勢（弱）の領域（優勢側の level が${HI}未満）の順に、予備 → 対決の順で。1問ごとに再集計し、どれにも当たらなくなった領域は打ち切る`
+          : `左右が拮抗した領域（差<${TH3.domDiff} または 取り分<${TH3.domShare}）に、予備 → 対決の順。1問ごとに再集計し、優勢が決まった領域は打ち切る`),
+        h("dt", null, "X追加"), h("dd", null, `level が ${X_AMBIG_LOW}〜${X_AMBIG_HIGH}、または比較の回答数が${X_MIN_M}未満の傾向を含む、ラウンド5〜6の組。左右の優勢が決まった領域の傾向を優先` +
+          (V.logic.xExtraConflict ? "。v2 は W と X の向きが逆の領域の両傾向も足し、それを最優先にする" : "")))),
+    QUESTIONS3.changesFromV1 ? changesBlock(QUESTIONS3.changesFromV1, B) : null,
     h("section", { class: "block" },
       h("h2", null, "設問一覧"),
       h("div", { class: "picker" }, h("label", { for: "t3-q-filter" }, "絞り込み"), filter,
@@ -237,6 +302,32 @@ export function renderQuestions3() {
   ];
   queueMicrotask(() => { const el = document.querySelector("#view-three .t3-body"); if (el) applyFilter(el); });
   return nodes;
+}
+
+/** v2 の設問バンクの「v1 からの変更」（changesFromV1）。W は書き換え前 → 後、X は組の入れ替え（前の組は v1 の xRounds から） */
+function changesBlock(ch, B) {
+  const B1 = bankFor("v1");
+  const wSide = (x, D) => [h("div", { class: "t3-chg-stem" }, x.stem), h("div", null, h("span", { class: "dv-a" }, `${D.a}：`), x.a), h("div", null, h("span", { class: "dv-b" }, `${D.b}：`), x.b)];
+  const wRows = (ch.w || []).map(c => {
+    const D = DOMAINS[B.W_ITEMS[c.id]?.domain ?? +c.id.slice(1, 2)];
+    return h("tr", { "data-id": c.id },
+      h("td", null, h("code", null, c.id)),
+      h("td", { class: "wtext t3-chg-before" }, wSide(c.before, D)),
+      h("td", { class: "wtext t3-chg-after" }, wSide(c.after, D)),
+      h("td", { class: "wtext" }, c.why));
+  });
+  const pairs = (X, ids) => ids.map(id => X[id] ? h("div", null, h("code", null, id), ` ${X[id].left}／${X[id].right}`) : null);
+  const xRows = (ch.x || []).map(c => h("tr", { "data-id": c.ids.join(",") },
+    h("td", null, c.ids.map(id => h("code", { class: "t3-chg-id" }, id))),
+    h("td", { class: "wtext t3-chg-before" }, pairs(B1.X_ITEMS, c.ids)),
+    h("td", { class: "wtext t3-chg-after" }, pairs(B.X_ITEMS, c.ids)),
+    h("td", { class: "wtext" }, c.why)));
+  return h("section", { class: "block", id: "t3-changes" }, h("h2", null, "v1 からの変更", h("small", null, `　W ${wRows.length}問・X ${xRows.length}か所`)),
+    h("p", { class: "note" }, ch.note || ""),
+    h("h3", null, "W（場面・A行動・B行動の書き換え）"),
+    table(["設問", "v1（前）", "v2（後）", "理由"], wRows, { class: "wide t3-qtable-plain t3-changes-w" }),
+    h("h3", null, "X（組の入れ替え）"),
+    table(["設問", "v1 の組", "v2 の組", "理由"], xRows, { class: "wide t3-qtable-plain t3-changes-x" }));
 }
 
 function applyFilter(el) {

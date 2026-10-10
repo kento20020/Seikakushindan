@@ -6,10 +6,11 @@ import { byRole } from "./result.js";
 import { PATTERN_BY_ID } from "../data/patterns.js";
 import { DOMAINS } from "../engine.js";
 import { TH3, LEFT_RATE_HIGH, LEFT_RATE_LOW } from "../engine3.js";
-import { MAX_SWAPS, ITEM3, SRC_LABEL, W_EXTRA_CAP, X_EXTRA_CAP } from "../adaptive3.js";
+import { MAX_SWAPS, SRC_LABEL, bankFor } from "../adaptive3.js";
+import { THREE_VERSIONS, DEFAULT_THREE_VERSION, versionOf, scenesFor, PRACTICE_CARD } from "../three_version.js";
 import { store3, onChange3, restore3, setSub, SUBS, start3, resume3, toStart3, discard3, answer3, swap3, skip3, back3,
-  runSample3, runProfile3, loadJSON3, sessionJSON, SAMPLES3, PROFILE_SAMPLES3 } from "./three_store.js";
-import { renderLogic3, renderQuestions3 } from "./three_logic.js";
+  runSample3, runProfile3, loadJSON3, sessionJSON, SAMPLES3, PROFILE_SAMPLES3, practicePending3, practice3, setQv3 } from "./three_store.js";
+import { renderLogic3, renderQuestions3, verBadge } from "./three_logic.js";
 import { attachSwipe, isCoarsePointer, prefersReducedMotion } from "./swipe.js";
 import { fbBody, fbRendered, fbStartFields, fbStartOptions, fbStartBlocks, fbHidesDone, fbQuestionExtra, fbCard, fbResultTop, fbResultTail } from "./feedback.js";
 
@@ -31,6 +32,7 @@ export function renderThree(el) {
   el.classList.toggle("view-wide", sub === "logic" || sub === "questions");
   const s = store3.session;
   const asking = sub === "diagnose" && store3.screen === "question" && s && !s.isDone();
+  const practice = !!asking && practicePending3();   // v2 の練習カード（質問画面と同じ形。採点しない・時間を測らない）
   // 質問から質問へ（回答・差し替え・戻る）の再描画では、画面をスクロールさせない。
   //   中身を作り直す間にページが短くなってもスクロール位置が押し戻されないよう、いまの高さを下限にしておく。
   const keep = !!asking && lastAsking && lastEpoch === tabEpoch;
@@ -41,7 +43,7 @@ export function renderThree(el) {
     body = fbBody(sub) ?? (sub === "result" ? resultView()
       : sub === "logic" ? renderLogic3()
       : sub === "questions" ? renderQuestions3()
-      : asking ? questionView(s) : startView());
+      : asking ? (practice ? practiceView(s) : questionView(s)) : startView());
   } catch (err) {
     console.error(err);
     body = h("p", { class: "error" }, `表示中にエラーが起きました：${err.message}`);
@@ -58,11 +60,11 @@ export function renderThree(el) {
 
   const changed = lastSub !== null && lastSub !== sub;
   lastSub = sub; lastAsking = !!asking; lastEpoch = tabEpoch;
-  fbRendered(asking ? s.current() : null);   // テスト協力モード：回答時間の時計（質問画面が見えている間だけ進む）
+  fbRendered(asking && !practice ? s.current() : null);   // テスト協力モード：回答時間の時計（質問画面が見えている間だけ進む。練習カードは測らない）
   const seq = ++renderSeq;
   if (asking) {
     const card = el.querySelector(".t3-qcard");
-    bindSwipe(card, s.current());
+    if (practice) bindPracticeSwipe(card); else bindSwipe(card, s.current());
     document.getElementById("t3-q")?.focus({ preventScroll: true });
     if (keep) {
       if (Math.abs(window.scrollY - y0) > 1) window.scrollTo(0, y0);   // 同期で戻す（短くなったページに押し戻された分）
@@ -118,6 +120,23 @@ function startView() {
   const done = s && s.isDone() && store3.result;
 
   const adaptive = h("input", { type: "checkbox", id: "t3-adaptive", checked: true });
+  // 設問の版（v2 既定・v1）。URL の ?qv= があればそれを選んだ状態で出す（store3.qv）。切り替えても画面は作り直さず、文だけ差し替える
+  const qv0 = store3.qv;
+  const adaptiveNote = h("small", { id: "t3-adaptive-note" }, adaptiveNoteText(qv0));
+  const leadCount = h("span", { id: "t3-lead-count" }, leadCountText(qv0));
+  const qvField = h("fieldset", { class: "opt t3-qv", id: "t3-qv" },
+    h("legend", null, "設問の版"),
+    ["v2", "v1"].map(v => h("label", { class: "check t3-qv-opt", for: `t3-qv-${v}` },
+      h("input", { type: "radio", name: "t3-qv", id: `t3-qv-${v}`, value: v, checked: qv0 === v, onchange: (e) => {
+        if (!e.target.checked) return;
+        setQv3(v);
+        adaptiveNote.textContent = adaptiveNoteText(v);
+        leadCount.textContent = leadCountText(v);
+      } }),
+      h("span", null, h("b", null, `${v}${v === DEFAULT_THREE_VERSION ? "（既定）" : ""}`, h("span", { class: "t3-qv-date" }, `　${THREE_VERSIONS[v].bankVersion}`)),
+        h("small", null, QV_DESC[v])))),
+    store3.qvFromUrl ? h("p", { class: "note", id: "t3-qv-url" }, `URL の ?qv=${qv0} で「${qv0}」を選んだ状態にしています。`) : null,
+    h("p", { class: "note" }, "途中から再開するときは、始めたときの版のまま続きます。サンプルもここで選んだ版で流します。"));
   const fileInput = h("input", { type: "file", accept: ".json,application/json", id: "t3-file", class: "visually-hidden",
     onchange: async (e) => {
       const f = e.target.files?.[0]; if (!f) return;
@@ -139,10 +158,10 @@ function startView() {
         "どちらとも決めにくいときは「問題を変える」で同じ枠の別の場面に差し替えます（1問につき2回まで）。"),
       h("p", { class: "lead" },
         "前半の32問は同じ場面での2つの動き方（W）、後半の32問は別々の場面の行動どうし（X）を比べます。",
-        "決めきれない領域・傾向だけ追加で聞くので、全部で64〜96問、8〜12分ほどです。")),
+        "決めきれない領域・傾向だけ追加で聞くので、全部で", leadCount, "です。")),
 
     inProgress ? h("div", { class: "resume" },
-      h("p", null, `途中まで答えた三択診断があります（${p.answered}問回答済み・いま「${p.stageLabel}」）。`),
+      h("p", null, `途中まで答えた三択診断があります（${p.answered}問回答済み・いま「${p.stageLabel}」・設問 ${s.version}）。`),
       h("div", { class: "row wrap-row" },
         h("button", { class: "btn primary", id: "t3-resume", onclick: resume3 }, "続きから答える"),
         h("button", { class: "btn ghost", onclick: () => { if (confirm("途中までの回答を消して、最初からやり直しますか？")) discard3(); } }, "回答を消す"))) : null,
@@ -157,13 +176,13 @@ function startView() {
     h("form", { class: "start-form", onsubmit: (e) => {
       e.preventDefault();
       const fb = fbStartOptions(e.currentTarget);   // テスト協力モードの同意・コード（モードがオフなら null、入力が足りなければ false）
-      if (fb !== false) start3({ adaptive: adaptive.checked, fb });
+      if (fb !== false) start3({ adaptive: adaptive.checked, fb, version: store3.qv });
     } },
+      qvField,
       h("fieldset", { class: "opt" },
         h("legend", null, "聞き方"),
         h("label", { class: "check", for: "t3-adaptive" }, adaptive,
-          h("span", null, h("b", null, "決めきれないところだけ追加で聞く（可変モード）"),
-            h("small", null, `左右が拮抗した領域に最大${W_EXTRA_CAP}問、強さが曖昧な傾向に最大${X_EXTRA_CAP}問を足します（合計96問まで）。オフにすると固定の64問です。`)))),
+          h("span", null, h("b", null, "決めきれないところだけ追加で聞く（可変モード）"), adaptiveNote))),
       fbStartFields(),
       h("div", { class: "row" }, h("button", { class: "btn primary big", type: "submit", id: "t3-start" }, inProgress ? "最初から診断する" : "三択で診断をはじめる"))),
 
@@ -193,22 +212,43 @@ function startView() {
 
 const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
 
-// ---------------------------------------------------------------- 質問画面
-function questionView(s) {
-  const c = s.current();
-  const p = s.progress();
-  const q = c.question;
-  const item = ITEM3[q.id];
+// ---------------------------------------------------------------- 設問の版
+const QV_DESC = {
+  v2: "5人テストの結果で W 10問を書き直し、X の組を4か所入れ替えた版。追加の質問は最大16問（全部で64〜80問）。1問目の前に練習カード。",
+  v1: "最初の版（5人テストで使った設問）。追加の質問は最大32問（全部で64〜96問）。",
+};
+function adaptiveNoteText(v) {
+  const c = versionOf(v).caps;
+  const extra = v === "v2" ? "左右が拮抗した領域・W と X の向きが逆の領域・優勢が弱い領域" : "左右が拮抗した領域";
+  return `${extra}に最大${c.wExtra}問、強さが曖昧な傾向${v === "v2" ? "（向きが逆の領域の傾向を含む）" : ""}に最大${c.xExtra}問を足します（合計${64 + c.wExtra + c.xExtra}問まで）。オフにすると固定の64問です。`;
+}
+function leadCountText(v) {
+  const c = versionOf(v).caps, max = 64 + c.wExtra + c.xExtra;
+  return `64〜${max}問、${max > 80 ? "8〜12" : "8〜10"}分ほど`;
+}
 
+// ---------------------------------------------------------------- 質問画面
+/** 段階の丸と進み具合の棒（質問画面と練習カードで同じ形。練習カードでもカードの位置が変わらないように） */
+function progressParts(c, p, { practice = false } = {}) {
   const stagePills = h("ol", { class: "stages", "aria-label": "段階" },
     p.stages.map(st => h("li", { class: ["stage", st.stageNo === c.stageNo && "now", st.planned && st.answered === st.total && st.total > 0 && "done"] },
       h("span", { class: "stage-name" }, st.label),
       h("span", { class: "stage-count" },
-        !st.planned ? "あとで決定" : st.total === 0 ? "なし" : st.stageNo === c.stageNo ? `${c.stageIndex + 1}/${st.total}` : `${st.answered}/${st.total}`))));
+        !st.planned ? "あとで決定" : st.total === 0 ? "なし" : st.stageNo === c.stageNo ? `${practice ? 0 : c.stageIndex + 1}/${st.total}` : `${st.answered}/${st.total}`))));
   const bar = h("div", { class: "progress", role: "progressbar", "aria-valuemin": 0, "aria-valuemax": p.total, "aria-valuenow": p.answered, "aria-label": "回答の進み具合" },
     h("i", { style: { width: `${Math.round(p.ratio * 100)}%` } }));
+  return { stagePills, bar };
+}
 
-  const notice = c.stage === "W追加" ? h("p", { class: "notice" }, "左右が拮抗した領域を、別の場面でもう一度聞いています。")
+function questionView(s) {
+  const c = s.current();
+  const p = s.progress();
+  const q = c.question;
+  const item = s.bank.ITEM3[q.id];
+
+  const { stagePills, bar } = progressParts(c, p);
+
+  const notice = c.stage === "W追加" ? h("p", { class: "notice" }, s.version === "v1" ? "左右が拮抗した領域を、別の場面でもう一度聞いています。" : "左右がはっきりしない（または強さと食い違う）領域を、別の場面でもう一度聞いています。")
     : c.stage === "X追加" ? h("p", { class: "notice" }, "強さがはっきりしない傾向を、別の組み合わせでもう一度比べています。")
     : c.swapsUsed > 0 ? h("p", { class: "notice" }, `差し替えた設問です（この枠で${c.swapsUsed}回目）。`) : null;
 
@@ -240,7 +280,7 @@ function questionView(s) {
     h("h1", { class: "visually-hidden" }, "三択診断の質問"),
     h("div", { class: "q-progress" }, stagePills, bar,
       h("p", { class: "q-count" }, h("b", null, `${c.stage} ${c.stageIndex + 1}/${c.stageTotal}`),
-        h("span", null, `全体 ${p.answered}/${p.total}問 回答済み${s.config.adaptive && (s.plan.s3 === null || s.plan.s4 === null) ? `（最大${p.max}問）` : ""}`))),
+        h("span", null, `全体 ${p.answered}/${p.total}問 回答済み${s.config.adaptive && (s.plan.s3 === null || s.plan.s4 === null) ? `（最大${p.max}問）` : ""}`, verBadge(s.version)))),
     h("div", { class: ["q-card", "t3-qcard", `t3-kind-${c.kind}`], "data-enter": enter },
       h("div", { class: "t3-grip", "aria-hidden": "true" }, h("i", { class: "t3-grip-bar" }), h("span", null, "スワイプで回答")),
       notice,
@@ -272,6 +312,58 @@ function questionView(s) {
       h("button", { type: "button", class: "linkish", onclick: toStart3 }, "中断して最初の画面へ（回答は保存されています）")));
 }
 
+// ---------------------------------------------------------------- 練習カード（v2。1問目の前。採点しない・時間を測らない・記録しない）
+function practiceView(s) {
+  const pc = PRACTICE_CARD;
+  const card = (side) => h("button", { type: "button", class: ["t3-card", `t3-${side}`], "data-side": side, "aria-pressed": "false", onclick: () => practiceDone(side) },
+    h("span", { class: "t3-key", "aria-hidden": "true" }, side === "left" ? "← 左" : "右 →"),
+    h("span", { class: "t3-text" }, side === "left" ? pc.left : pc.right));
+  const enter = enterFrom && !prefersReducedMotion() ? enterFrom : null;
+  enterFrom = null;
+  const c = s.current(), p = s.progress();
+  const { stagePills, bar } = progressParts(c, p, { practice: true });
+  return h("div", { class: "q-screen t3-q t3-practice-screen" },
+    h("h1", { class: "visually-hidden" }, "三択診断の練習カード"),
+    h("div", { class: "q-progress" }, stagePills, bar,
+      h("p", { class: "q-count" }, h("b", null, "練習"), h("span", null, `このあと本番（全体 0/${p.total}問${s.config.adaptive ? `・最大${p.max}問` : ""}）`, verBadge(s.version)))),
+    h("div", { class: ["q-card", "t3-qcard", "t3-kind-W", "t3-practice"], id: "t3-practice", "data-enter": enter },
+      h("div", { class: "t3-grip", "aria-hidden": "true" }, h("i", { class: "t3-grip-bar" }), h("span", null, "スワイプで回答")),
+      h("p", { class: "t3-kicker" }, h("span", { class: "t3-practice-tag" }, "練習"), "結果には入りません"),
+      h("p", { class: "q-text t3-stem", id: "t3-q", tabindex: "-1" }, pc.stem),
+      h("div", { class: "t3-pair", role: "group", "aria-labelledby": "t3-q" }, card("left"), card("right")),
+      h("div", { class: "t3-swipe-badge", "aria-hidden": "true" }),
+      cue("l", "← 左", true), cue("r", "右 →", true)),
+    h("p", { class: "t3-practice-note", id: "t3-practice-note" }, pc.note),
+    h("p", { class: "q-foot" }, isCoarsePointer() ? null : h("span", { class: "hint" }, "キーボード：← 左 ／ → 右"),
+      h("button", { type: "button", class: "linkish", onclick: toStart3 }, "中断して最初の画面へ")));
+}
+
+function practiceDone(side) {
+  if (practice3(side)) toast("練習はここまで。次の質問から本番です");
+}
+
+function bindPracticeSwipe(card) {
+  if (!card) return;
+  const badge = card.querySelector(".t3-swipe-badge");
+  const sides = [...card.querySelectorAll(".t3-card")];
+  const label = { left: "左", right: "右" };
+  const go = (dir, fn) => () => { enterFrom = ENTER_FROM[dir]; try { fn(); } finally { enterFrom = null; } };
+  detachSwipe = attachSwipe(card, {
+    ignore: SWIPE_IGNORE,
+    onLeft: go("left", () => practiceDone("left")),
+    onRight: go("right", () => practiceDone("right")),
+    onStart: () => { holdClip(); card.classList.add("t3-dragging"); },
+    onEnd: () => releaseClip(0),
+    onProgress: ({ dir, progress, ready, dragging }) => {
+      card.classList.toggle("t3-dragging", dragging);
+      card.classList.toggle("t3-ready", ready && !!label[dir]);
+      if (dir && label[dir]) { card.dataset.swipe = dir; badge.textContent = label[dir]; } else delete card.dataset.swipe;
+      card.style.setProperty("--t3-p", progress.toFixed(3));
+      for (const b of sides) b.classList.toggle("t3-hot", dir === b.dataset.side && progress >= 0.2);
+    },
+  });
+}
+
 // カードの縁の手がかり（左右は縦書きで細く、上は上辺にまたがる小さなラベル）
 function cue(pos, text, chevron = false) {
   return h("span", { class: ["t3-cue", `t3-cue-${pos}`], "aria-hidden": "true" }, chevron ? h("i", { class: "t3-chev" }) : null, h("span", { class: "t3-cue-txt" }, text));
@@ -285,6 +377,10 @@ document.addEventListener("keydown", (e) => {
   if (e.repeat || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.isComposing) return;
   const t = e.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+  if (practicePending3()) {   // 練習カード：← → だけ（採点しない）
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); practiceDone(e.key === "ArrowLeft" ? "left" : "right"); }
+    return;
+  }
   if (e.key === "ArrowLeft") { e.preventDefault(); answer3("left", "k"); }
   else if (e.key === "ArrowRight") { e.preventDefault(); answer3("right", "k"); }
   else if (e.key === " " || e.code === "Space") {
@@ -440,7 +536,8 @@ function resultView() {
       h("p", { class: "legend" },
         h("span", { class: "lg lg-a" }, "A側"), h("span", { class: "lg lg-b" }, "B側"),
         h("span", { class: "lg" }, "上段：W で選んだ数（優勢＝差2以上・取り分60%以上）"),
-        h("span", { class: "lg lg-tick" }, `下段：X の強さ level（目盛り ${LO}／${HI}）`)),
+        h("span", { class: "lg lg-tick" }, `下段：X の強さ level（目盛り ${LO}／${HI}）`),
+        versionOf(r.version).logic.lowConf ? h("span", { class: "lg" }, "確度低＝左右（W）では優勢だが、その強さが弱い（67未満）か、強さ（X）が反対側より25以上高い（向きが逆）領域。その領域を含むパターンはスコア ×0.8") : null),
       h("div", { class: "domains" }, Object.keys(DOMAINS).map(d => domainRow3(+d, r)))),
     h("section", { class: "block", "aria-labelledby": "t3-res-quality" },
       h("h2", { id: "t3-res-quality" }, "回答の様子"),
@@ -468,7 +565,7 @@ function resHeader(r) {
   if (r.config?.adaptive) bits.push(`W追加 ${r.stages.wExtra.length}問・X追加 ${r.stages.xExtra.length}問`);
   bits.push(`問題を変えた ${r.quality.swapCount}回・答えずに進んだ ${r.quality.skipCount}問`);
   return h("div", { class: "res-head" },
-    h("h1", null, "三択版の診断結果"),
+    h("h1", null, "三択版の診断結果", verBadge(r.version)),
     h("p", { class: "res-source" }, h("b", null, src.name || "あなたの回答"), h("span", null, bits.join("／"))),
     src.expected5 ? (() => {
       const c = compareSummary(r);
@@ -492,7 +589,8 @@ function patternCard(hit, r) {
   const reasons = cand?.reasons?.length ? `（${cand.reasons.join("、")}）` : "";
   const why = `重要度 ${num(m.importance)} × 充足度 ${hit.sat.toFixed(2)}（余裕 ${signed(hit.margin)}・尺度 ${num(m.scale)}）＝ スコア ${hit.score.toFixed(2)}。` +
     (step ? `選択ステップ${step.k}で採用、有効スコア ${step.chosenEff.toFixed(2)}${reasons}。` : "") +
-    ` 条件：${hit.details.map(d => `${d.label} ${signed(d.margin)}`).join("、")}。`;
+    ` 条件：${hit.details.filter(d => !d.factor).map(d => `${d.label} ${signed(d.margin)}`).join("、")}。` +
+    hit.details.filter(d => d.factor).map(d => ` ${d.label}（${hit.baseScore.toFixed(2)} → ${hit.score.toFixed(2)}）。`).join("");
   return fbCard(h("article", { class: ["pcard", `role-${ROLE_CLASS[hit.role] || "support"}`], "data-id": m.id, "data-role": hit.role },
     h("div", { class: "pcard-top" },
       h("span", { class: "role-badge" }, hit.role),
@@ -503,7 +601,7 @@ function patternCard(hit, r) {
     t ? [
       h("p", { class: "one" }, t.one),
       h("p", { class: "detail" }, t.detail),
-      h("ul", { class: "scenes", "aria-label": "よくある場面" }, t.scenes.map(s => h("li", null, s))),
+      h("ul", { class: "scenes", "aria-label": "よくある場面" }, scenesFor(m.id, r.version, t.scenes).map(s => h("li", null, s))),
       t.unique ? h("div", { class: "aside unique" }, h("h4", null, uniqueLabel(m)), h("p", null, t.unique)) : null,
       h("div", { class: "aside caveat" }, h("h4", null, "誤解しやすい点"), h("p", null, t.caveat)),
     ] : h("p", { class: "empty" }, "本文がありません。"),
@@ -563,6 +661,7 @@ function domainRow3(d, r) {
     h("div", { class: "drow-head" },
       h("h3", null, h("span", { class: "dnum" }, d), D.name),
       h("span", { class: "t3-tags" },
+        lowConfFlag(r.lowConf?.[d]),
         st.check ? h("span", { class: "flag flag-warn", title: "左右で優勢な側の強さが、対の傾向より低い（W と X が食い違う）" }, "要確認") : null,
         h("span", { class: "state", title: st.id ? `${st.id}（余裕 ${signed(st.margin)}）` : "" }, st.label))),
     h("div", { class: "t3-w" },
@@ -579,9 +678,19 @@ function domainRow3(d, r) {
         bar3("b", st.LB))));
 }
 
+/** 確度低（v2）のバッジ。理由（優勢（弱）／W と X の向きが逆）を添える */
+function lowConfFlag(lc) {
+  if (!lc) return null;
+  return h("span", { class: "flag flag-ng t3-lowconf", "data-reasons": lc.reasons.join(" "), title: `${lc.text}。この領域を含むパターンはスコア ×0.8（形状を除く）` },
+    "確度低", h("small", { class: "t3-lowconf-why" }, `（${lc.labels.join("・")}）`));
+}
+
 // ---------------------------------------------------------------- 回答の様子
 function qualityBlock(r) {
   const q = r.quality;
+  const ITEM3 = bankFor(r.version).ITEM3;
+  const v2 = versionOf(r.version).logic.lowConf;
+  const lowDs = Object.keys(r.lowConf || {});
   const checks = Object.keys(DOMAINS).filter(d => r.states[d].check);
   const wRows = r.stages.wExtra.map(x => h("tr", { class: x.picked ? "row-changed" : "" },
     h("td", null, h("code", null, x.key)), h("td", null, x.itemId), h("td", null, `${x.domain} ${DOMAINS[x.domain].name}`),
@@ -604,9 +713,14 @@ function qualityBlock(r) {
       const st = r.states[d], D = DOMAINS[d];
       return h("li", null, `${d} ${D.name}：左右では${st.lead}（${st.a}:${st.b}）だが、強さは ${D.a} ${num(st.LA)}・${D.b} ${num(st.LB)}`);
     })) : null,
+    v2 ? [
+      h("h3", null, "確度低の領域", h("small", null, lowDs.length ? `　${lowDs.length}領域` : "　なし")),
+      h("p", { class: "note" }, "左右（W）で優勢でも、その強さ（X）が弱い（67未満＝優勢（弱））か、反対側の強さの方が25以上高い（W と X の向きが逆）領域です。追加の質問で詰めきれなかった分は、その領域を含むパターン（形状を除く）のスコアを ×0.8 にして、主軸に選ばれにくくしています。"),
+      lowDs.length ? h("ul", { class: "t3-list", id: "t3-lowconf-list" }, lowDs.map(d => h("li", null, h("b", null, `${d} ${DOMAINS[d].name}（${r.lowConf[d].labels.join("・")}）`), "：", r.lowConf[d].text))) : null,
+    ] : null,
     r.config?.adaptive ? [
-      h("h3", null, "W追加（左右が拮抗した領域）", h("small", null, `　${wRows.length}問`)),
-      wRows.length ? table(["枠", "設問", "領域", "回答", "理由"], wRows, { class: "wide t3-extra" }) : h("p", { class: "note" }, "どの領域も左右がはっきりしていたので、W追加はありませんでした。"),
+      h("h3", null, v2 ? "W追加（拮抗 → 向きが逆 → 優勢（弱）の順）" : "W追加（左右が拮抗した領域）", h("small", null, `　${wRows.length}問`)),
+      wRows.length ? table(["枠", "設問", "領域", "回答", "理由"], wRows, { class: "wide t3-extra" }) : h("p", { class: "note" }, v2 ? "W追加の対象になる領域（拮抗・向きが逆・優勢（弱））がなかったので、W追加はありませんでした。" : "どの領域も左右がはっきりしていたので、W追加はありませんでした。"),
       h("h3", null, "X追加（強さが曖昧な傾向）", h("small", null, `　${xRows.length}問`)),
       xRows.length ? table(["枠", "設問（左／右）", "狙いの傾向", "回答", "理由"], xRows, { class: "wide t3-extra" }) : h("p", { class: "note" }, "強さが曖昧な傾向がなかったので、X追加はありませんでした。"),
     ] : h("p", { class: "note" }, "固定64問のモードなので、追加の質問はありません。"),
@@ -616,18 +730,25 @@ function qualityBlock(r) {
 // ---------------------------------------------------------------- 持ち出し
 export function aiText3(r) {
   const src = r.source || {};
-  const lines = ["【16次元診断・三択版の結果（AI統合用）】", `対象：${src.name ?? "あなたの回答"}`];
+  const V = versionOf(r.version);
+  const lines = ["【16次元診断・三択版の結果（AI統合用）】", `対象：${src.name ?? "あなたの回答"}`, `設問の版：${V.id}（${V.bankVersion}）`];
   if (src.estimated) lines.push(src.from === "scores" ? "※ 16スコアから三択の答えを機械的に作った推定です。" : "※ 5択版の回答から三択の答えを推定したものです（実際に三択で答えた結果ではありません）。");
   lines.push("", "■ 選ばれた解釈パターン（主軸を中心に、矛盾は消さずに1人の人物像としてまとめてください）");
   for (const hit of byRole(r.select.chosen)) {
     const p = PATTERN_BY_ID[hit.meta.id], t = p?.text;
     lines.push("", `［${hit.role}］${hit.meta.id}　${p?.headline ?? hit.meta.headline}`);
-    if (t) lines.push(`一言：${t.one}`, `詳細：${t.detail}`, "場面：", ...t.scenes.map(s => `・${s}`), `誤解しやすい点：${t.caveat}`);
+    if (t) lines.push(`一言：${t.one}`, `詳細：${t.detail}`, "場面：", ...scenesFor(hit.meta.id, r.version, t.scenes).map(s => `・${s}`), `誤解しやすい点：${t.caveat}`);
   }
   lines.push("", "■ 8領域（左右＝同じ場面で選んだ数、強さ＝別の場面の行動との比較で選ばれた割合。0〜100の相対値）");
   for (const d of Object.keys(DOMAINS)) {
     const D = DOMAINS[d], st = r.states[d];
-    lines.push(`${d}. ${D.name}：左右 ${D.a} ${st.a}：${st.b} ${D.b}（${st.lead ? `優勢：${st.lead}` : "拮抗"}）／強さ ${D.a} ${num(st.LA)}・${D.b} ${num(st.LB)}（${st.label}${st.check ? "・要確認" : ""}）`);
+    const lc = r.lowConf?.[d];
+    lines.push(`${d}. ${D.name}：左右 ${D.a} ${st.a}：${st.b} ${D.b}（${st.lead ? `優勢：${st.lead}` : "拮抗"}）／強さ ${D.a} ${num(st.LA)}・${D.b} ${num(st.LB)}（${st.label}${st.check ? "・要確認" : ""}${lc ? `・確度低：${lc.labels.join("・")}` : ""}）`);
+  }
+  if (V.logic.lowConf) {
+    const lowDs = Object.keys(r.lowConf || {});
+    lines.push("", `■ 確度低の領域：${lowDs.length ? lowDs.map(d => `${d} ${DOMAINS[d].name}（${r.lowConf[d].labels.join("・")}）`).join("、") : "なし"}`);
+    if (lowDs.length) lines.push("※ 左右（W）では優勢でも、強さ（X）が弱いか逆を向いている領域です。断定を避け、その領域の解釈は控えめに扱ってください（この領域を含むパターンはスコア ×0.8 で選んでいます）。");
   }
   lines.push("", `■ 回答の様子：左を選んだ割合 ${pct(r.quality.leftRate)}、問題を変えた回数 ${r.quality.swapCount}、答えずに進んだ数 ${r.quality.skipCount}${r.quality.ok ? "" : "（位置の偏りあり）"}`);
   lines.push("※ 強さは個人内の相対評価なので、「全体的に高い／低い」（S16・S17）は判定していません。");
@@ -636,8 +757,8 @@ export function aiText3(r) {
 
 function exportJSON3(r) {
   return {
-    type: "seikaku16-three-result", version: 1, createdAt: new Date().toISOString(),
-    source: r.source, config: r.config, profile3: r.profile3, levels: r.levels, w: r.w, m: r.m, wins: r.wins,
+    type: "seikaku16-three-result", version: 1, createdAt: new Date().toISOString(), qv: r.version, bankVersion: r.bankVersion,
+    source: r.source, config: r.config, lowConf: r.lowConf, profile3: r.profile3, levels: r.levels, w: r.w, m: r.m, wins: r.wins,
     domainStates: Object.fromEntries(Object.entries(r.states).map(([d, s]) => [d, { state: s.state, label: s.label, id: s.id, margin: s.margin, lead: s.lead, check: s.check }])),
     quality: r.quality, confidence: r.confidence, stages: r.stages,
     chosen: r.select.chosen.map(hit => ({ id: hit.meta.id, role: hit.role, score: +hit.score.toFixed(4), headline: hit.meta.headline })),

@@ -98,7 +98,8 @@ function rescore(payload) {
 }
 
 function checkStructure(p, session, result) {
-  assert.deepEqual(Object.keys(p), ["v", "app", "code", "ts", "mode", "dur", "back", "ua", "rec", "res", "fb"]);
+  assert.deepEqual(Object.keys(p), ["v", "app", "code", "ts", "mode", "dur", "back", "ua", "rec", "res", "fb", "qv"]);   // qv は v2 対応で末尾に追加（版を渡さないセッションは v1）
+  assert.equal(p.qv, session.config.version ?? "v1");
   assert.deepEqual(Object.keys(p.res), ["chosen", "states", "lv", "w"]);
   assert.deepEqual(Object.keys(p.fb), ["self", "act", "blind", "cards", "missing", "hard", "time", "swipe", "free"]);
   assert.deepEqual(Object.keys(p.fb.blind), ["pick", "decoy", "order"]);

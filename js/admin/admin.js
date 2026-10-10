@@ -10,7 +10,7 @@ const SAMPLE_URL = "./tests/fixtures/fb_sample_all.txt";    // 相対パス（Gi
 const FB_URL = "https://kento20020.github.io/Seikakushindan/?fb=1#three";
 
 const S = {
-  parsed: null, model: null, rescore: null, includeRetests: false,
+  parsed: null, model: null, rescore: null, includeRetests: false, rescoreMode: "then",
   items: { sort: { key: "id", dir: 1 }, onlyReview: false, kind: "all", unseen: false },
 };
 
@@ -67,7 +67,7 @@ function render() {
     V.renderCards(m),
     V.renderItemsSection(m, S.items),
     V.renderReview(m),
-    V.renderRescore(S.rescore),
+    V.renderRescore(S.rescore, { onMode: (mode) => { S.rescoreMode = mode; S.rescore = rescoreAll(S.model.sessions, { mode }); render(); document.getElementById(`rescore-mode-${mode}`)?.focus(); } }),
     V.renderOutput(outputBlocks()),
   );
   results.hidden = false;
@@ -77,7 +77,7 @@ function render() {
 
 function recompute() {
   S.model = analyzeParsed(S.parsed, { includeRetests: S.includeRetests });
-  S.rescore = rescoreAll(S.model.sessions);
+  S.rescore = rescoreAll(S.model.sessions, { mode: S.rescoreMode });
 }
 
 function run({ scroll = true } = {}) {

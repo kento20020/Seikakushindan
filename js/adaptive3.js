@@ -1,12 +1,16 @@
-// 三択版（左／右／問題を変える）の可変質問票。DOM を触らない純粋ロジック（node でテストできる）。仕様：docs/three-choice-logic.md §4〜5
+// 三択版（左／右／問題を変える）の可変質問票。DOM を触らない純粋ロジック（node でテストできる）。仕様：docs/three-choice-logic.md §4〜5 と「v2」
 //
 //   段階1 W基本 : 32問。領域を順繰りに（W1-1, W2-1, …, W8-1, W1-2, …）。A行動とB行動の左右は枠ごとに入れ替える
 //   段階2 X基本 : xRounds のラウンド1〜4の32問（ラウンド順）
 //   段階3 W追加 : 左右が拮抗した領域（差<2 または 取り分<0.6）に alt → 対決設問の順で追加。1問ごとに再集計し、
 //                 優勢が決まった領域は打ち切る。領域あたり2・全体16まで
+//                 v2：拮抗 → W と X の向きが逆 → 優勢（弱）の順に、領域あたり2・全体8まで
 //   段階4 X追加 : level が 40〜60、または回答数 m<3 の傾向を含むラウンド5〜6の組。優勢が決まった領域の傾向を優先。
-//                 傾向あたり2・全体16まで（これも1問ごとに計画し直す）
-//   最大 32＋32＋16＋16＝96問。adaptive=false は段階1・2の64問だけ。
+//                 傾向あたり2・全体16まで（これも1問ごとに計画し直す）。v2：向きが逆の領域の両傾向も（最優先）、全体8まで
+//   最大 32＋32＋16＋16＝96問（v2 は 80問）。adaptive=false は段階1・2の64問だけ。
+//
+// 設問の版（v1／v2）は Session3 の config.version。設問の索引は buildBank（版ごとに一度だけ作る）。名前つきの export（W_ITEMS・ITEM3 など）は
+// 互換のため v1 のまま。版ごとの索引は bankFor(版) または session.bank。版の一覧と既定は js/three_version.js。
 //
 // 「問題を変える」：同じ枠の設問を別の設問に差し替える（1枠2回まで）。
 //   W：未使用の alt → 対決 Q7x の言い換え（a/b）→ D?x、X：ラウンド7 → 未使用のラウンド5〜6（同じ傾向を含む組）。
@@ -15,66 +19,104 @@
 // 採点は回答した枠の「選んだ傾向」だけを見る（左右の位置ではない）。engine3.js の select3 などで判定する。
 
 import { QUESTIONS } from "./data/questions.js";
-import { QUESTIONS3 } from "./data/questions3.js";
 import { DOMAINS, TRAITS, DOM_OF, duelFromAnswers } from "./engine.js";
 import { BASIC_BY_TRAIT } from "./adaptive.js";
-import { TH3, wMargin, domainStates3, select3, responseQuality3, confidence3 } from "./engine3.js";
+import { TH3, domainStates3, select3, responseQuality3, confidence3, domainFlags3, lowConfDomains3, CONFLICT_GAP } from "./engine3.js";
+import { THREE_VERSIONS, LIB_DEFAULT_VERSION, isVersion, versionOf } from "./three_version.js";
 
 // ---------------------------------------------------------------- 定数
 export const STAGES3 = ["W基本", "X基本", "W追加", "X追加"];
 export const MAX_SWAPS = 2;
+// 追加の上限（v1 の値。版ごとの値は THREE_VERSIONS[版].caps。v2 は W 8・X 8）
 export const W_EXTRA_PER_DOMAIN = 2, W_EXTRA_CAP = 16;
 export const X_EXTRA_PER_TRAIT = 2, X_EXTRA_CAP = 16;
 export const X_AMBIG_LOW = 40, X_AMBIG_HIGH = 60, X_MIN_M = 3;
 export const W_PROMPT = "取りやすいのはどちら？";
 export const X_PROMPT = "より自分らしいのはどちら？";
 export const SRC_LABEL = { base: "基本", alt: "予備", duel: "対決（5択版）", duel2: "追加対決（5択版）" };
+/** v2 の W追加の理由の種類（優先順） */
+export const W_EXTRA_KIND_LABEL = { tie: "拮抗", conflict: "向きが逆", weak: "優勢（弱）" };
 
-const TI = QUESTIONS3.traitIndex;
-if (TI.join() !== TRAITS.join()) throw new Error("questions3.traitIndex と questions.traits の並びが違います");
-
-// ---------------------------------------------------------------- 設問の索引
-/** W 設問：{id, kind:"W", domain, src:"base"|"alt"|"duel"|"duel2", k(基本の番号), stem, a(A行動), b(B行動), source?, variant?} */
-export const W_ITEMS = {};
-export const W_BASE = {};   // 領域 → 基本4問の id
-export const W_POOL = {};   // 領域 → 差し替え・追加の候補（alt → Q7x a/b → D?x）
-for (const [d, list] of Object.entries(QUESTIONS3.pairs)) {
-  W_BASE[d] = []; W_POOL[d] = [];
-  for (const p of list) {
-    const k = p.kind === "base" ? W_BASE[d].length + 1 : null;
-    W_ITEMS[p.id] = { id: p.id, kind: "W", domain: +d, src: p.kind, k, stem: p.stem, a: p.a, b: p.b };
-    (p.kind === "base" ? W_BASE[d] : W_POOL[d]).push(p.id);
-  }
-}
+// ---------------------------------------------------------------- 設問の索引（版ごとに作る）
+/** W の枠 n（領域内の通し番号 1〜6）の左右：(領域 + n) が奇数なら B行動を左に（各領域で左右が半々、出題順でも交互） */
+const wFlip = (d, n) => (d + n) % 2 === 1;
 const DUEL_BY_ID = Object.fromEntries(QUESTIONS.duels.map(q => [q.id, q]));
-for (const [d, ids] of Object.entries(QUESTIONS3.extraPairSources)) {
-  const D = DOMAINS[d];
-  for (const sid of ids) {
-    const q = DUEL_BY_ID[sid];
-    if (!q) throw new Error("対決設問が見つかりません: " + sid);
-    const flipped = q.sideA !== D.a;    // sideA が領域の B側なら a/b を入れ替えて A行動／B行動に揃える
-    q.variants.forEach((v, vi) => {
-      const id = q.variants.length > 1 ? `${sid}${"ab"[vi]}` : sid;
-      W_ITEMS[id] = { id, kind: "W", domain: +d, src: q.role, k: null, source: sid, variant: vi, no: q.no, stem: v.stem, a: flipped ? v.b : v.a, b: flipped ? v.a : v.b };
-      W_POOL[d].push(id);
-    });
+
+/**
+ * 設問バンク（questions3.js の形）→ 索引。版ごとに一度だけ作る（bank.version で覚えておく）
+ *   W_ITEMS {id → W 設問}、W_BASE {領域 → 基本4問の id}、W_POOL {領域 → 差し替え・追加の候補（alt → Q7x a/b → D?x）}、
+ *   X_ITEMS {id → X 設問}、X_BY_ROUND_TRAIT {ラウンド → 傾向 → id}、ITEM3（W と X をまとめたもの）、W_BASE_STEPS・X_BASE_STEPS（基本の枠）
+ */
+const BANKS = new Map();
+export function buildBank(bank) {
+  const key = bank?.version;
+  if (BANKS.has(key)) return BANKS.get(key);
+  const TI = bank.traitIndex;
+  if (TI.join() !== TRAITS.join()) throw new Error(`設問バンク ${key} の traitIndex と questions.traits の並びが違います`);
+
+  /** W 設問：{id, kind:"W", domain, src:"base"|"alt"|"duel"|"duel2", k(基本の番号), stem, a(A行動), b(B行動), source?, variant?} */
+  const W_ITEMS = {}, W_BASE = {}, W_POOL = {};
+  for (const [d, list] of Object.entries(bank.pairs)) {
+    W_BASE[d] = []; W_POOL[d] = [];
+    for (const p of list) {
+      const k = p.kind === "base" ? W_BASE[d].length + 1 : null;
+      W_ITEMS[p.id] = { id: p.id, kind: "W", domain: +d, src: p.kind, k, stem: p.stem, a: p.a, b: p.b };
+      (p.kind === "base" ? W_BASE[d] : W_POOL[d]).push(p.id);
+    }
   }
+  for (const [d, ids] of Object.entries(bank.extraPairSources)) {
+    const D = DOMAINS[d];
+    for (const sid of ids) {
+      const q = DUEL_BY_ID[sid];
+      if (!q) throw new Error("対決設問が見つかりません: " + sid);
+      const flipped = q.sideA !== D.a;    // sideA が領域の B側なら a/b を入れ替えて A行動／B行動に揃える
+      q.variants.forEach((v, vi) => {
+        const id = q.variants.length > 1 ? `${sid}${"ab"[vi]}` : sid;
+        W_ITEMS[id] = { id, kind: "W", domain: +d, src: q.role, k: null, source: sid, variant: vi, no: q.no, stem: v.stem, a: flipped ? v.b : v.a, b: flipped ? v.a : v.b };
+        W_POOL[d].push(id);
+      });
+    }
+  }
+
+  /** X 設問：{id:"X{ラウンド}-{組}", kind:"X", round, index, s(行動文の番号0〜3), left, right(傾向), leftText, rightText} */
+  const X_ITEMS = {}, X_BY_ROUND_TRAIT = {};
+  bank.xRounds.forEach((round, ri) => {
+    const r = ri + 1, s = ri % 4;
+    X_BY_ROUND_TRAIT[r] = {};
+    round.forEach(([l, rt], pi) => {
+      const id = `X${r}-${pi + 1}`;
+      X_ITEMS[id] = { id, kind: "X", round: r, index: pi, s, left: TI[l], right: TI[rt], leftText: bank.statements[TI[l]][s], rightText: bank.statements[TI[rt]][s] };
+      X_BY_ROUND_TRAIT[r][TI[l]] = id; X_BY_ROUND_TRAIT[r][TI[rt]] = id;
+    });
+  });
+  const ITEM3 = { ...W_ITEMS, ...X_ITEMS };
+
+  const W_BASE_STEPS = [];
+  for (let k = 1; k <= 4; k++) for (let d = 1; d <= 8; d++) {
+    W_BASE_STEPS.push({ key: `WB-${d}-${k}`, stage: 1, kind: "W", domain: d, n: k, flip: wFlip(d, k), item: W_BASE[d][k - 1] });
+  }
+  const X_BASE_STEPS = [];
+  for (let r = 1; r <= 4; r++) bank.xRounds[r - 1].forEach((_, i) => {
+    const q = X_ITEMS[`X${r}-${i + 1}`];
+    X_BASE_STEPS.push({ key: `XB-${r}-${i + 1}`, stage: 2, kind: "X", item: q.id, traits: [q.left, q.right] });
+  });
+  const built = { bank, version: key, TI, W_ITEMS, W_BASE, W_POOL, X_ITEMS, X_BY_ROUND_TRAIT, ITEM3, W_BASE_STEPS, X_BASE_STEPS };
+  BANKS.set(key, built);
+  return built;
 }
 
-/** X 設問：{id:"X{ラウンド}-{組}", kind:"X", round, index, s(行動文の番号0〜3), left, right(傾向), leftText, rightText} */
-export const X_ITEMS = {};
-export const X_BY_ROUND_TRAIT = {};   // ラウンド → 傾向 → id
-QUESTIONS3.xRounds.forEach((round, ri) => {
-  const r = ri + 1, s = ri % 4;
-  X_BY_ROUND_TRAIT[r] = {};
-  round.forEach(([l, rt], pi) => {
-    const id = `X${r}-${pi + 1}`;
-    X_ITEMS[id] = { id, kind: "X", round: r, index: pi, s, left: TI[l], right: TI[rt], leftText: QUESTIONS3.statements[TI[l]][s], rightText: QUESTIONS3.statements[TI[rt]][s] };
-    X_BY_ROUND_TRAIT[r][TI[l]] = id; X_BY_ROUND_TRAIT[r][TI[rt]] = id;
-  });
-});
+/** 版（"v1" | "v2"）の設問の索引。知らない版は v1 */
+export function bankFor(versionId) { return buildBank(versionOf(versionId).bank); }
+
+// 互換のため、名前つきの export は v1 の設問バンクのまま（admin・テスト・5択回答からの推定の既定）
+const B1 = bankFor(LIB_DEFAULT_VERSION);
+export const W_ITEMS = B1.W_ITEMS;
+export const W_BASE = B1.W_BASE;     // 領域 → 基本4問の id
+export const W_POOL = B1.W_POOL;     // 領域 → 差し替え・追加の候補（alt → Q7x a/b → D?x）
+export const X_ITEMS = B1.X_ITEMS;
+export const X_BY_ROUND_TRAIT = B1.X_BY_ROUND_TRAIT;   // ラウンド → 傾向 → id
 export const ROUND_USE = { 1: "基本", 2: "基本", 3: "基本", 4: "基本", 5: "追加", 6: "追加", 7: "差し替え用" };
-export const ITEM3 = { ...W_ITEMS, ...X_ITEMS };
+export const ITEM3 = B1.ITEM3;
 
 /** 枠の中で設問を左右に並べた形。W は flip のとき B行動を左に出す */
 export function present(step, q) {
@@ -86,19 +128,6 @@ export function present(step, q) {
   }
   return { id: q.id, kind: "X", stem: null, prompt: X_PROMPT, round: q.round, left: { text: q.leftText, trait: q.left }, right: { text: q.rightText, trait: q.right }, flip: false };
 }
-
-// ---------------------------------------------------------------- 基本の枠
-/** W の枠 n（領域内の通し番号 1〜6）の左右：(領域 + n) が奇数なら B行動を左に（各領域で左右が半々、出題順でも交互） */
-const wFlip = (d, n) => (d + n) % 2 === 1;
-const W_BASE_STEPS = [];
-for (let k = 1; k <= 4; k++) for (let d = 1; d <= 8; d++) {
-  W_BASE_STEPS.push({ key: `WB-${d}-${k}`, stage: 1, kind: "W", domain: d, n: k, flip: wFlip(d, k), item: W_BASE[d][k - 1] });
-}
-const X_BASE_STEPS = [];
-for (let r = 1; r <= 4; r++) QUESTIONS3.xRounds[r - 1].forEach((_, i) => {
-  const q = X_ITEMS[`X${r}-${i + 1}`];
-  X_BASE_STEPS.push({ key: `XB-${r}-${i + 1}`, stage: 2, kind: "X", item: q.id, traits: [q.left, q.right] });
-});
 
 // ---------------------------------------------------------------- 採点（共通）
 /** 拮抗：差<2 または 取り分<0.6（どちらの側も優勢でない） */
@@ -135,6 +164,18 @@ export function scoreRecords3(records) {
 
 const fmt = (v) => Number.isInteger(v) ? String(v) : v.toFixed(1);
 
+/** W追加の理由の文（種類：tie 拮抗／conflict 向きが逆／weak 優勢（弱）） */
+function wExtraReason(d, wd, kind, profile3) {
+  const D = DOMAINS[d], hi = Math.max(wd.a, wd.b);
+  const lr = `${D.a} ${wd.a}：${wd.b} ${D.b}`;
+  if (kind === "conflict" || kind === "weak") {
+    const f = domainFlags3(profile3, d);
+    if (kind === "conflict") return `${D.name}：左右（W）は ${lr} で${f.lead}が優勢なのに、強さ（X）は${f.other} ${fmt(f.Lo)} が${f.lead} ${fmt(f.L)} より${fmt(f.Lo - f.L)}高い（W と X の向きが逆）ため、左右をもう一度確かめる。`;
+    return `${D.name}：左右（W）は ${lr} で${f.lead}が優勢だが、${f.lead}の強さ（X）が ${fmt(f.L)}（${TH3.high}未満、優勢（弱））のため、左右をもう一度確かめる。`;
+  }
+  return `${D.name}：左右が ${lr}（差${Math.abs(wd.a - wd.b)}・取り分${wd.n ? Math.round(hi / wd.n * 100) + "%" : "—"}）で、優勢が決まっていないため。`;
+}
+
 // ---------------------------------------------------------------- セッション
 /**
  *   plan  : { s1: W基本, s2: X基本, s3: W追加|null, s4: X追加|null }（null＝まだ計画していない）
@@ -143,13 +184,23 @@ const fmt = (v) => Number.isInteger(v) ? String(v) : v.toFixed(1);
  *   log   : 操作履歴（answer / swap / skip / back / plan）。追記のみ
  */
 export class Session3 {
-  constructor({ adaptive = true, origin = null } = {}) {
-    this.config = { adaptive: adaptive !== false, ...(origin ? { origin } : {}) };
-    this.plan = { s1: W_BASE_STEPS.map(s => ({ ...s })), s2: X_BASE_STEPS.map(s => ({ ...s, traits: [...s.traits] })), s3: null, s4: null };
+  /** version：設問の版（"v1" | "v2"）。省略時は互換のため v1（画面は常に解決した版を渡す。js/three_version.js） */
+  constructor({ adaptive = true, origin = null, version = LIB_DEFAULT_VERSION } = {}) {
+    const v = isVersion(version) ? version : LIB_DEFAULT_VERSION;
+    this.config = { adaptive: adaptive !== false, version: v, ...(origin ? { origin } : {}) };
+    this.B = bankFor(v);
+    this.plan = { s1: this.B.W_BASE_STEPS.map(s => ({ ...s })), s2: this.B.X_BASE_STEPS.map(s => ({ ...s, traits: [...s.traits] })), s3: null, s4: null };
     this.state = {};
     this.pos = 0;
     this.log = [];
   }
+
+  /** 設問の版（"v1" | "v2"） */
+  get version() { return this.config.version; }
+  /** 版の定義（THREE_VERSIONS[版]：bank・logic・caps・scenes・practice） */
+  get V() { return THREE_VERSIONS[this.config.version]; }
+  /** この版の設問の索引（W_ITEMS・X_ITEMS・ITEM3 など） */
+  get bank() { return this.B; }
 
   steps() { return [...this.plan.s1, ...this.plan.s2, ...(this.plan.s3 || []), ...(this.plan.s4 || [])]; }
   _items(step) { return this.state[step.key]?.items || [step.item]; }
@@ -167,10 +218,10 @@ export class Session3 {
   /** 差し替え候補（使える順） */
   _swapCandidates(step) {
     const used = this._used();
-    if (step.kind === "W") return W_POOL[step.domain].filter(id => !used.has(id));
+    if (step.kind === "W") return this.B.W_POOL[step.domain].filter(id => !used.has(id));
     const out = [];
     for (const rounds of [[7], [5, 6]]) for (const t of step.traits) for (const r of rounds) {
-      const id = X_BY_ROUND_TRAIT[r][t];
+      const id = this.B.X_BY_ROUND_TRAIT[r][t];
       if (id && !used.has(id) && !out.includes(id)) out.push(id);
     }
     return out;
@@ -188,7 +239,7 @@ export class Session3 {
     const stageSteps = steps.filter(x => x.stage === step.stage);
     return {
       key: step.key, slot: step.key, stage: STAGES3[step.stage - 1], stageNo: step.stage, kind: step.kind,
-      question: present(step, ITEM3[this._itemId(step)]),
+      question: present(step, this.B.ITEM3[this._itemId(step)]),
       index: this.pos, total: steps.length,
       stageIndex: stageSteps.indexOf(step), stageTotal: stageSteps.length,
       canSwap: swapsLeft > 0, swapsLeft, swapsUsed, canSkip: swapsLeft === 0,
@@ -204,7 +255,7 @@ export class Session3 {
     const step = this.steps()[this.pos];
     if (!step) return false;
     const s = this._ensure(step);
-    const q = present(step, ITEM3[this._itemId(step)]);
+    const q = present(step, this.B.ITEM3[this._itemId(step)]);
     const prev = s.answered ? s.answer : undefined;
     s.answered = true; s.answer = side;
     this.log.push({ type: "answer", key: step.key, stage: step.stage, itemId: q.id, side, trait: q[side].trait, ...(prev !== undefined ? { prev } : {}) });
@@ -271,7 +322,8 @@ export class Session3 {
     const stageNo = cur ? cur.stage : null;
     const stageList = stageNo ? steps.filter(s => s.stage === stageNo) : [];
     // 全体の見込み：計画前の追加段階は上限で数える（固定モードは64）
-    const max = this.config.adaptive ? 32 + 32 + (this.plan.s3 ? this.plan.s3.length : W_EXTRA_CAP) + (this.plan.s4 ? this.plan.s4.length : X_EXTRA_CAP) : 64;
+    const caps = this.V.caps;
+    const max = this.config.adaptive ? 32 + 32 + (this.plan.s3 ? this.plan.s3.length : caps.wExtra) + (this.plan.s4 ? this.plan.s4.length : caps.xExtra) : 64;
     return {
       answered, total: steps.length, max, ratio: steps.length ? answered / steps.length : 0,
       stage: stageNo ? STAGES3[stageNo - 1] : "完了", stageNo, stageLabel: stageNo ? STAGES3[stageNo - 1] : "完了",
@@ -314,7 +366,7 @@ export class Session3 {
     for (const step of this.steps()) {
       const s = this.state[step.key];
       if (!s || !s.answered) continue;
-      const q = present(step, ITEM3[s.items[s.items.length - 1]]);
+      const q = present(step, this.B.ITEM3[s.items[s.items.length - 1]]);
       out.push({
         key: step.key, stage: step.stage, stageLabel: STAGES3[step.stage - 1], kind: step.kind, itemId: q.id, domain: step.domain ?? null,
         left: q.left.trait, right: q.right.trait, flip: q.flip, answer: s.answer, picked: s.answer ? q[s.answer].trait : null,
@@ -329,72 +381,99 @@ export class Session3 {
     return scoreRecords3(this.records().filter(r => !set || set.has(r.key)));
   }
 
-  /** 段階3：W追加（拮抗した領域だけ。回答済み・差し替え済みの枠は残し、未着手の枠を計画し直す） */
+  /**
+   * 段階3：W追加。回答済み・差し替え済みの枠は残し、未着手の枠を計画し直す（1問答えるごとに呼ばれる）
+   *   v1：左右が拮抗した領域だけ
+   *   v2：拮抗 → W と X の向きが逆（conflict）→ 優勢（弱）（weak）の順。同じ種類の中では領域番号順。
+   *       上限（領域あたり2・全体）は版の caps。1巡目で必要な領域に1問ずつ、2巡目で2問目（v1 と同じ配り方）
+   */
   _planWExtra() {
+    const caps = this.V.caps, kinds = this.V.logic.wExtra || ["tie"];
     const kept = (this.plan.s3 || []).filter(st => this.state[st.key]);
-    const { w } = this._score();
+    const { w, profile3 } = this._score();
     const per = {}; for (const st of kept) per[st.domain] = (per[st.domain] || 0) + 1;
     const used = this._used([...this.plan.s1, ...this.plan.s2, ...kept, ...(this.plan.s4 || []).filter(st => this.state[st.key])]);
     const keys = new Set(kept.map(s => s.key));
+    // 領域ごとの種類（拮抗＞向きが逆＞弱い）。どれにも当たらない領域は追加しない
+    const kindOf = (d) => {
+      if (isTied(w[d])) return "tie";
+      const f = domainFlags3(profile3, d);
+      if (f.conflict) return "conflict";
+      if (f.weak) return "weak";
+      return null;
+    };
+    const order = Object.keys(DOMAINS).map(Number)
+      .map(d => ({ d, kind: kindOf(d) }))
+      .filter(x => x.kind && kinds.includes(x.kind))
+      .sort((x, y) => kinds.indexOf(x.kind) - kinds.indexOf(y.kind) || x.d - y.d);
     const out = [...kept];
-    for (let round = 1; round <= W_EXTRA_PER_DOMAIN; round++) {
-      for (const d of Object.keys(DOMAINS).map(Number)) {
-        if (out.length >= W_EXTRA_CAP) break;
-        if ((per[d] || 0) >= round || !isTied(w[d])) continue;
-        const id = W_POOL[d].find(x => !used.has(x));
+    for (let round = 1; round <= caps.wPerDomain; round++) {
+      for (const { d, kind } of order) {
+        if (out.length >= caps.wExtra) break;
+        if ((per[d] || 0) >= round) continue;
+        const id = this.B.W_POOL[d].find(x => !used.has(x));
         if (!id) continue;
         used.add(id);
         per[d] = (per[d] || 0) + 1;
         let k = per[d]; while (keys.has(`WE-${d}-${k}`)) k++;
         const key = `WE-${d}-${k}`; keys.add(key);
         const n = 4 + per[d];
-        const D = DOMAINS[d], wd = w[d], hi = Math.max(wd.a, wd.b);
-        out.push({
-          key, stage: 3, kind: "W", domain: d, n, flip: wFlip(d, n), item: id,
-          reason: `${D.name}：左右が ${D.a} ${wd.a}：${wd.b} ${D.b}（差${Math.abs(wd.a - wd.b)}・取り分${wd.n ? Math.round(hi / wd.n * 100) + "%" : "—"}）で、優勢が決まっていないため。`,
-        });
+        out.push({ key, stage: 3, kind: "W", domain: d, n, flip: wFlip(d, n), item: id, ...(kinds.length > 1 ? { why: kind } : {}), reason: wExtraReason(d, w[d], kind, profile3) });
       }
     }
     return out;
   }
 
-  /** 段階4：X追加（level 40〜60 または m<3 の傾向を含むラウンド5〜6の組） */
+  /**
+   * 段階4：X追加（level 40〜60 または m<3 の傾向を含むラウンド5〜6の組。優勢が決まった領域の傾向を優先）
+   *   v2：W と X の向きが逆（conflict）の領域の両傾向も足し、それを最優先にする。上限は版の caps
+   */
   _planXExtra() {
+    const caps = this.V.caps, withConflict = !!this.V.logic.xExtraConflict;
     const kept = (this.plan.s4 || []).filter(st => this.state[st.key]);
     const sc = this._score();
     const used = this._used([...this.plan.s1, ...this.plan.s2, ...(this.plan.s3 || []), ...kept]);
     const cnt = {};
-    for (const st of kept) { const q = ITEM3[this._itemId(st)]; cnt[q.left] = (cnt[q.left] || 0) + 1; cnt[q.right] = (cnt[q.right] || 0) + 1; }
+    for (const st of kept) { const q = this.B.ITEM3[this._itemId(st)]; cnt[q.left] = (cnt[q.left] || 0) + 1; cnt[q.right] = (cnt[q.right] || 0) + 1; }
     const decided = (t) => !isTied(sc.w[DOM_OF[t]]);
-    const amb = TRAITS.map((t, ti) => ({ t, ti, L: sc.levels[t], m: sc.m[t] }))
-      .filter(x => x.m < X_MIN_M || (x.L >= X_AMBIG_LOW && x.L <= X_AMBIG_HIGH))
+    const conflictOf = {};
+    if (withConflict) for (const d of Object.keys(DOMAINS)) {
+      const f = domainFlags3(sc.profile3, d);
+      if (f.conflict) { conflictOf[f.lead] = f; conflictOf[f.other] = f; }
+    }
+    const amb = TRAITS.map((t, ti) => ({ t, ti, L: sc.levels[t], m: sc.m[t], conflict: !!conflictOf[t] }))
+      .filter(x => x.conflict || x.m < X_MIN_M || (x.L >= X_AMBIG_LOW && x.L <= X_AMBIG_HIGH))
       .map(x => ({ ...x, dec: decided(x.t), dist: Math.abs(x.L - 50) }))
-      .sort((x, y) => (y.dec - x.dec) || (x.dist - y.dist) || (x.ti - y.ti));
-    const avail = [5, 6].flatMap(r => QUESTIONS3.xRounds[r - 1].map((_, i) => `X${r}-${i + 1}`)).filter(id => !used.has(id));
+      .sort((x, y) => (y.conflict - x.conflict) || (y.dec - x.dec) || (x.dist - y.dist) || (x.ti - y.ti));
+    const avail = [5, 6].flatMap(r => this.B.bank.xRounds[r - 1].map((_, i) => `X${r}-${i + 1}`)).filter(id => !used.has(id));
     const out = [...kept];
     const keys = new Set(kept.map(s => s.key));
-    for (let pass = 1; pass <= X_EXTRA_PER_TRAIT; pass++) {
+    for (let pass = 1; pass <= caps.xPerTrait; pass++) {
       for (const a of amb) {
-        if (out.length >= X_EXTRA_CAP) break;
+        if (out.length >= caps.xExtra) break;
         if ((cnt[a.t] || 0) >= pass) continue;
         const id = avail.find(x => {
           if (used.has(x)) return false;
-          const q = X_ITEMS[x];
+          const q = this.B.X_ITEMS[x];
           if (q.left !== a.t && q.right !== a.t) return false;
           const other = q.left === a.t ? q.right : q.left;
-          return (cnt[other] || 0) < X_EXTRA_PER_TRAIT;
+          return (cnt[other] || 0) < caps.xPerTrait;
         });
         if (!id) continue;
         used.add(id);
-        const q = X_ITEMS[id];
+        const q = this.B.X_ITEMS[id];
         cnt[q.left] = (cnt[q.left] || 0) + 1; cnt[q.right] = (cnt[q.right] || 0) + 1;
         let key = `XE-${id}`; while (keys.has(key)) key += "+"; keys.add(key);
         const D = DOMAINS[DOM_OF[a.t]];
-        const why = a.m < X_MIN_M ? `比較の回答数が${a.m}（${X_MIN_M}未満）` : `level が ${fmt(a.L)}（${sc.wins[a.t]}/${a.m}、${X_AMBIG_LOW}〜${X_AMBIG_HIGH}）で強さが曖昧`;
-        out.push({
-          key, stage: 4, kind: "X", item: id, target: a.t, traits: [a.t],
-          reason: `「${a.t}」の${why}。` + (a.dec ? `${D.name}は左右の優勢が決まっているので、状態1／2／弱の判定に効くため優先。` : `${D.name}は左右も拮抗。`),
-        });
+        let reason;
+        if (a.conflict) {
+          const f = conflictOf[a.t];
+          reason = `${D.name}は左右（W）では${f.lead}が優勢なのに、強さ（X）は${f.other} ${fmt(f.Lo)} が${f.lead} ${fmt(f.L)} より${fmt(f.Lo - f.L)}高い（向きが逆、${CONFLICT_GAP}以上）。「${a.t}」の強さを別の組み合わせでも確かめるため。`;
+        } else {
+          const why = a.m < X_MIN_M ? `比較の回答数が${a.m}（${X_MIN_M}未満）` : `level が ${fmt(a.L)}（${sc.wins[a.t]}/${a.m}、${X_AMBIG_LOW}〜${X_AMBIG_HIGH}）で強さが曖昧`;
+          reason = `「${a.t}」の${why}。` + (a.dec ? `${D.name}は左右の優勢が決まっているので、状態1／2／弱の判定に効くため優先。` : `${D.name}は左右も拮抗。`);
+        }
+        out.push({ key, stage: 4, kind: "X", item: id, target: a.t, traits: [a.t], ...(a.conflict ? { why: "conflict" } : {}), reason });
       }
     }
     return out;
@@ -408,7 +487,7 @@ export class Session3 {
       if (!s) continue;
       s.items.forEach((id, i) => {
         const last = i === s.items.length - 1;
-        const q = present(step, ITEM3[id]);
+        const q = present(step, this.B.ITEM3[id]);
         const status = !last ? "swapped" : !s.answered ? "pending" : s.answer === null ? "skipped" : "answered";
         (out[id] ||= []).push({ key: step.key, stage: step.stage, extra: step.stage >= 3, status,
           side: status === "answered" ? s.answer : null, picked: status === "answered" ? q[s.answer].trait : null, leftTrait: q.left.trait });
@@ -421,14 +500,18 @@ export class Session3 {
     const records = this.records();
     const sc = scoreRecords3(records);
     const states = domainStates3(sc.profile3);
-    const sel = select3(sc.profile3);
+    const V = this.V, logic = V.logic;
+    // v2：確度低（最終結果で優勢（弱）か向きが逆が残った領域）。v1 は扱わない（空）
+    const lowConf = logic.lowConf ? lowConfDomains3(sc.profile3) : {};
+    const sel = logic.id === "v1" ? select3(sc.profile3) : select3(sc.profile3, { logic, lowConf });
     const rec = Object.fromEntries(records.map(r => [r.key, r]));
     const extra = (list) => (list || []).map(st => {
       const r = rec[st.key];
-      return { key: st.key, itemId: this._itemId(st), domain: st.domain ?? null, target: st.target ?? null, reason: st.reason || "",
+      return { key: st.key, itemId: this._itemId(st), domain: st.domain ?? null, target: st.target ?? null, reason: st.reason || "", ...(st.why ? { why: st.why } : {}),
         answer: r ? r.answer : undefined, picked: r ? r.picked : null, swaps: this._items(st).length - 1 };
     });
     return {
+      version: this.config.version, bankVersion: V.bankVersion, logic: { ...logic }, lowConf,
       profile3: sc.profile3, levels: sc.levels, w: sc.w, m: sc.m, wins: sc.wins, states, select: sel, quality: sc.quality,
       confidence: confidence3(sc.profile3, sc.m, sc.wins),
       stages: { wExtra: extra(this.plan.s3), xExtra: extra(this.plan.s4) },
@@ -443,12 +526,13 @@ export class Session3 {
   static fromJSON(obj) {
     if (!obj || obj.type !== "seikaku16-three-session" || obj.version !== 1) throw new Error("三択版のセッションの形式が違います");
     const s = new Session3(obj.config || {});
-    const known = (list) => Array.isArray(list) ? list.filter(st => st && ITEM3[st.item]) : null;
+    const I3 = s.B.ITEM3;
+    const known = (list) => Array.isArray(list) ? list.filter(st => st && I3[st.item]) : null;
     s.plan.s3 = known(obj.plan?.s3);
     s.plan.s4 = known(obj.plan?.s4);
     const state = {};
     for (const [k, v] of Object.entries(obj.state || {})) {
-      if (!v || !Array.isArray(v.items) || !v.items.length || !v.items.every(id => ITEM3[id])) continue;
+      if (!v || !Array.isArray(v.items) || !v.items.length || !v.items.every(id => I3[id])) continue;
       state[k] = { items: v.items.slice(), answered: !!v.answered, answer: v.answer === "left" || v.answer === "right" ? v.answer : null };
     }
     s.state = state;
@@ -488,7 +572,7 @@ const sideOf = (c, trait) => c.question.left.trait === trait ? "left" : "right";
  *            それも 3 なら「問題を変える」で alt へ。alt・対決由来の設問は Q7x／D?x の回答の向き（平均）、無ければ答えずに進む
  *   X（t vs u、行動文 s）：t の s番目と u の s番目の大きい方。同点なら4問平均の高い方、それも同点なら左
  */
-export function fromLikertAnswers(answers, wordingIndex = 0, { adaptive = true } = {}) {
+export function fromLikertAnswers(answers, wordingIndex = 0, { adaptive = true, version = LIB_DEFAULT_VERSION } = {}) {
   const val = (no) => { const v = answers?.[no] ?? answers?.[String(no)]; return v == null || v === "" || Number.isNaN(+v) ? null : +v; };
   const mean = (t) => { const vs = BASIC_BY_TRAIT[t].map(i => val(i.no)).filter(v => v != null); return vs.length ? vs.reduce((s, v) => s + v, 0) / vs.length : null; };
   const duelOf = (d, role) => QUESTIONS.duels.find(q => q.domain === +d && q.role === role);
@@ -496,9 +580,10 @@ export function fromLikertAnswers(answers, wordingIndex = 0, { adaptive = true }
     const inputs = roles.map(role => duelOf(d, role)).filter(Boolean).map(q => ({ domain: q.domain, sideA: q.sideA, sideB: q.sideB, answer: val(q.no) }));
     return duelFromAnswers(inputs)[d]?.side ?? null;
   };
-  const session = new Session3({ adaptive, origin: { from: "likert", wording: wordingIndex === 1 ? 1 : 0 } });
+  const session = new Session3({ adaptive, version, origin: { from: "likert", wording: wordingIndex === 1 ? 1 : 0 } });
+  const I3 = session.B.ITEM3;
   return drive(session, (c) => {
-    const q = ITEM3[c.question.id];
+    const q = I3[c.question.id];
     if (q.kind === "W") {
       const d = q.domain, D = DOMAINS[d];
       if (q.src === "base") {
@@ -525,12 +610,13 @@ export function fromLikertAnswers(answers, wordingIndex = 0, { adaptive = true }
  *      duel（{d:{side,strength}} か {d:[side,strength]}）があれば、拮抗の領域の追加設問（5問目以降）だけその向きで答える
  *   X：スコアの高い方。同点なら左
  */
-export function fromScores(scores, duel = {}, { adaptive = true } = {}) {
+export function fromScores(scores, duel = {}, { adaptive = true, version = LIB_DEFAULT_VERSION } = {}) {
   for (const t of TRAITS) if (!Number.isFinite(+scores?.[t])) throw new Error(`スコア「${t}」がありません`);
   const dside = (d) => { const v = duel?.[d]; const side = Array.isArray(v) ? v[0] : v?.side; return side === DOMAINS[d].a || side === DOMAINS[d].b ? side : null; };
-  const session = new Session3({ adaptive, origin: { from: "scores" } });
+  const session = new Session3({ adaptive, version, origin: { from: "scores" } });
+  const I3 = session.B.ITEM3;
   return drive(session, (c) => {
-    const q = ITEM3[c.question.id];
+    const q = I3[c.question.id];
     if (q.kind === "W") {
       const d = q.domain, D = DOMAINS[d], diff = +scores[D.a] - +scores[D.b];
       if (diff >= 10) return sideOf(c, D.a);

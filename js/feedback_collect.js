@@ -7,7 +7,8 @@
 //     self, act, actSkip, blind:{decoy,top,order,pick}, cards:{id:{r,ng,sc,main}}, missing, hardList, hard, time, swipe, free, finishedAt
 //   送信用テキスト：buildText(...) → encodeText(payload, summaryLines)（js/feedback_format.js）
 import { QUESTIONS3 } from "./data/questions3.js";
-import { ITEM3, fromScores } from "./adaptive3.js";
+import { ITEM3, fromScores, bankFor } from "./adaptive3.js";
+import { versionOf } from "./three_version.js";
 import { DOMAINS } from "./engine.js";
 import { PATTERN_BY_ID } from "./data/patterns.js";
 import { PROFILE_SAMPLES3 } from "./data/samples3.js";
@@ -194,13 +195,35 @@ export function pickHard(fb, records, max = 6) {
   return out;
 }
 
+// ---------------------------------------------------------------- 振り返りの理由チップの並び
+/** 文字列 → 32bit の種（FNV-1a） */
+function seedOf(str) {
+  let h = 0x811c9dc5;
+  for (const ch of String(str)) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h >>> 0;
+}
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+/**
+ * 振り返り（パート3）の理由チップの並び。設問ごとに並びを変える（最初のチップばかり選ばれないように）。
+ * 参加者コード＋設問 id を種にするので、同じ人・同じ設問なら再描画しても同じ並び（v1・v2 とも）
+ */
+export function chipOrder(code, itemId, codes = HARD_CODES) {
+  const rand = mulberry32(seedOf(`${code ?? ""}|${itemId ?? ""}`));
+  const out = codes.slice();
+  for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+  return out;
+}
+
 // ---------------------------------------------------------------- 送信用の JSON（v1）
 const TI = QUESTIONS3.traitIndex;
 const ti = (t) => TI.indexOf(t);
 
 /**
  * session: 終わった Session3、result: store3.result（session.result()）、fb: 記録、ua: "m" | "d"
- * 返り値は仕様 §2 の JSON（キーの順も仕様どおり）
+ * 返り値は仕様 §2 の JSON（キーの順も仕様どおり）。app はセッションの設問バンクの version、最後に qv（"v1" | "v2"）を足す
  */
 export function buildPayload({ session, result, fb, ua = "d" }) {
   const records = result?.records || session.records();
@@ -222,9 +245,10 @@ export function buildPayload({ session, result, fb, ua = "d" }) {
   for (const d of DOMAIN_KEYS) act[d] = fb.actSkip ? "na" : fb.act?.[d] || "";
   const self = {};
   for (const d of DOMAIN_KEYS) self[d] = fb.self?.[d] || "";
+  const V = versionOf(session.config?.version);
   return {
     v: 1,
-    app: QUESTIONS3.version,
+    app: V.bankVersion,
     code: fb.code,
     ts: fb.ts,
     mode: session.config.adaptive ? "a" : "f",
@@ -248,6 +272,7 @@ export function buildPayload({ session, result, fb, ua = "d" }) {
       swipe: fb.swipe ?? null,
       free: fb.free || "",
     },
+    qv: V.id,
   };
 }
 
@@ -276,9 +301,9 @@ export function filenameFor(code, ts) {
   return `16d-feedback-${safe}-${ymd}.txt`;
 }
 
-/** 設問の表示用テキスト（振り返り用）。W：場面＋A行動／B行動、X：2つの行動文 */
-export function itemTexts(id) {
-  const q = ITEM3[id];
+/** 設問の表示用テキスト（振り返り用）。W：場面＋A行動／B行動、X：2つの行動文。version はセッションの設問の版（省略時 v1） */
+export function itemTexts(id, version) {
+  const q = (version ? bankFor(version).ITEM3 : ITEM3)[id];
   if (!q) return null;
   if (q.kind === "W") return { kind: "W", stem: q.stem, a: q.a, b: q.b };
   return { kind: "X", stem: null, a: q.leftText, b: q.rightText };

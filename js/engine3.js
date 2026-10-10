@@ -15,6 +15,14 @@ export const S18_TIE_N = 5;
 export const S18_SCALE = 2;
 /** 位置バイアス（左ばかり／右ばかり）の警告ライン */
 export const LEFT_RATE_HIGH = 0.85, LEFT_RATE_LOW = 0.15;
+/** v2：「向きが逆（conflict）」＝ W で t が優勢なのに level(反対側) − level(t) がこの値以上 */
+export const CONFLICT_GAP = 25;
+/** v2：確度低の領域を含むパターン（形状 S16〜S20 を除く）のスコアに掛ける値（logic.lowConfFactor が無いとき） */
+export const LOW_CONF_FACTOR = 0.8;
+/** v2：確度低の理由 */
+export const LOWCONF_LABEL = { weak: "優勢（弱）", conflict: "W と X の向きが逆" };
+/** v2：矛盾枠の向きの条件を満たさないときの理由 */
+export const CONTRA_ALIGN_REASON = "W と X の向きがそろっていない領域を含むため矛盾枠にしない";
 
 const HI = TH3.high;          // 高：level ≥ 67
 const LO = TH3.low + 1;       // 低：level ≤ 40（式の 40）
@@ -141,8 +149,36 @@ export function describeCondition3(meta) {
 // ---------------------------------------------------------------- パターンの余裕
 export const SHAPE_NOT_JUDGED = "相対評価のため全体水準は測れない（三択版では判定しない）";
 
-/** 1パターンの余裕。details に部分条件ごとの余裕を残す */
-export function patternMargin3(meta, p, details) {
+/**
+ * 1パターンの余裕。details に部分条件ごとの余裕を残す。
+ * logic（省略可。js/three_version.js の版ごとの logic）が contraAlign なら、v2 の矛盾枠の条件を足す（contraAlign3）
+ */
+export function patternMargin3(meta, p, details, logic = null) {
+  const m = patternMargin3Base(meta, p, details);
+  if (!logic?.contraAlign) return m;
+  const bad = contraMisaligned3(meta, p);
+  if (!bad.length) return m;
+  if (details) details.push({ label: `${CONTRA_ALIGN_REASON}（${bad.map(x => `${x.t} ${fmt(x.L)} ≤ ${x.other} ${fmt(x.Lo)}`).join("、")}）`, margin: -1, kind: "contra" });
+  return Math.min(m, -1);
+}
+
+/**
+ * v2 の矛盾枠の条件：meta.contra のクロス・特殊について、条件に含まれる各「優勢:t」の領域で level(t) ＞ level(反対側)（同じ値は不成立）。
+ * 満たさない「優勢:t」を返す（空なら条件を満たす）。基本の状態5（両方強い）と、優勢を含まない特殊B・C は対象外（いつも空）
+ */
+export function contraMisaligned3(meta, p) {
+  if (!meta.contra || meta.kind === "basic") return [];
+  const c = meta.cond;
+  const ts = c.type === "cross" ? c.traits : Array.isArray(c.clauses) ? c.clauses.filter(k => k.startsWith("優勢:")).map(k => k.split(":")[1]) : [];
+  const out = [];
+  for (const t of ts) {
+    const L = level(p, t), Lo = level(p, PAIR[t]);
+    if (!(L > Lo)) out.push({ t, other: PAIR[t], L, Lo, d: DOM_OF[t] });
+  }
+  return out;
+}
+
+function patternMargin3Base(meta, p, details) {
   const c = meta.cond;
   const push = (label, m) => { if (details) details.push({ label, margin: m }); return m; };
   const dom = (t) => push(domLabel(p, t), domMargin3(p, t));
@@ -178,24 +214,97 @@ export function patternMargin3(meta, p, details) {
   throw new Error(c.type + ":" + (c.which || ""));
 }
 
-/** 全パターンを評価。充足したもの（余裕≥0）をスコア順に返す。形は engine.js の evaluateAll と同じ */
-export function evaluateAll3(profile3) {
+/**
+ * 全パターンを評価。充足したもの（余裕≥0）をスコア順に返す。形は engine.js の evaluateAll と同じ
+ *   opts.logic   … 版ごとの logic（js/three_version.js）。省略（v1）なら従来どおり
+ *   opts.lowConf … 確度低の領域 {領域: …}（省略時は logic.lowConf なら lowConfDomains3 で計算）
+ * v2（logic.lowConf）：確度低の領域を含むパターン（形状＝特殊D を除く）はスコア ×lowConfFactor（details に理由、hit.factor・hit.baseScore）
+ * v2（logic.contraAlign）：矛盾枠の向きの条件（patternMargin3）
+ */
+export function evaluateAll3(profile3, opts = {}) {
+  const logic = opts?.logic || null;
+  const low = logic?.lowConf ? (opts.lowConf ?? lowConfDomains3(profile3)) : null;
+  const lowSet = low ? new Set(Object.keys(low).map(Number)) : null;
+  const factor = logic?.lowConfFactor ?? LOW_CONF_FACTOR;
   const hits = [];
   for (const meta of META3) {
     const details = [];
-    const margin = patternMargin3(meta, profile3, details);
+    const margin = patternMargin3(meta, profile3, details, logic);
     if (margin < 0) continue;
     const s = sat(margin, meta.scale);
-    const score = meta.importance * s;
-    if (score > 0) hits.push({ meta, margin, sat: s, score, details });
+    let score = meta.importance * s;
+    const hit = { meta, margin, sat: s, score, details };
+    if (lowSet && lowSet.size && meta.group !== "D") {
+      const ds = meta.domains.filter(d => lowSet.has(+d));
+      if (ds.length) {
+        const why = ds.map(d => `${d} ${DOMAINS[d].name}：${(low[d]?.reasons || []).map(r => LOWCONF_LABEL[r]).join("・")}`).join("、");
+        details.push({ label: `確度低の領域を含む（${why}）ため スコア ×${factor}`, margin: null, factor, kind: "lowConf", domains: ds });
+        hit.baseScore = score;
+        hit.factor = factor;
+        hit.score = score = score * factor;
+      }
+    }
+    if (score > 0) hits.push(hit);
   }
   hits.sort((x, y) => y.score - x.score);
   return hits;
 }
 
-/** 5択版の制約つき貪欲選択をそのまま使う（評価関数だけ三択版に差し替え） */
+/**
+ * 5択版の制約つき貪欲選択をそのまま使う（評価関数だけ三択版に差し替え）。
+ * opts.logic（版ごとの logic）・opts.lowConf は evaluateAll3 に渡す。省略時は v1 と同じ結果
+ */
 export function select3(profile3, opts = {}) {
-  return select(profile3, { ...opts, evaluate: evaluateAll3 });
+  const { logic = null, lowConf, ...rest } = opts || {};
+  const evaluate = logic ? (p) => evaluateAll3(p, { logic, lowConf }) : evaluateAll3;
+  return select(profile3, { ...rest, evaluate });
+}
+
+/** v2 の矛盾枠の条件で外れるパターン（v1 のロジックなら発火するもの）。ロジック画面の説明用 */
+export function contraExcluded3(profile3) {
+  const out = [];
+  for (const meta of META3) {
+    if (!meta.contra || meta.kind === "basic") continue;
+    const m = patternMargin3Base(meta, profile3, null);
+    if (m < 0) continue;
+    const bad = contraMisaligned3(meta, profile3);
+    if (bad.length) out.push({ meta, margin: m, bad });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------- v2：向きが逆・優勢（弱）・確度低
+/**
+ * 領域 d の左右と強さの関係。
+ *   lead     … W で優勢な傾向（wMargin ≥ 0）。無ければ null（拮抗）
+ *   weak     … lead があり level(lead) < 67（状態 1w／3w）
+ *   conflict … lead があり level(反対側) − level(lead) ≥ 25（W と X の向きが逆）
+ */
+export function domainFlags3(profile3, d) {
+  const D = DOMAINS[d];
+  const mWA = wMargin(profile3, d, D.a), mWB = wMargin(profile3, d, D.b);
+  const lead = mWA >= 0 ? D.a : mWB >= 0 ? D.b : null;
+  if (!lead) return { d: +d, lead: null, other: null, L: null, Lo: null, tie: true, weak: false, conflict: false };
+  const L = level(profile3, lead), Lo = level(profile3, PAIR[lead]);
+  return { d: +d, lead, other: PAIR[lead], L, Lo, tie: false, weak: L < HI, conflict: Lo - L >= CONFLICT_GAP };
+}
+
+/**
+ * 確度低（lowConf）の領域：weak か conflict が残った領域だけ { 領域: { d, lead, other, L, Lo, weak, conflict, reasons:["conflict"|"weak"…], text } }
+ */
+export function lowConfDomains3(profile3) {
+  const out = {};
+  for (const d of Object.keys(DOMAINS)) {
+    const f = domainFlags3(profile3, d);
+    if (!f.weak && !f.conflict) continue;
+    const reasons = [f.conflict && "conflict", f.weak && "weak"].filter(Boolean);
+    const D = DOMAINS[d], w = wOf(profile3, d);
+    const parts = [];
+    if (f.conflict) parts.push(`左右（W）では${f.lead}が優勢（${w.a}:${w.b}）なのに、強さ（X）は${f.other} ${fmt(f.Lo)} が${f.lead} ${fmt(f.L)} より${fmt(f.Lo - f.L)}高い`);
+    if (f.weak) parts.push(`左右（W）では${f.lead}が優勢（${w.a}:${w.b}）だが、${f.lead}の強さ ${fmt(f.L)} が${HI}未満`);
+    out[d] = { ...f, name: D.name, reasons, labels: reasons.map(r => LOWCONF_LABEL[r]), text: parts.join("。") };
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- 領域ごとの7状態

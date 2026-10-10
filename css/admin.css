@@ -333,3 +333,10 @@ label.inline input[type="checkbox"] { width: 18px; height: 18px; accent-color: v
   .secnav, .row, .controls { display: none !important; }
   body { background: #fff; }
 }
+
+/* 設問の版（v1／v2）と再採点のロジックの選択 */
+.chip.ver { font-family: var(--mono, ui-monospace, monospace); font-size: .72rem; color: var(--ink-2); background: var(--surface-2); }
+.chip.ver-v2 { color: var(--ink); border-color: var(--ink-2); }
+.rs-mode { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px 8px; margin: 0 0 12px; }
+.rs-mode legend { font-weight: 700; font-size: .9rem; padding: 0 4px; }
+.rs-mode label.inline input[type="radio"] { width: 18px; height: 18px; accent-color: var(--ink); }

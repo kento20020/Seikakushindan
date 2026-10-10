@@ -1,11 +1,15 @@
 // 集計ページの表示（DOM を作る関数群）。データは aggregate.js / rescore.js が作る。参加者の文字列は textContent で入れる。
 import { h } from "./dom.js";
-import { DOMAINS } from "../engine3.js";
-import { QUESTIONS3 } from "../data/questions3.js";
+import { DOMAINS, LOWCONF_LABEL } from "../engine3.js";
+import { THREE_VERSIONS } from "../three_version.js";
 import {
   REVIEW, REVIEW_NOTE, FLAG_CODES, HARD_CODES, FLAG_LABEL, FLAG_SHORT, INP_LABEL, SELF_LABEL, TIME_LABEL, AXIS_LABEL, MODE_LABEL, TYPE_LABEL,
-  LV_TOLERANCE, compareItemIds, fmtDur, itemTable,
+  LV_TOLERANCE, compareItemIds, compareItemRows, itemIdLabel, fmtDur, itemTable,
 } from "./aggregate.js";
+import { RESCORE_MODES } from "./rescore.js";
+
+/** 送信の版の内訳（v1 3件・v2 2件） */
+export const versionsText = (versions) => Object.entries(versions || {}).filter(([, n]) => n).map(([v, n]) => `${v}（${THREE_VERSIONS[v].bankVersion}）${n}件`).join("・") || "なし";
 
 const DOMAIN_NOS = Object.keys(DOMAINS).map(Number);
 
@@ -85,7 +89,8 @@ export function renderLoad(model, { includeRetests, onToggleRetests }) {
     kids.push(note("状態が同じ領域：8領域のうち、再検査でも状態コードが同じだった数。優勢の側が同じ：A/B/拮抗の分類が同じだった数。採用パターン一致：採用された172本の id の共通数/和集合。同じ設問で同じ選択：両方に出た設問で、同じ傾向を選んだ数。"));
   }
   const used = model.used.length;
-  kids.push(note(`集計対象：${model.people}人・${used}セッション（設問版 ${QUESTIONS3.version}）。` + (!includeRetests && model.sessions.length > used ? `再検査 ${model.sessions.length - used}件は集計から除いています。` : "")));
+  kids.push(note(`集計対象：${model.people}人・${used}セッション（設問の版 ${versionsText(model.versions)}）。` + (!includeRetests && model.sessions.length > used ? `再検査 ${model.sessions.length - used}件は集計から除いています。` : "") +
+    (Object.values(model.versions || {}).filter(Boolean).length > 1 ? "版で文が違う設問（v2 で書き換えた W・組を入れ替えた X）は、設問ごとの表で版ごとに別の行にしています。" : "")));
   return section("s1", "1", "読み込み結果", ...kids);
 }
 
@@ -95,7 +100,8 @@ export function renderParticipants(model) {
   const rows = model.sessions.map(s => h("tr", { class: used.has(s.id) ? null : "excluded" },
     h("th", { scope: "row", class: "sticky" }, s.code,
       s.isRetest ? chip(`再検査${s.retestIndex}`, "info") : (s.retestTotal > 1 ? chip("初回", "info") : null),
-      used.has(s.id) ? null : chip("集計対象外", "m-none", "「再検査も集計に含める」で入れられます")),
+      used.has(s.id) ? null : chip("集計対象外", "m-none", "「再検査も集計に含める」で入れられます"),
+      chip(s.qv, `ver ver-${s.qv}`, `設問の版 ${s.qv}（${s.app ?? "app なし"}）`)),
     h("td", { class: "nw" }, s.tsLabel), h("td", { class: "nw" }, MODE_LABEL[s.mode] ?? s.mode ?? "—"),
     h("td", { class: "num" }, s.n), h("td", { class: "num" }, fmtDur(s.dur)), h("td", { class: "num" }, s.back), h("td", { class: "num" }, s.swaps), h("td", { class: "num" }, s.skips),
     h("td", { class: "num" }, s.leftRate == null ? dashNode() : [`${Math.round(s.leftRate * 100)}%`, s.leftWarn ? chip("位置バイアス", "ng", "左ばかり／右ばかり選んでいます（0.85以上か0.15以下）") : null]),
@@ -175,7 +181,7 @@ export function renderCards(model) {
     c.one ? h("p", { class: "pc-one" }, c.one) : null,
     h("ol", { class: "sent" }, c.sentences.map(s => h("li", { class: s.marks ? "marked" : null },
       h("span", { class: "sent-t" }, s.text), s.marks ? chip(`違う ${s.marks}人`, "m-mismatch", s.by.join("、")) : null, s.marks ? h("span", { class: "dim by" }, s.by.join("、")) : null))),
-    h("ul", { class: "scenes" }, c.scenes.map((sc, i) => h("li", null, h("span", { class: "sc-t" }, `場面${i + 1}　${sc.text}`),
+    h("ul", { class: "scenes" }, c.scenes.map((sc, i) => h("li", null, h("span", { class: "sc-t" }, `${sc.label ?? `場面${i + 1}`}　${sc.text}`),
       h("span", { class: "sc-n" }, chip(`ありそう ${sc.y}`, sc.y ? "m-match" : "m-none"), chip(`なさそう ${sc.n}`, sc.n ? "m-mismatch" : "m-none"), sc.blank ? h("span", { class: "dim" }, ` 未回答${sc.blank}`) : null)))),
     c.axis.yes || c.axis.partly || c.axis.no || c.axis.blank ? h("div", { class: "axis" }, h("span", { class: "dim" }, "「喧嘩の中心か」"), chip(`${AXIS_LABEL.yes} ${c.axis.yes}`, c.axis.yes ? "m-match" : "m-none"), chip(`${AXIS_LABEL.partly} ${c.axis.partly}`, "m-none"), chip(`${AXIS_LABEL.no} ${c.axis.no}`, c.axis.no ? "m-mismatch" : "m-none")) : null,
     c.people.length ? h("div", { class: "pc-by dim" }, `評価した人：${c.people.join("、")}`) : null));
@@ -220,8 +226,8 @@ function counts(map, codes, short = FLAG_SHORT, labels = FLAG_LABEL) {
 }
 
 function itemRow(x) {
-  return h("tr", { id: `item-${x.id}`, class: x.reasons.length ? "flagged" : null },
-    h("th", { scope: "row", class: "sticky it-id" }, x.id, h("div", { class: "it-sub", title: x.domainName || null }, x.kind === "W" ? `領域${x.domain}` : `ラウンド${x.round}`), h("div", { class: "it-sub" }, x.srcLabel)),
+  return h("tr", { id: `item-${x.key ?? x.id}`, class: x.reasons.length ? "flagged" : null, "data-qv": x.variant || null },
+    h("th", { scope: "row", class: "sticky it-id" }, x.id, x.variant ? chip(x.variant, `ver ver-${x.variant}`, `設問の版 ${x.variant} の文`) : null, h("div", { class: "it-sub", title: x.domainName || null }, x.kind === "W" ? `領域${x.domain}` : `ラウンド${x.round}`), h("div", { class: "it-sub" }, x.srcLabel)),
     h("td", { class: "it-cell" }, itemTextNode(x)),
     h("td", { class: "num" }, x.shown), h("td", { class: "num", title: x.first.trait || "" }, x.pickFirst), h("td", { class: "num", title: x.second.trait || "" }, x.pickSecond),
     h("td", { class: "num" }, x.swappedAway || dashNode()), h("td", { class: "num" }, x.skips || dashNode()),
@@ -247,7 +253,7 @@ export function renderItems(model, ui, rerender) {
       const d = col.cmp(a, b);
       if (d) return d * dir;
     }
-    return compareItemIds(a.id, b.id);
+    return compareItemRows(a, b);
   });
   const head = h("tr", null, ITEM_COLS.map(c => c.nosort ? th(c.label) : h("th", { scope: "col", class: `${c.num ? "num" : ""} ${c.key === "id" ? "sticky" : ""}`.trim(), title: c.title || null, "aria-sort": ui.sort.key === c.key ? (ui.sort.dir > 0 ? "ascending" : "descending") : "none" },
     h("button", { type: "button", class: "th-sort", dataset: { key: c.key }, onclick: () => { ui.sort = { key: c.key, dir: ui.sort.key === c.key ? -ui.sort.dir : (c.key === "id" ? 1 : -1) }; rerender(c.key); } },
@@ -292,7 +298,7 @@ export function renderReview(model) {
     if (!byType[k]) continue;
     kids.push(h("h3", null, `${TYPE_LABEL[k]}（${byType[k].length}件）`));
     kids.push(h("ul", { class: "review" }, byType[k].map(r => h("li", { class: "rv" },
-      h("div", { class: "rv-h" }, h("b", null, r.type === "item" ? r.item.id : r.title), r.type === "item" ? h("span", { class: "dim" }, r.item.kind === "W" ? `領域${r.item.domain} ${r.item.domainName}` : `${r.item.first.trait} vs ${r.item.second.trait}`) : null),
+      h("div", { class: "rv-h" }, h("b", null, r.type === "item" ? itemIdLabel(r.item) : r.title), r.type === "item" ? h("span", { class: "dim" }, r.item.kind === "W" ? `領域${r.item.domain} ${r.item.domainName}` : `${r.item.first.trait} vs ${r.item.second.trait}`) : null),
       r.type === "item" ? itemTextNode(r.item) : null,
       r.quote ? h("blockquote", null, r.quote) : null,
       h("ul", { class: "why" }, r.reasons.map(x => h("li", null, x)))))));
@@ -304,26 +310,43 @@ export function renderReview(model) {
 
 // ---------------------------------------------------------------- 8 再採点
 const STATUS = { same: ["当時と同じ", "m-match"], diff: ["差分あり", "ng"], nores: ["当時の結果なし", "warn"], error: ["再採点できない", "ng"] };
+const lowConfText = (o) => {
+  const ds = Object.keys(o || {});
+  return ds.length ? ds.map(d => `領域${d}（${(o[d].reasons || []).map(x => LOWCONF_LABEL[x]).join("・")}）`).join("、") : "なし";
+};
 
-export function renderRescore(rs) {
+/** rs = rescoreAll(…, {mode})。onMode(mode) で「当時の版のロジック」「v2 のロジック」を切り替える */
+export function renderRescore(rs, { onMode = null } = {}) {
+  const mode = rs.mode || "then";
   const rows = rs.rows.map(r => {
     const d = r.diff;
     const detail = [];
     if (d) {
-      if (!d.chosen.same) detail.push(h("li", null, h("b", null, "採用パターン"), "　当時 ", d.chosen.then.map(c => c.join("/")).join("　"), " → いま ", d.chosen.now.map(c => c.join("/")).join("　")));
+      if (!d.chosen.same) detail.push(h("li", { class: "rs-chosen" }, h("b", null, "採用パターン"), "　当時 ", d.chosen.then.map(c => c.join("/")).join("　"), " → いま ", d.chosen.now.map(c => c.join("/")).join("　")));
       for (const s of d.states) detail.push(h("li", null, h("b", null, `領域${s.d} ${DOMAINS[s.d].name}`), `　当時 ${s.then ?? "なし"}（${s.thenLabel}） → いま ${s.now ?? "なし"}（${s.nowLabel}）`));
       for (const x of d.w) detail.push(h("li", null, h("b", null, `領域${x.d} W`), `　当時 ${x.then ? x.then.join(":") : "なし"} → いま ${x.now.join(":")}`));
       if (d.lv.length) detail.push(h("li", null, h("b", null, "level"), `　${d.lv.map(x => `${x.trait} ${x.then ?? "なし"}→${x.now}`).join("、")}`));
     }
+    if (r.lowConf && !r.lowConf.same) detail.push(h("li", { class: "rs-lowconf" }, h("b", null, "確度低"), `　当時 ${r.qv === "v1" ? "（v1 には確度低の扱いなし）" : lowConfText(r.lowConf.then)} → いま ${lowConfText(r.lowConf.now)}`));
+    else if (r.lowConf && Object.keys(r.lowConf.now).length) detail.push(h("li", { class: "rs-lowconf dim" }, `確度低：${lowConfText(r.lowConf.now)}（当時と同じ）`));
     for (const p of r.problems || []) detail.push(h("li", { class: "dim" }, p));
     const [label, cls] = STATUS[r.status];
-    return h("tr", null, h("th", { scope: "row" }, r.session.code, r.session.isRetest ? chip(`再検査${r.session.retestIndex}`, "info") : null), h("td", null, r.session.tsLabel), h("td", null, chip(label, cls)),
+    return h("tr", { "data-code": r.session.code, "data-qv": r.qv },
+      h("th", { scope: "row" }, r.session.code, r.session.isRetest ? chip(`再検査${r.session.retestIndex}`, "info") : null, " ", chip(r.qv, `ver ver-${r.qv}`, `送信の版 ${r.qv}`)),
+      h("td", null, r.session.tsLabel), h("td", null, chip(label, cls)),
       h("td", null, detail.length ? h("ul", { class: "diffs" }, detail) : (r.status === "same" ? h("span", { class: "dim" }, `採用 ${r.now.chosen.length}本、8領域の状態、16傾向のlevel、Wの a:b がすべて一致`) : dashNode())));
   });
+  const choice = h("fieldset", { class: "rs-mode", id: "rescore-mode" },
+    h("legend", null, "再採点に使うロジック"),
+    Object.entries(RESCORE_MODES).map(([k, label]) => h("label", { class: "inline" },
+      h("input", { type: "radio", name: "rescore-mode", value: k, id: `rescore-mode-${k}`, checked: mode === k ? true : null, onchange: (e) => { if (e.target.checked && onMode) onMode(k); } }),
+      label)));
   return section("s8", "8", "再採点（いまのロジックとの比較）",
+    choice,
+    mode === "v2" ? h("p", { class: "msg info", id: "rescore-v2-note" }, "v2 のロジック（確度低の領域を含むパターン ×0.8、矛盾枠は W と X の向きがそろう領域だけ）で、当時答えた設問だけを採点し直しています。追加質問の出し方（v2 の計画：拮抗 → 向きが逆 → 優勢（弱）、上限 W8・X8）は再現できません（当時と違う設問を聞いていたはずなので、v2 で受けた場合の結果そのものではありません）。") : null,
     h("div", { class: "stats" }, stat("当時と同じ", rs.same, null, rs.same ? "ok" : "", "人"), stat("差分あり", rs.diff, null, rs.diff ? "ng" : "", "人"), rs.other ? stat("結果なし／再採点できない", rs.other, null, "warn", "人") : null),
-    rs.rows.length ? tableWrap("再採点", h("table", { class: "tbl" }, h("thead", null, h("tr", null, th("コード"), th("開始日時"), th("結果"), th("差分"))), h("tbody", null, rows))) : h("p", { class: "empty" }, "再採点できる回答がありません。"),
-    note(`回答ログ（rec）から scoreRecords3 → select3 / domainStates3 を、いまのコードで計算し直して、当時の結果（res）と比べています。閾値や設問を変えたあとの確認用です。level は ±${LV_TOLERANCE} までの違い（丸め方の差）は差分にしません。再検査も含め、読み込めた全セッションが対象です。`));
+    rs.rows.length ? tableWrap("再採点", h("table", { class: "tbl", id: "tbl-rescore" }, h("thead", null, h("tr", null, th("コード"), th("開始日時"), th("結果"), th("差分"))), h("tbody", null, rows))) : h("p", { class: "empty" }, "再採点できる回答がありません。"),
+    note(`回答ログ（rec）から scoreRecords3 → select3 / domainStates3 を、いまのコードで計算し直して、当時の結果（res）と比べています。「当時の版のロジック」は送信の版（v1 の送信は v1、v2 の送信は v2。qv の無い送信は v1）のロジックで、閾値や設問を変えたあとの確認用です。level は ±${LV_TOLERANCE} までの違い（丸め方の差）は差分にしません。再検査も含め、読み込めた全セッションが対象です。`));
 }
 
 // ---------------------------------------------------------------- 9 出力

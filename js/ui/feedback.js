@@ -5,7 +5,7 @@
 // どれも null を返す（またはそのまま返す）ので、通常の三択診断の動きは変わらない。
 // 記録は store3.fb（three_store.js が localStorage に一緒に保存）。記録の形と送信用テキストは js/feedback_collect.js。
 import { h, toast, download } from "./dom.js";
-import { store3, setSub, toStart3, discard3, save3, showFb3, setFbMode3, onAction3 } from "./three_store.js";
+import { store3, setSub, toStart3, discard3, save3, showFb3, setFbMode3, onAction3, practicePending3 } from "./three_store.js";
 import { isCoarsePointer } from "./swipe.js";
 import { PATTERN_BY_ID } from "../data/patterns.js";
 import { DOMAINS } from "../engine.js";
@@ -13,7 +13,7 @@ import {
   phaseAtLeast, FLAG_CODES, FLAG_LABEL, HARD_CODES, HARD_LABEL, SELF_CODES, SELF_LABEL, SELF_DESC, ACT_QUESTIONS, ACT_NA_LABEL,
   TIME_CODES, TIME_LABEL, MAIN_CODES, MAIN_LABEL, SCENE_LABEL, DOMAIN_KEYS, CODE_MAX,
   newFeedback, normalizeCode, codeLength, isoLocal, makeClock, recordAction, flagsOf, toggleFlag,
-  topIds, pickDecoy, pickHard, splitSentences, buildText, filenameFor, itemTexts,
+  topIds, pickDecoy, pickHard, splitSentences, buildText, filenameFor, itemTexts, chipOrder,
 } from "../feedback_collect.js";
 
 const LAST_KEY = "seikaku16:three:fb-last";   // 最後に作った送信用テキストの控え（別の診断で記録が消えても、もう一度表示できるように）
@@ -38,8 +38,9 @@ onAction3(({ type, before, via }) => {
   if (store3.session?.isDone()) { clock.pause(); fb.phase = "part1"; }
 });
 
-const askingNow = () => store3.fb?.phase === "q" && store3.sub === "diagnose" && store3.screen === "question" &&
-  !!document.querySelector("#view-three:not([hidden]) .t3-qcard");
+// 練習カード（v2）を出している間は時計を進めない
+const askingNow = () => store3.fb?.phase === "q" && store3.sub === "diagnose" && store3.screen === "question" && !practicePending3() &&
+  !!document.querySelector("#view-three:not([hidden]) .t3-qcard:not(.t3-practice)");
 
 function pauseClock() { if (clock.running) { clock.pause(); save3(); } }
 function resumeIfAsking() {
@@ -495,13 +496,14 @@ function part3View(fb) {
   if (!fb.hardList) { fb.hardList = pickHard(fb, store3.result.records); save3(); }
   const list = fb.hardList;
   const hardQs = list.map((id, i) => {
-    const t = itemTexts(id);
+    const t = itemTexts(id, store3.session?.config?.version);
     return h("fieldset", { class: "fb-q fb-hard", "data-id": id },
       h("legend", null, h("span", { class: "dnum" }, i + 1), h("span", { class: "fb-why" }, hardWhy(fb, id))),
       t.stem ? h("p", { class: "fb-hard-stem" }, t.stem) : h("p", { class: "fb-hard-stem fb-x" }, "別々の場面の行動を比べて"),
       h("ul", { class: "fb-hard-opts" }, h("li", null, t.a), h("li", null, t.b)),
       h("p", { class: "fb-lbl" }, "迷った理由に近いもの"),
-      pills(`fb-hard-${i}`, HARD_CODES.map(c => [c, HARD_LABEL[c]]), fb.hard?.[id], (v) => { (fb.hard ||= {})[id] = v; save3(); }, { cls: "fb-pills-wrap" }));
+      // 理由チップの並びは設問ごとに変える（参加者コード＋設問 id で決まるので、再描画しても同じ）
+      pills(`fb-hard-${i}`, chipOrder(fb.code, id, HARD_CODES).map(c => [c, HARD_LABEL[c]]), fb.hard?.[id], (v) => { (fb.hard ||= {})[id] = v; save3(); }, { cls: "fb-pills-wrap" }));
   });
   const min = Math.round((fb.activeMs || 0) / 60000);
   const usedSwipe = (fb.swipes || 0) > 0;

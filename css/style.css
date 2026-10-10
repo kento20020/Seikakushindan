@@ -804,3 +804,43 @@ html.t3-swiping, html.t3-swiping * { cursor: grabbing !important; }
 
 /* 既定は三択診断。上部ナビ（5択版のタブ）は 5択版の画面か ?five=1 のときだけ出す（js/app.js が hidden を切り替える） */
 .tabs[hidden] { display: none; }
+
+/* ---------------------------------------------------------------- 三択版 v2（設問の版・練習カード・確度低）。既存の規則は変えず、ここから下に追記 */
+.t3-ver {
+  display: inline-block; margin-left: .6em; vertical-align: .15em; white-space: nowrap;
+  font-family: var(--sans); font-size: .72rem; font-weight: 800; letter-spacing: .04em; line-height: 1.6;
+  padding: 0 8px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--ink-2); background: var(--surface);
+}
+.t3-ver-v2 { border-color: var(--ink-2); color: var(--ink); }
+.res-head h1 .t3-ver, .page-head h1 .t3-ver { font-size: .78rem; }
+.q-count .t3-ver { margin-left: .5em; vertical-align: 0; }
+.t3-qv { display: grid; gap: 8px; }
+.t3-qv .t3-qv-date { display: inline; font-weight: 400; font-size: .8rem; color: var(--muted); font-family: var(--mono); }
+.t3-qv .note { margin-top: 2px; }
+
+/* 練習カード（採点しない。本番のカードと同じ形で、上に「練習」の札） */
+.t3-practice { border-style: dashed; }
+.t3-practice-tag {
+  display: inline-block; margin-right: .6em; padding: 0 8px; border-radius: 4px;
+  color: var(--paper); background: var(--ink-2); font-size: .75rem; letter-spacing: .06em;
+}
+.t3-practice-note { margin-top: 12px; font-size: .9rem; color: var(--ink-2); max-width: 40em; }
+
+/* 確度低（v2） */
+.t3-lowconf { white-space: normal; }
+.t3-lowconf-why { font-weight: 600; font-size: .72rem; }
+.t3-lowconf-mark { color: var(--ng); font-weight: 700; white-space: nowrap; }
+.margins li.t3-factor span { color: var(--ng); }
+.margins li.t3-factor b { color: var(--ng); }
+table.t3-lowconf-table td:nth-child(3) { min-width: 18em; }
+.t3-contra-out li span { color: var(--ink-2); }
+
+/* 版の違い・v1 からの変更 */
+table.t3-ver-table { min-width: 640px; }
+.t3-ver-table th[scope="row"] { white-space: nowrap; text-align: left; }
+.t3-ver-table td.t3-ver-now { background: var(--surface-2); font-weight: 600; }
+table.t3-changes-w, table.t3-changes-x { min-width: 760px; }
+.t3-changes-w td.wtext, .t3-changes-x td.wtext { min-width: 200px; max-width: 320px; }
+.t3-chg-before { color: var(--muted); }
+.t3-chg-stem { font-weight: 700; margin-bottom: 2px; }
+.t3-chg-id { display: block; }

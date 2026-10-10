@@ -1,6 +1,7 @@
 // 三択診断タブの状態と操作。5択版の store.js とは別に持ち、localStorage も別のキーに保存する（失敗しても動く）。
 import { Session3, createSession3, fromLikertAnswers, fromScores } from "../adaptive3.js";
 import { SAMPLES3, PROFILE_SAMPLES3 } from "../data/samples3.js";
+import { resolveVersion, versionOf, isVersion, versionFromSearch } from "../three_version.js";
 
 const STORAGE_KEY = "seikaku16:three:v1";
 export const SUBS = [["diagnose", "診断"], ["result", "結果"], ["logic", "ロジック"], ["questions", "設問"]];
@@ -13,6 +14,9 @@ export const store3 = {
   sub: "diagnose",   // サブ画面 "diagnose" | "result" | "logic" | "questions"
   fbMode: false,     // テスト協力モード（?fb=1 か開始画面のチェック）。オンのまま保存する
   fb: null,          // テスト協力の記録（このセッションをテスト協力モードで始めたときだけ。js/feedback_collect.js）。screen "fb" はその画面
+  qv: resolveVersion({}),   // 新しく始める診断・サンプルの設問の版（"v1" | "v2"）。restore3 で URL ?qv= ＞ 保存中のセッションの版 ＞ 既定 から決める
+  qvFromUrl: false,  // qv を URL の ?qv= で決めたか（開始画面に表示する）
+  practice: null,    // v2 の練習カード："pending"＝1問目の前に出す（採点しない・時間を測らない）。答えるか、回答が1つでもあれば出さない
 };
 
 const listeners = new Set();
@@ -24,7 +28,7 @@ function build(session, source) { return { ...session.result(), source, history:
 function persist() {
   try {
     const data = { sub: store3.sub, ...(store3.fbMode ? { fbMode: true } : {}),
-      ...(store3.session ? { session: store3.session.toJSON(), source: store3.source, ...(store3.fb ? { fb: store3.fb } : {}) } : {}) };
+      ...(store3.session ? { session: store3.session.toJSON(), source: store3.source, ...(store3.fb ? { fb: store3.fb } : {}), ...(store3.practice ? { practice: store3.practice } : {}) } : {}) };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch { /* 保存できない環境でもそのまま動かす */ }
 }
@@ -43,10 +47,15 @@ export function restore3() {
         store3.session = Session3.fromJSON(data.session);
         store3.source = data.source || { type: "session", name: "あなたの回答" };
         store3.fb = data.fb && typeof data.fb === "object" ? data.fb : null;
+        store3.practice = data.practice === "pending" ? "pending" : null;
         if (store3.session.isDone()) store3.result = build(store3.session, store3.source);
       }
     }
-  } catch { store3.session = null; store3.result = null; store3.source = null; store3.fb = null; }
+  } catch { store3.session = null; store3.result = null; store3.source = null; store3.fb = null; store3.practice = null; }
+  // 設問の版：URL の ?qv= ＞ 保存中のセッションの版 ＞ 既定（js/three_version.js の DEFAULT_THREE_VERSION）
+  const search = (() => { try { return globalThis.location?.search || ""; } catch { return ""; } })();
+  store3.qvFromUrl = versionFromSearch(search) != null;
+  store3.qv = resolveVersion({ search, saved: store3.session?.config?.version });
   // URL に ?fb=1 があればテスト協力モードをオンにして保存する（再読み込みしても続く）
   try { if (new URLSearchParams(globalThis.location?.search || "").get("fb") === "1" && !store3.fbMode) { store3.fbMode = true; persist(); } } catch { /* 無視 */ }
 }
@@ -70,18 +79,22 @@ export function showFb3() { store3.screen = "fb"; store3.sub = "diagnose"; persi
 export function setSub(sub) { if (store3.sub !== sub) { store3.sub = sub; persist(); } emit(); }
 
 // ---------------------------------------------------------------- 診断
-export function start3({ adaptive, fb = null }) {
-  store3.session = createSession3({ adaptive });
+/** version 省略時は開始画面で選んでいる版（store3.qv） */
+export function start3({ adaptive, fb = null, version = store3.qv }) {
+  const v = isVersion(version) ? version : store3.qv;
+  store3.qv = v;
+  store3.session = createSession3({ adaptive, version: v });
   store3.source = { type: "session", name: "あなたの回答" };
   store3.result = null;
   store3.fb = fb || null;
+  store3.practice = versionOf(v).practice ? "pending" : null;
   store3.screen = fb && fb.phase === "code" ? "fb" : "question"; store3.sub = "diagnose";
   persist(); emit();
 }
 export function resume3() { store3.screen = "question"; store3.sub = "diagnose"; emit(); }
 export function toStart3() { store3.screen = "start"; emit(); }
 export function discard3() {
-  store3.session = null; store3.result = null; store3.source = null; store3.fb = null; store3.screen = "start";
+  store3.session = null; store3.result = null; store3.source = null; store3.fb = null; store3.practice = null; store3.screen = "start";
   persist(); emit();
 }
 
@@ -94,6 +107,23 @@ function afterStep() {
   }
   persist(); emit();
 }
+// ---------------------------------------------------------------- 練習カード（v2）
+/** いま練習カードを出すか：練習が残っていて、まだ1問も答えていない（途中再開で回答があれば出さない） */
+export function practicePending3() {
+  const s = store3.session;
+  return store3.practice === "pending" && !!s && !s.isDone() && s.progress().answered === 0;
+}
+/** 練習カードに答えた（左右どちらでも同じ）。セッションには何も記録しない（採点しない・時間を測らない・操作の通知も出さない） */
+export function practice3(side) {
+  if (!practicePending3()) return false;
+  store3.practice = null;
+  store3.lastPractice = side === "left" || side === "right" ? side : null;
+  persist(); emit();
+  return true;
+}
+/** 開始画面の「設問の版」（新しく始める診断・サンプル用） */
+export function setQv3(v) { if (isVersion(v)) store3.qv = v; }
+
 // via（省略可）：どの入力で操作したか（テスト協力モードの記録用）
 export function answer3(side, via) { const before = store3.session?.current(); if (store3.session?.answer(side)) { act("answer", before, via); afterStep(); } }
 export function skip3(via) { const before = store3.session?.current(); if (store3.session?.skip()) { act("skip", before, via); afterStep(); } }
@@ -102,19 +132,19 @@ export function back3(via) { const before = store3.session?.current(); if (store
 
 // ---------------------------------------------------------------- サンプル（5択回答からの推定）
 function showFinished(session, source, sub = "result") {
-  store3.session = session; store3.source = source; store3.fb = null;
+  store3.session = session; store3.source = source; store3.fb = null; store3.practice = null;
   store3.result = build(session, source);
   store3.screen = "start"; store3.sub = sub;
   persist(); emit();
 }
 export function runSample3(i, sub) {
   const s = SAMPLES3[i];
-  showFinished(fromLikertAnswers(s.answers, s.wording),
+  showFinished(fromLikertAnswers(s.answers, s.wording, { version: store3.qv }),
     { type: "sample", name: s.label, key: s.key, estimated: true, from: "likert", wording: s.wording, expected5: s.expected5 }, sub);
 }
 export function runProfile3(i, sub) {
   const p = PROFILE_SAMPLES3[i];
-  showFinished(fromScores(p.scores, p.duel),
+  showFinished(fromScores(p.scores, p.duel, { version: store3.qv }),
     { type: "profile", name: p.label, key: p.key, estimated: true, from: "scores", expected5: p.expected5 }, sub);
 }
 
@@ -132,7 +162,7 @@ export function loadJSON3(obj, filename = "JSON") {
   if (obj?.type === "seikaku16-three-session") {
     store3.session = Session3.fromJSON(obj);
     store3.source = { type: "session", name: `読み込んだ回答（${filename}）` };
-    store3.fb = null;
+    store3.fb = null; store3.practice = null;
     if (store3.session.isDone()) return showFinished(store3.session, store3.source);
     store3.result = null; store3.screen = "question"; store3.sub = "diagnose";
     persist(); emit();
@@ -142,7 +172,7 @@ export function loadJSON3(obj, filename = "JSON") {
     if (!obj.session) throw new Error("結果JSONに回答（session）が入っていません");
     const session = Session3.fromJSON(obj.session);
     const source = { ...(obj.source || { type: "session" }), name: `${obj.source?.name ?? "結果"}（${filename}）` };
-    if (!session.isDone()) { store3.session = session; store3.source = source; store3.result = null; store3.fb = null; store3.screen = "question"; store3.sub = "diagnose"; persist(); emit(); return; }
+    if (!session.isDone()) { store3.session = session; store3.source = source; store3.result = null; store3.fb = null; store3.practice = null; store3.screen = "question"; store3.sub = "diagnose"; persist(); emit(); return; }
     return showFinished(session, source);
   }
   if (obj?.type === "seikaku16-session" || obj?.type === "seikaku16-result") {
@@ -152,11 +182,11 @@ export function loadJSON3(obj, filename = "JSON") {
   const keys = answers && typeof answers === "object" ? Object.keys(answers) : [];
   if (keys.length && keys.every(k => /^\d+$/.test(k))) {
     const wording = obj.wording === 1 ? 1 : 0;
-    return showFinished(fromLikertAnswers(answers, wording),
+    return showFinished(fromLikertAnswers(answers, wording, { version: store3.qv }),
       { type: "answers", name: `${obj.name || `読み込んだ5択回答（${filename}）`}（5択回答からの推定）`, estimated: true, from: "likert", wording });
   }
   if (obj?.scores) {
-    return showFinished(fromScores(obj.scores, obj.duel || {}),
+    return showFinished(fromScores(obj.scores, obj.duel || {}, { version: store3.qv }),
       { type: "scores", name: `${obj.name || filename}（スコアからの推定）`, estimated: true, from: "scores" });
   }
   throw new Error("読み込めない形式です。三択版のセッション・結果JSON、5択版の回答表 {設問番号: 回答}、{scores: {…}} のどれかを選んでください。");
