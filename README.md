@@ -45,6 +45,8 @@ js/data/patterns*.js    パターンの構造（patterns_meta.js）と本文（p
 js/data/samples.js      実回答2名（石原・別宮）と合成プロファイル P1〜P5
 js/data/item_review.js  設問レビュー（任意。無ければ空として扱う）
 docs/design.md          設計書（パターン本文の原典）
+docs/marketing-plan.md  集客・マーケティング計画（構想）
+docs/consult-mode.md    相談モード（構想）
 tests/                  node で動くテスト
 ```
 
@@ -200,3 +202,8 @@ tests/engine3.test.mjs, tests/adaptive3.test.mjs, tests/version3.test.mjs
 3. 受け取ったテキストを全員分まとめて [admin.html](admin.html)（フッターの「テスト集計（担当者用）」）に貼ると、参加者一覧・領域ごとの照合（診断 vs 自己評価 vs 実際の行動）・ブラインド比較・カード評価・設問ごとの表・見直し候補・現在のロジックでの再採点・CSV と「Claude に貼る用」要約が出る
 
 送信テキストの最後の行（`16DFB1|crc|JSON|END`）が機械用で、CRC で途中切れ・書き換わりを検出します。共通の読み書きは `js/feedback_format.js`。テスト用のサンプルは `node tools/make_fb_fixtures.mjs` で `tests/fixtures/` に作り直せます。
+
+## 構想メモ（未実装）
+
+- [docs/marketing-plan.md](docs/marketing-plan.md)：集客・マーケティング計画。結果がひとりでに広がる仕組み（結果カード・相手に送る・ふたり診断）→ SNS（TikTok・Instagram・Threads）→ Web検索（SEO・AI検索）の順で考える。完了率（クイック版）と計測もここ
+- [docs/consult-mode.md](docs/consult-mode.md)：相談モード。相談内容から「送る／待つ／話し合いを提案する」などの次の一手を1つ決めて、理由・文面・待ち方まで出す。行動を決めるのはプログラム（判定表）、言葉にするのは AI
