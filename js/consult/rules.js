@@ -91,8 +91,13 @@ export const AVOID = {
   "after_makeup.repeat": ["past", "generalize"],
 };
 
-/** 確かさの係数 w（§1） */
-export const CONF_WEIGHT = { sure: 1.0, est: 0.6, none: 0 };
+/**
+ * 確かさの係数 w（§1）。sure＝相手本人の診断（確度低の印なし）・本人の診断・本人が直した、observed＝利用者の見立て（2択）、
+ * est＝診断で確度低、none＝不明。領域の値は { side, conf, source?, reason? }。点数に使うのは conf だけ（source・reason は AI の層用）
+ */
+export const CONF_WEIGHT = { sure: 1.0, observed: 0.8, est: 0.6, none: 0 };
+/** 相手由来の補正のうち、重み 1.0 以外の部分の合計の上限（行動ごとに ±30。超えたら補正 ID CAP） */
+export const PARTNER_CAP = 30;
 
 // ---------------------------------------------------------------- §11 確かさ（confidence）と文面の2通り（styleVariants）
 /** 一手と2位の差がこれ未満なら confidence を1段下げる（sure → est → provisional。situational はそのまま） */
@@ -114,13 +119,15 @@ export const STYLE_BY_DOMAIN_SIDE = {
 //   c.phase … 局面キー
 //   c.pw(d, side) / c.sw(d, side) … 相手／自分の領域 d が side なら確かさの係数 w、違えば 0
 // 形：{ id, when?(c) → 真偽, w?(c) → 係数（0 なら適用しない。既定 1）, add?: {行動: 点}（× w して足す）,
+//       （w が partner(d, side) で作った関数なら「相手由来の補正」：w < 1.0 の分は行動ごとに合計 ±PARTNER_CAP まで。CAP）
 //       apology?: 点（× w。謝罪への加点の門 HG を通す。開いていれば apology_partial、閉じていれば ask_feeling に足す）,
 //       exclude?: [行動]（×＝除外）, styles?: [文面の指定], always?: 真（点数・文面に効かなくても applied に入れる） }
 // 同じ ID の行が複数あるのは、局面や条件によって中身が変わる補正（P1A・G2）。
 // applied に入る順は §11 の出力例に合わせて 状況 → 共通ルール → 相手の8領域 → 自分の8領域 → ゴール。
 const inPhase = (...ps) => (c) => ps.includes(c.phase);
 const isWaitOrCold = (c) => c.phase === "waiting_partner" || c.phase.startsWith("cold_war.");
-const partner = (d, side) => (c) => c.pw(d, side);
+/** 相手の領域 d が side のときの係数。関数に domain を付けておき、相手由来の補正（上限 CAP の対象）の目印にする */
+const partner = (d, side) => Object.assign((c) => c.pw(d, side), { domain: d });
 const self = (d, side) => (c) => c.sw(d, side);
 const holdSent = (c) => c.in.selfLast === "hold";
 const early = (c) => c.in.elapsed === "lt3h" || c.in.elapsed === "3h_12h";
@@ -148,8 +155,8 @@ export const ADJUSTMENTS = [
     add: { wait_until: 15, pause_with_time: -15 }, exclude: ["apology_partial", "apology_full"] },
   { id: "E1", when: c => c.phase === "waiting_partner" && c.in.elapsed === "3h_12h", add: { ask_feeling: 5 } },
   { id: "V1", when: c => c.in.severity === "large", add: { restore_routine: -25, apology_full: 5, propose_talk_plan: 10 } },
-  // RR：w8B（相手の領域8 が B の確かさ）が 1 なら効かない
-  { id: "RR", when: c => c.phase !== "partner_msg.a" && c.phase !== "got_apology", w: c => 1 - c.pw(8, "B"), add: { restore_routine: -25 } },
+  // RR：相手が「関係を戻す」派（領域8 が B。見立てでも）なら外す
+  { id: "RR", when: c => c.phase !== "partner_msg.a" && c.phase !== "got_apology" && !(c.pw(8, "B") > 0), add: { restore_routine: -25 } },
   { id: "BRK", when: c => c.phase === "space.partner" && c.in.partnerLast === "breakup", styles: ["breakup"] },
 
   // 4.2 共通ルール（R5・R6 は文面の決まりなので点数に入れない）
@@ -159,7 +166,7 @@ export const ADJUSTMENTS = [
   { id: "R3d", when: c => c.phase === "partner_msg.d" && c.in.selfTemp === "high", styles: ["date_only"] },
   { id: "R4", when: c => c.in.lateNight, exclude: ["propose_call"], always: true },   // 重い行動を朝に回す（§7）
   { id: "R7", when: c => c.in.medium === "in_person", styles: ["spoken"] },
-  { id: "R8", when: c => c.sw(3, "A") > 0, w: partner(1, "B"), add: { ask_feeling: -10, propose_call: -15 } },
+  { id: "R8", when: c => c.sw(3, "A") > 0, w: partner(1, "B"), add: { ask_feeling: -10, propose_call: -15 } },   // 相手の領域1 として上限の対象
 
   // 4.4 相手の8領域（× w）
   { id: "P1A", when: inPhase("heated"), w: partner(1, "A"), styles: ["short_return"] },

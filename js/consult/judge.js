@@ -1,7 +1,7 @@
 // 相談モードの判定（次の一手）。仕様：docs/consult-scoring.md、表の数字は js/consult/rules.js
 // 同じ入力なら必ず同じ結果になる（乱数・時刻・外部の状態を使わない）。DOM なし（node でテスト可能）。
 import { ACTIONS, BASE, PRIORITY, SELF_CALM_PHASE, HEAVY, KEY_PARTNER_DOMAIN, AVOID, CONF_WEIGHT,
-  ADJUSTMENTS, ADDONS, MAX_ADDONS, apologyGateOpen, MARGIN_LOW, CONFIDENCE_DOWN, STYLE_KEY_BY_ACTION, STYLE_BY_DOMAIN_SIDE } from "./rules.js";
+  ADJUSTMENTS, ADDONS, MAX_ADDONS, PARTNER_CAP, apologyGateOpen, MARGIN_LOW, CONFIDENCE_DOWN, STYLE_KEY_BY_ACTION, STYLE_BY_DOMAIN_SIDE } from "./rules.js";
 
 const DOMAIN_KEYS = [1, 2, 3, 4, 5, 6, 7, 8];
 const noDomains = () => Object.fromEntries(DOMAIN_KEYS.map(d => [d, { side: null, conf: "none" }]));
@@ -72,6 +72,7 @@ function context(x, phase) {
  *          applied: [補正の ID], styles: [文面の指定] }
  * applied には、除外されていない行動の点を実際に動かした補正・候補を除外した補正・文面の指定を出した補正（と R4）だけを入れる。
  * 謝罪への加点（rule.apology）は門 HG を通す：開いていれば apology_partial、閉じていれば ask_feeling に足し、HG を applied に入れる。
+ * 相手由来の補正（rule.w.domain がある）のうち w < 1.0 の分は、行動ごとに合計を ±PARTNER_CAP に抑える。抑えたら CAP を applied に入れる。
  */
 export function scoreActions(input, phase) {
   const x = normalizeInput(input);
@@ -90,8 +91,8 @@ export function scoreActions(input, phase) {
   const blocked = new Set(fired.flatMap(({ r }) => r.exclude || []).filter(a => a in base));
   const excluded = new Set(ACTIONS.filter(a => !(a in base) || blocked.has(a)));
 
-  const scores = {};
-  for (const a of ACTIONS) if (!excluded.has(a)) scores[a] = base[a];
+  const scores = {}, soft = {};   // soft：相手由来で w < 1.0 の補正の合計（上限をかける前）
+  for (const a of ACTIONS) if (!excluded.has(a)) { scores[a] = base[a]; soft[a] = 0; }
   const applied = [], styles = [];
   const gateOpen = apologyGateOpen(x);
   for (const { r, w } of fired) {
@@ -106,16 +107,24 @@ export function scoreActions(input, phase) {
         redirected = !excluded.has("apology_partial") || !excluded.has("ask_feeling");
       }
     }
+    const capped = r.w?.domain != null && w < 1;
     for (const [a, pts] of adds) {
       if (excluded.has(a) || pts * w === 0) continue;
-      scores[a] += pts * w;
+      if (capped) soft[a] += pts * w; else scores[a] += pts * w;
       effective = true;
     }
     for (const s of r.styles || []) if (!styles.includes(s)) styles.push(s);
     if (effective && !applied.includes(r.id)) applied.push(r.id);
     if (redirected && !applied.includes("HG")) applied.push("HG");
   }
-  for (const a of Object.keys(scores)) scores[a] = round(scores[a]);
+  let cap = false;
+  for (const a of Object.keys(scores)) {
+    const sv = round(soft[a]);
+    const clamped = Math.max(-PARTNER_CAP, Math.min(PARTNER_CAP, sv));
+    if (clamped !== sv) cap = true;
+    scores[a] = round(scores[a] + clamped);
+  }
+  if (cap) applied.push("CAP");
   return { scores, excluded, blocked, applied, styles };
 }
 
@@ -186,10 +195,10 @@ function marginOf(scores, action) {
   return others.length ? round(scores[action] - Math.max(...others)) : null;
 }
 
-/** 鍵の領域の確かさ（none → provisional、est → est、sure → sure、鍵なし → situational）。差が MARGIN_LOW 未満なら1段下げる */
+/** 鍵の領域の確かさ（none → provisional、est・observed → est、sure → sure、鍵なし → situational）。差が MARGIN_LOW 未満なら1段下げる */
 function confidenceOf(x, phase, margin) {
   const key = KEY_PARTNER_DOMAIN[phase];
-  const c = key == null ? "situational" : { none: "provisional", est: "est", sure: "sure" }[x.partner[key].conf];
+  const c = key == null ? "situational" : { none: "provisional", est: "est", observed: "est", sure: "sure" }[x.partner[key].conf];
   return margin != null && margin < MARGIN_LOW ? CONFIDENCE_DOWN[c] : c;
 }
 
