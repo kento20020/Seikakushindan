@@ -149,6 +149,8 @@
 
 ### 3.3 局面ごとの基本（吟味版・未検証）
 
+> 点数つきの判定表と実装は [consult-scoring.md](consult-scoring.md)（`js/consult/`、テスト `tests/consult.test.mjs`）。回答の書き方と、診断との連携のレビューは [consult-answer-guide.md](consult-answer-guide.md)。
+
 | 局面 | おすすめ | 候補 | 避ける行動 | 避ける言葉（§3.5） | 特に効く領域 |
 | --- | --- | --- | --- | --- | --- |
 | `heated` | `pause_with_time` ＋ `self_calm` | `apology_partial`、`acknowledge` | 黙って離れる、熱いままの電話、今決着をつける | `long` `past` `generalize` `ultimatum` `sarcasm` | 1・2・4 |
@@ -374,9 +376,10 @@
 
 ## 11. 次の作業
 
-1. **判定表**（局面×行動×8領域の補正）を §3.3 の吟味版から点数つきの表にし、§3.8 の12場面をそのままテストケースにする
-2. **16傾向の対応ガイド**（効く対応・逆効果・伝え方）を作る。判定表と並んで、相談モードの中身そのもの
-3. お手本の相談30〜50件を用意する
+1. ~~**判定表**（局面×行動×8領域の補正）を点数つきの表にし、§3.8 の12場面をテストケースにする~~ → 済（2026-10-14）。[consult-scoring.md](consult-scoring.md)、`js/consult/`、`tests/consult.test.mjs`
+2. **16傾向の対応ガイド**（効く対応・逆効果・伝え方）を作る。形式は [consult-answer-guide.md](consult-answer-guide.md) §2.14 の6（傾向ごとに3行）
+3. お手本の相談30〜50件を用意する（期待する一手と理由の補正 ID を付ける）
+4. 回答の方針（[consult-answer-guide.md](consult-answer-guide.md) 第2部）をもとに、1層目のシステムプロンプトと出力の自動点検を作る
 
 ---
 
