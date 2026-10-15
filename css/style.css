@@ -844,3 +844,36 @@ table.t3-changes-w, table.t3-changes-x { min-width: 760px; }
 .t3-chg-before { color: var(--muted); }
 .t3-chg-stem { font-weight: 700; margin-bottom: 2px; }
 .t3-chg-id { display: block; }
+
+/* ---------------------------------------------------------------- 傾向の絵（結果の上の1枚と「8つの軸の絵」）。クラスは ti- で始まる。絵・文言は js/data/type_images.js */
+:root { --ti-bg: #c6c1bb; }   /* 絵の背景のグレー（絵の四隅の色に合わせる。絵が読み込まれる前や角の丸めでも、ほかの色が見えないように） */
+.ti-hero { display: flex; align-items: center; gap: 20px 28px; margin-top: 22px; }
+.ti-fig { flex: none; width: min(360px, 100%); margin: 0; aspect-ratio: 1 / 1; border-radius: 16px; overflow: hidden; background: var(--ti-bg); }
+.ti-fig img, .ti-thumb img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; background: var(--ti-bg); }
+.ti-hero-text { min-width: 0; }
+.ti-eyebrow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: .8rem; font-weight: 700; color: var(--ink-2); letter-spacing: .04em; }
+.ti-domain { font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.ti-name { margin-top: 4px; font-family: var(--serif); font-size: 1.7rem; line-height: 1.4; }
+.ti-motif { margin-top: 6px; font-size: .8rem; color: var(--muted); }
+.ti-caption { margin-top: 14px; font-family: var(--serif); font-size: 1.15rem; line-height: 1.85; text-wrap: pretty; }
+.ti-sub-note { margin-top: 16px; padding: 8px 12px; border-radius: 8px; background: var(--surface-2); color: var(--ink-2); font-size: .8rem; line-height: 1.7; }
+
+.ti-grid { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }
+.ti-tile { min-width: 0; }
+.ti-thumb { position: relative; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden; background: var(--ti-bg); box-shadow: 0 0 0 1px var(--line); }
+.ti-tile.is-ref .ti-thumb { box-shadow: 0 0 0 2px var(--ink-2); }
+.ti-ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 8px; text-align: center; background: var(--surface-2); }
+.ti-ph-text { font-size: .8rem; line-height: 1.6; color: var(--muted); }
+.ti-dname { margin-top: 8px; font-size: .78rem; line-height: 1.5; color: var(--muted); }
+.ti-dname .dnum { min-width: 0; margin-right: .4em; }
+.ti-tname { margin-top: 1px; font-weight: 700; font-size: .95rem; line-height: 1.5; }
+.ti-weak { margin-left: .5em; padding: 0 7px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--muted); font-size: .7rem; font-weight: 600; vertical-align: .08em; white-space: nowrap; cursor: help; }
+
+@media (min-width: 641px) {
+  .ti-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px 14px; }
+}
+@media (max-width: 640px) {
+  .ti-hero { flex-direction: column; align-items: stretch; gap: 16px; }
+  .ti-fig { width: 100%; }
+  .ti-name { font-size: 1.5rem; }
+}

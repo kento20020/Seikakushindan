@@ -13,6 +13,7 @@ import { store3, onChange3, restore3, setSub, SUBS, start3, resume3, toStart3, d
 import { renderLogic3, renderQuestions3, verBadge } from "./three_logic.js";
 import { attachSwipe, isCoarsePointer, prefersReducedMotion } from "./swipe.js";
 import { fbBody, fbRendered, fbStartFields, fbStartOptions, fbStartBlocks, fbHidesDone, fbQuestionExtra, fbCard, fbResultTop, fbResultTail } from "./feedback.js";
+import { typeHero, typeTiles } from "./type_images.js";   // 傾向の絵（結果の本番だけ。ブラインド比較には出さない）
 
 const HI = TH3.high, LO = TH3.low + 1;
 let root = null;
@@ -523,12 +524,14 @@ function resultView() {
   if (!r) return emptyResult();
   return [
     resHeader(r),
+    typeHero(r),    // 傾向の絵（主軸の傾向。準備中ならほかの傾向）。js/data/type_images.js
     fbResultTop(r),
     h("section", { class: "block", "aria-labelledby": "t3-res-patterns" },
       h("h2", { id: "t3-res-patterns" }, "あなたを表す解釈"),
       h("p", { class: "note" }, "左右（W）と強さ（X）から条件を満たしたパターンを集め、5択版と同じルールで重なりを避けながら2〜4本を選んでいます。"),
       h("div", { class: "pcards" }, byRole(r.select.chosen).map(hit => patternCard(hit, r))),
       r.select.chosen.length === 0 ? h("p", { class: "empty" }, "条件を満たすパターンがありませんでした。") : null),
+    typeTiles(r),   // 8つの軸の絵（領域ごとの優勢な傾向。絵が無い傾向は「絵は準備中」の枠）
     fbResultTail(r),   // テスト協力モード：足りない特徴（自由記述）と「振り返りへ」
     r.source?.expected5 ? compareBlock(r) : null,
     h("section", { class: "block", "aria-labelledby": "t3-res-domains" },

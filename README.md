@@ -47,6 +47,9 @@ js/data/questions.js    80問＋追加対決8問（自動生成）
 js/data/patterns*.js    パターンの構造（patterns_meta.js）と本文（patterns_text_*.js）
 js/data/samples.js      実回答2名（石原・別宮）と合成プロファイル P1〜P5
 js/data/item_review.js  設問レビュー（任意。無ければ空として扱う）
+js/data/type_images.js  傾向の絵（16傾向分）のデータ。絵・一言・準備中かどうかはここだけで決まる。絵を選ぶ関数（heroTendency など）もここ（docs/type-images.md）
+js/ui/type_images.js    三択の結果画面に出す傾向の絵（上の1枚と「8つの軸の絵」）
+img/types/              傾向の絵（<キー>.jpg。960×960 の JPEG。キーは 1A〜8B）
 js/consult/*.js         相談モードの判定（点数つき判定表。docs/consult-scoring.md）と回答の層（docs/consult-ai.md）
                         judge.js 判定／person_layer.js AI に渡す人ごとの層／draft_check.js 送る前チェック／from_diagnosis.js 診断結果の変換・同意・本人の修正
                         context.js 相談1回分の文脈と問い／respond.js 回答の入口／template_responder.js 決まった文型の回答／texts.js 決まった日本語
@@ -57,6 +60,7 @@ docs/marketing-plan.md  集客・マーケティング計画（構想）
 docs/consult-mode.md    相談モード（構想）
 docs/consult-scoring.md 相談モードの判定表（点数・補正・検証ケース。テストは tests/consult.test.mjs）
 docs/consult-ai.md      相談モードの回答の層（カードの形・決まった文型・AI のつなぎ方。テストは tests/consult_responder.test.mjs）
+docs/type-images.md     傾向の絵（16枠の表・結果の上の1枚の選び方・絵の差し替え手順。テストは tests/type_images.test.mjs）
 tests/                  node で動くテスト
 ```
 
@@ -172,6 +176,7 @@ for t in tests/*.test.mjs; do node "$t"; done   # 全部（三択版 v1／v2・�
 - サブ画面：診断（開始・質問）／結果（左右と強さ、選ばれた本文、5択版との比較、AI統合用テキスト・結果JSON）／ロジック（TH3・7状態の余裕・発火した全パターン・選択トレース）／設問（W 48組＋対決由来の差し替え候補、X の行動文64本と xRounds、回答履歴）
 - サンプル「石原」「別宮」は5択版の実回答を三択の答えに変換して流した**推定**です（§5。W は同じ番号の設問どうしで高い方、同点は対決の向き。X は対応する行動文の回答で高い方）。P1〜P5 はスコアの高い方を選ぶ答えに変換します。結果画面で5択版の選択（`tests/expected_v2.json`）と並べて表示します
 - キーボード：← 左／→ 右／Space 問題を変える（使い切ったら答えずに進む）
+- 結果には**傾向の絵（たたき台）**も出ます（上の1枚と「8つの軸の絵」。絵・一言・準備中の枠は `js/data/type_images.js` の1ファイルで決まります）。選び方と差し替え手順は [`docs/type-images.md`](docs/type-images.md)
 
 ```
 js/three_version.js     三択版の設問の版（v1／v2）の一覧と既定（DEFAULT_THREE_VERSION）、版の決め方（resolveVersion）
