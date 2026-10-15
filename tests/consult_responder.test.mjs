@@ -549,10 +549,10 @@ test("buildContext：lateNight を省くと現在時刻から決める（0時〜
   assert.equal(buildContext({ input: { intent: "tell" }, now: new Date("2026-10-16T02:00:00+09:00"), tzOffset: JST }).input.lateNight, true);
   assert.equal(buildContext({ input: { intent: "tell" }, now: new Date("2026-10-16T06:00:00+09:00"), tzOffset: JST }).input.lateNight, false);
   assert.equal(buildContext({ input: { intent: "tell", lateNight: false }, now: new Date("2026-10-16T02:00:00+09:00"), tzOffset: JST }).input.lateNight, false);
-  assert.equal(buildContext({ now: new Date(DEFAULT_NOW) }).register, "casual");
-  assert.equal(buildContext({ couple: { register: "polite" }, now: new Date(DEFAULT_NOW) }).register, "polite");
-  assert.equal(buildContext({ couple: { register: "polite" }, register: "casual", now: new Date(DEFAULT_NOW) }).register, "casual");
-  const ctx = buildContext({ partner: { 2: { side: "B", conf: "est", reason: "weak" }, 3: { side: "A", conf: "observed" }, 4: { side: "A", conf: "bogus" } }, now: new Date(DEFAULT_NOW) });
+  assert.equal(buildContext({ now: new Date(DEFAULT_NOW), tzOffset: JST }).register, "casual");
+  assert.equal(buildContext({ couple: { register: "polite" }, now: new Date(DEFAULT_NOW), tzOffset: JST }).register, "polite");
+  assert.equal(buildContext({ couple: { register: "polite" }, register: "casual", now: new Date(DEFAULT_NOW), tzOffset: JST }).register, "casual");
+  const ctx = buildContext({ partner: { 2: { side: "B", conf: "est", reason: "weak" }, 3: { side: "A", conf: "observed" }, 4: { side: "A", conf: "bogus" } }, now: new Date(DEFAULT_NOW), tzOffset: JST });
   assert.deepEqual(ctx.input.partner[2], { side: "B", conf: "est", source: "diagnosis", reason: "weak" });
   assert.deepEqual(ctx.input.partner[3], { side: "A", conf: "observed", source: "observed" });
   assert.deepEqual(ctx.input.partner[4], { side: null, conf: "none", source: "none" });

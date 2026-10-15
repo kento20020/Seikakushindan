@@ -22,7 +22,9 @@ function test(name, fn) {
   try { const r = fn(); if (r && typeof r.then === "function") pending.push(r.then(() => done(), done)); else done(); } catch (e) { done(e); }
 }
 
-const NOW = new Date("2026-10-15T12:00:00+09:00");
+// 深夜の判定は「その端末の時計」で決まる。実行環境の TZ に左右されないよう、ローカル時刻のコンストラクタで作る。
+const NOW = new Date(2026, 9, 15, 12, 0);
+const NIGHT = new Date(2026, 9, 15, 2, 0);
 const fakeStorage = () => { const m = new Map(); return { getItem: k => m.has(k) ? m.get(k) : null, setItem: (k, v) => { m.set(k, String(v)); }, removeItem: k => { m.delete(k); }, _m: m }; };
 
 // consult-scoring.md §1 の列挙（画面の選択肢の値はこれだけ）
@@ -74,9 +76,9 @@ test("buildInput：画面の項目が judge の入力に対応する（深夜は
 test("深夜：自動は now から決まる（12時は深夜でない・2時は深夜）。手動が優先", () => {
   const st = defaultState();
   assert.equal(buildContext(buildArgs(st, { now: NOW })).input.lateNight, false);
-  assert.equal(buildContext(buildArgs(st, { now: new Date("2026-10-15T02:00:00+09:00") })).input.lateNight, true);
+  assert.equal(buildContext(buildArgs(st, { now: NIGHT })).input.lateNight, true);
   st.lateNight = "no";
-  assert.equal(buildContext(buildArgs(st, { now: new Date("2026-10-15T02:00:00+09:00") })).input.lateNight, false);
+  assert.equal(buildContext(buildArgs(st, { now: NIGHT })).input.lateNight, false);
   st.lateNight = "yes";
   assert.equal(buildContext(buildArgs(st, { now: NOW })).input.lateNight, true);
 });
