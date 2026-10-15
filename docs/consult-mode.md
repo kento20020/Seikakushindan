@@ -384,7 +384,7 @@
 1. ~~**判定表**（局面×行動×8領域の補正）を点数つきの表にし、§3.8 の12場面をテストケースにする~~ → 済（2026-10-14）。[consult-scoring.md](consult-scoring.md)、`js/consult/`、`tests/consult.test.mjs`
 2. **16傾向の対応ガイド**（効く対応・逆効果・伝え方）を作る。形式は [consult-answer-guide.md](consult-answer-guide.md) §2.14 の6（傾向ごとに3行）
 3. お手本の相談30〜50件を用意する（期待する一手と理由の補正 ID を付ける）
-4. 回答の方針（[consult-answer-guide.md](consult-answer-guide.md) 第2部）をもとに、1層目のシステムプロンプトと出力の自動点検を作る
+4. ~~回答の方針（[consult-answer-guide.md](consult-answer-guide.md) 第2部）をもとに、1層目のシステムプロンプトと出力の自動点検を作る~~ → 済（2026-10-15）。[consult-ai.md](consult-ai.md)（今は決まった文型、AI は設定でつながる）。次は相談モードの画面
 
 ---
 

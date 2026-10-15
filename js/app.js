@@ -1,6 +1,7 @@
-// 16次元診断：画面の入口。ハッシュでタブを切り替える（#diagnose #result #logic #questions #design #three）。
+// 16次元診断：画面の入口。ハッシュでタブを切り替える（#diagnose #result #logic #questions #design #three #consult）。
 // 既定は三択診断（#three）。ハッシュが無い・空・知らない値のときは #three に置き換える。
 // 5択版（#diagnose #result #logic #questions #design）はコードを残してあり、ハッシュで直接開くか ?five=1 を付けると上部ナビも出る。
+// 相談（試作）#consult は、ヘッダーの「相談（試作）」リンクからどの画面でも開ける（js/ui/consult.js）。
 // ビルドなし・ES モジュールのみ。パスはすべて相対（GitHub Pages のサブパスで動かすため）。
 import { onChange, restore } from "./ui/store.js";
 import { renderDiagnose } from "./ui/diagnose.js";
@@ -9,6 +10,7 @@ import { renderLogic } from "./ui/logic.js";
 import { renderQuestions } from "./ui/questions.js";
 import { renderDesign } from "./ui/design.js";
 import { renderThree } from "./ui/three.js";
+import { renderConsult } from "./ui/consult.js";
 
 const VIEWS = {
   diagnose: renderDiagnose,
@@ -17,8 +19,9 @@ const VIEWS = {
   questions: renderQuestions,
   design: renderDesign,
   three: renderThree,
+  consult: renderConsult,
 };
-const TITLES = { diagnose: "診断", result: "結果", logic: "ロジック", questions: "設問", design: "設計", three: "三択診断" };
+const TITLES = { diagnose: "診断", result: "結果", logic: "ロジック", questions: "設問", design: "設計", three: "三択診断", consult: "相談（試作）" };
 const DEFAULT_TAB = "three";
 const FIVE_TABS = new Set(["diagnose", "result", "logic", "questions", "design"]);   // 5択版のタブ
 let currentTab = null;
@@ -57,7 +60,7 @@ function route() {
   if (nav) nav.hidden = !topNav;   // 三択だけのときは、タブが1つだけの行は出さない（三択ビューに自前のサブタブがある）
   document.querySelector(".brand")?.setAttribute("href", topNav ? "#diagnose" : `#${DEFAULT_TAB}`);
   for (const sec of document.querySelectorAll(".view")) sec.hidden = sec.dataset.view !== tab;
-  for (const a of document.querySelectorAll(".tabs a")) {
+  for (const a of document.querySelectorAll(".tabs a, .head-link")) {
     if (a.dataset.tab === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   }
   document.title = tab === "diagnose" ? "16次元診断" : `${TITLES[tab]}｜16次元診断`;

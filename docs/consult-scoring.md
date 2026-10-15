@@ -295,7 +295,7 @@ A・B は各領域の A 側・B 側（§9 の表）。
 
 ## 10. 検証ケース
 
-実装はこの全ケースを `tests/consult.test.mjs` で確かめる。相手・自分の領域は書いたもの以外すべて `none`。`cause` は書かなければ `unknown`、`severity` は `small`、`selfTemp` は `cooling`、`goal` は `reconcile`、`medium` は `text`、真偽値は false。
+実装はこの全ケースを `tests/consult.test.mjs` で確かめる（ケースの入力は `tests/fixtures/consult_cases.mjs`）。相手・自分の領域は書いたもの以外すべて `none`。`cause` は書かなければ `unknown`、`severity` は `small`、`selfTemp` は `cooling`、`goal` は `reconcile`、`medium` は `text`、真偽値は false。
 
 | # | 場面 | 主な入力 | 局面 | 一手 | 付け足し | その他 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -373,16 +373,18 @@ C2 の出力：
   "margin": 20,
   "scores": [["apology_partial", 80], ["pause_with_time", 60], ["propose_call", 35], ["wait_until", 20], ["short_feeling", 15], ["ask_feeling", 10], ["propose_talk_plan", 10], ["request_space", 10]],
   "applied": ["P1A", "P2A", "P2A_silent", "G1", "AO12"],
-  "avoid": ["read_receipt", "interrogate", "ultimatum"]
+  "avoid": ["read_receipt", "interrogate", "ultimatum"],
+  "contributions": { "P1A": 10, "P2A": 15, "P2A_silent": 15, "G1": 5 }
 }
 ```
 
 - `scores`：除外されていない行動の点（高い順、同点は §5 の優先順）。相手が分からないとき（§8）は A・B の低いほう
 - `applied`：点・除外・文面の指定を実際に動かした補正の ID（状況 → 共通ルール → 相手の8領域 → 自分の8領域 → ゴール → 付け足しの順）
+- `contributions`：一手の点の内訳 `{補正 ID: 点}`（0 は入れない）。元の入力（相手が分からないときも鍵の領域は不明のまま）で計算し、基本点 ＋ 内訳の合計 ＝ 一手の点になる。相手由来の補正を上限 CAP で抑えたときは、抑えた割合で各 ID の分を縮める。回答の層（[consult-ai.md](consult-ai.md)）が「なぜこの一手か」の理由を強い順に選ぶのに使う。行動ごとの内訳は `scoreActions(...).contributions`
 - `margin`：一手の点 − 2位の点（相手が分からないときは低いほうの点で）。候補が1つだけの局面は null
 - `confidence`：局面の鍵の領域（§8）の `conf` が `none` なら `provisional`、`est` か `observed` なら `est`、`sure` なら `sure`。鍵の領域がない局面は `situational`。そのうえで `margin` が 10 未満なら1段下げる（sure → est → provisional。situational はそのまま）
 - `styleVariants`：一手の文面を左右する相手の領域（apology_partial・apology_full・acknowledge・accept_apology・prepare_points → 5、propose_talk_plan → 6、pause_with_time → 1）が `none` のとき `{ domain, A: [...], B: [...] }`。領域5 は A `concrete`／B `feeling_first`、領域6 は A `offer_choices`／B `propose_date`、領域1 は A `short_return`／B なし。それ以外は null
-- 安全ゲートのときは `{ gate: "danger", phase: null, action: "safety", addons: [], timing: "now", recheck: null, styles: [], styleVariants: null, notes: [], variants: null, confidence: null, margin: null, scores: [], applied: [], avoid: [] }`
+- 安全ゲートのときは `{ gate: "danger", phase: null, action: "safety", addons: [], timing: "now", recheck: null, styles: [], styleVariants: null, notes: [], variants: null, confidence: null, margin: null, scores: [], applied: [], avoid: [], contributions: {} }`
 
 `avoid` は [consult-mode.md](consult-mode.md) §3.3 の「避ける言葉」を局面ごとにそのまま返す。
 
@@ -393,3 +395,4 @@ C2 の出力：
 - 2026-10-14：初版（consult-mode.md §3.3 吟味版から点数化）。手計算の検証で2か所直した：C1 を +45 → +50（S4 で「気持ちを伝える」と同点になり謝罪が選ばれなかった）、L1 に「保留宣言のあとは追わない」減点を追加し P2A_silent を保留宣言の後は除外（T9 で相手のタイプが分からないとき謝罪の連投が選ばれた）
 - 2026-10-14：Fable のレビュー（consult-answer-guide.md §1.6）を受けて：P1A は保留宣言の減点（−15）をやめ、heated・waiting_partner・cold_war.* で `short_return` を出す／相手のタイプによる謝罪への加点（P1A・P2A・P2A_silent）に門 HG（原因が相手なら ask_feeling に振り替え）、原因不明で謝る一手ならメモ `confirm_cause`／R3 を partner_msg.b・c に限り、.d で熱いときは `date_only`（R3d）／局面1 は lastSender を問わず3日以内なら space.partner、別れ話は `breakup`（BRK）／AO12 は相手の領域1 が分かっているときだけ／L1 は半日未満だけにし、半日以上は L1b（`return_as_promised`）／C1 を +50 → +55、G2 の apology_full −10 は原因が自分なら効かせない／出力に `confidence`・`margin`・`styleVariants` を追加／重い行動に apology_partial・request_space を追加／補正 ID を改名（P1 → RR、T1 → E1）／§11 の出力例を実際の C2 の出力に合わせた（recheck は +24h、ask_feeling 10 が抜けていた）。検証ケースは T2 の付け足しが propose_call → なしに変わり、C2b・T11〜T17 を追加。あわせて L1b で restore_routine も除外（T11 で相手が関係を戻す派なら「おはよう」が一手になり、保留宣言の約束を破るため。T11 は相手のタイプによらず short_feeling）
 - 2026-10-15：Fable の改善案を採用（decisions.md D1〜D5）：確かさに `observed`（利用者の見立て 0.8）を追加し、2択の答えは est → observed、領域に出どころ `source` と確度低の理由 `reason` を付ける／相手由来の補正（P1A〜P8B・R2・R8）は重み 1.0 未満の分の合計を行動ごとに ±30 に抑える（CAP）／RR は相手が関係を戻す派なら確かさによらず外し、それ以外は −25（×(1 − w8B) をやめた）／confidence は observed を est と同じに扱う／相手の診断の取り込みは同意があるときだけ、外したら診断由来の領域を不明に戻す／本人が直した領域は stated・1.0。検証ケース T18〜T20 を追加（既存のケースの結果は変わらない）。人ごとの層（`person_layer.js`）と送る前チェック（`draft_check.js`）は判定の点数には関わらない
+- 2026-10-15：出力に `contributions`（一手の点の内訳）を追加（回答の層が理由を選ぶため。点数・一手は変わらない）。§10 の検証ケースは `tests/fixtures/consult_cases.mjs` に移し、判定のテストと回答の層のテスト（`tests/consult_responder.test.mjs`）の両方で使う

@@ -9,6 +9,7 @@
 - 旧版（5択）は次のどれかで開けます。コードはそのまま残してあり、動作も変えていません。
   - `https://kento20020.github.io/Seikakushindan/?five=1#diagnose`（フッターの「旧版（5択）」リンクと同じ。上部に 診断／結果／ロジック／設問／設計／三択診断 のタブが出て、三択診断タブで戻れます）
   - `#diagnose` `#result` `#logic` `#questions` `#design` を直接指定（例 `.../#design`。5択版の画面を開いている間は上部のタブが出ます）
+- **相談（試作）** は `#consult`（ヘッダー右上の「相談（試作）」リンクから、どの画面でも開けます）。診断結果と状況から「次の一手」のカードを作ります。今は AI を呼ばず決まった文型で答え、入力は端末の localStorage（`consult-form-v1`）にだけ保存します。
 - 判定はすべてブラウザ内の JavaScript で計算します。サーバーへの送信はありません（途中保存は端末の localStorage のみ）。
 - ビルド不要。HTML＋ES モジュール＋CSS だけで動きます。外部依存は「設計」タブの Markdown 表示に使う marked（cdnjs、版固定）だけです。
 
@@ -30,6 +31,7 @@
 index.html              画面の骨組み（タブ・各ビューの入れ物）
 .nojekyll               GitHub Pages で Jekyll 処理をさせない
 css/style.css           スタイル（色は :root の変数。ライト/ダーク対応）
+css/consult.css         相談（試作）#consult のスタイル（クラスは cs- で始まる）
 js/app.js               入口。ハッシュでタブを切り替える（既定は #three。5択のタブ行は ?five=1 か 5択の画面のときだけ表示）
 js/engine.js            判定エンジン（スコア→7状態→パターン充足→制約つき貪欲選択）
 js/adaptive.js          可変質問票の状態機械（DOM なし。node でテスト可能）
@@ -40,16 +42,21 @@ js/ui/logic.js          ロジックタブ
 js/ui/questions.js      設問タブ
 js/ui/design.js         設計タブ（marked で描画、失敗時は <pre>）
 js/ui/dom.js, labels.js 画面づくりの小道具・表示名
+js/ui/consult*.js       相談（試作）#consult の画面。consult.js 入力と流れ／consult_state.js 入力の状態と保存（DOM なし）／consult_self.js あなたのタイプ（三択の結果・サンプル）／consult_card.js 次の一手カード／consult_dev.js 判定の中身とプロンプト（開発用）
 js/data/questions.js    80問＋追加対決8問（自動生成）
 js/data/patterns*.js    パターンの構造（patterns_meta.js）と本文（patterns_text_*.js）
 js/data/samples.js      実回答2名（石原・別宮）と合成プロファイル P1〜P5
 js/data/item_review.js  設問レビュー（任意。無ければ空として扱う）
-js/consult/*.js         相談モードの判定（点数つき判定表。docs/consult-scoring.md）
+js/consult/*.js         相談モードの判定（点数つき判定表。docs/consult-scoring.md）と回答の層（docs/consult-ai.md）
                         judge.js 判定／person_layer.js AI に渡す人ごとの層／draft_check.js 送る前チェック／from_diagnosis.js 診断結果の変換・同意・本人の修正
+                        context.js 相談1回分の文脈と問い／respond.js 回答の入口／template_responder.js 決まった文型の回答／texts.js 決まった日本語
+                        card.js カードの形と点検／prompt.js AI のプロンプト3層／ai_responder.js 中継を呼ぶ／timefmt.js 時刻の言い方／config.js AI の設定
+workers/consult-proxy.js 相談モードの AI 中継（Cloudflare Worker の見本。未デプロイ）
 docs/design.md          設計書（パターン本文の原典）
 docs/marketing-plan.md  集客・マーケティング計画（構想）
 docs/consult-mode.md    相談モード（構想）
 docs/consult-scoring.md 相談モードの判定表（点数・補正・検証ケース。テストは tests/consult.test.mjs）
+docs/consult-ai.md      相談モードの回答の層（カードの形・決まった文型・AI のつなぎ方。テストは tests/consult_responder.test.mjs）
 tests/                  node で動くテスト
 ```
 
@@ -210,6 +217,7 @@ tests/engine3.test.mjs, tests/adaptive3.test.mjs, tests/version3.test.mjs
 
 - [docs/marketing-plan.md](docs/marketing-plan.md)：集客・マーケティング計画。結果がひとりでに広がる仕組み（結果カード・相手に送る・ふたり診断）→ SNS（TikTok・Instagram・Threads）→ Web検索（SEO・AI検索）の順で考える。完了率（クイック版）と計測もここ
 - [docs/consult-mode.md](docs/consult-mode.md)：相談モード。相談内容から「送る／待つ／話し合いを提案する」などの次の一手を1つ決めて、理由・文面・待ち方まで出す。行動を決めるのはプログラム（判定表）、言葉にするのは AI
-- [docs/consult-scoring.md](docs/consult-scoring.md)：相談モードの判定表（点数つき）。実装は `js/consult/`（`judge(input)` が一手・付け足し・期限・確かさを返す）、テストは `tests/consult.test.mjs`（場面ごとの検証ケース）。画面はまだない
+- [docs/consult-scoring.md](docs/consult-scoring.md)：相談モードの判定表（点数つき）。実装は `js/consult/`（`judge(input)` が一手・付け足し・期限・確かさを返す）、テストは `tests/consult.test.mjs`（場面ごとの検証ケース）。画面は `#consult`（相談（試作）。入力の変換は `tests/consult_ui_state.test.mjs`）
 - [docs/decisions.md](docs/decisions.md)：決定記録（診断と相談モードで決めたこと・変えたこと、日付・理由・反映先つき）
 - [docs/consult-answer-guide.md](docs/consult-answer-guide.md)：診断と相談の連携のレビューと、相談の回答の方針（カードの形・言い切り方・文面の決まり・回答例・自動点検・1層目の骨組み）
+- [docs/consult-ai.md](docs/consult-ai.md)：相談モードの回答の層。今は AI を呼ばず決まった文型でカードを作り、設定（`js/consult/config.js` の `aiEndpoint`、または `aiEndpointHosts` に載せたホストへの `?ai=`。既定は空で `?ai=` は無視）だけで AI（自前の中継 `workers/consult-proxy.js` 経由）に切り替わる。AI が失敗したら決まった文型に戻る

@@ -73,6 +73,8 @@ function context(x, phase) {
  * applied には、除外されていない行動の点を実際に動かした補正・候補を除外した補正・文面の指定を出した補正（と R4）だけを入れる。
  * 謝罪への加点（rule.apology）は門 HG を通す：開いていれば apology_partial、閉じていれば ask_feeling に足し、HG を applied に入れる。
  * 相手由来の補正（rule.w.domain がある）のうち w < 1.0 の分は、行動ごとに合計を ±PARTNER_CAP に抑える。抑えたら CAP を applied に入れる。
+ * contributions：{行動: {補正 ID: その行動の点を動かした量}}（0 は入れない）。上限で抑えた分は、抑えた割合で各 ID に割り振る。
+ *   基本点 ＋ contributions[行動] の合計 ＝ scores[行動]（丸めの誤差を除く）。回答の層が「なぜこの一手か」の理由を選ぶのに使う
  */
 export function scoreActions(input, phase) {
   const x = normalizeInput(input);
@@ -92,7 +94,8 @@ export function scoreActions(input, phase) {
   const excluded = new Set(ACTIONS.filter(a => !(a in base) || blocked.has(a)));
 
   const scores = {}, soft = {};   // soft：相手由来で w < 1.0 の補正の合計（上限をかける前）
-  for (const a of ACTIONS) if (!excluded.has(a)) { scores[a] = base[a]; soft[a] = 0; }
+  const hard = {}, softBy = {};   // 行動ごと・ID ごとの内訳（hard：上限なし、softBy：上限の対象）
+  for (const a of ACTIONS) if (!excluded.has(a)) { scores[a] = base[a]; soft[a] = 0; hard[a] = {}; softBy[a] = {}; }
   const applied = [], styles = [];
   const gateOpen = apologyGateOpen(x);
   for (const { r, w } of fired) {
@@ -110,6 +113,8 @@ export function scoreActions(input, phase) {
     const capped = r.w?.domain != null && w < 1;
     for (const [a, pts] of adds) {
       if (excluded.has(a) || pts * w === 0) continue;
+      const by = capped ? softBy[a] : hard[a];
+      by[r.id] = (by[r.id] || 0) + pts * w;
       if (capped) soft[a] += pts * w; else scores[a] += pts * w;
       effective = true;
     }
@@ -118,14 +123,21 @@ export function scoreActions(input, phase) {
     if (redirected && !applied.includes("HG")) applied.push("HG");
   }
   let cap = false;
+  const contributions = {};
   for (const a of Object.keys(scores)) {
     const sv = round(soft[a]);
     const clamped = Math.max(-PARTNER_CAP, Math.min(PARTNER_CAP, sv));
     if (clamped !== sv) cap = true;
     scores[a] = round(scores[a] + clamped);
+    // 内訳：上限で抑えたら、上限の対象の分を同じ割合で縮める
+    const k = clamped !== sv && sv !== 0 ? clamped / sv : 1;
+    const by = {};
+    for (const [id, v] of Object.entries(hard[a])) by[id] = (by[id] || 0) + v;
+    for (const [id, v] of Object.entries(softBy[a])) by[id] = (by[id] || 0) + v * k;
+    contributions[a] = Object.fromEntries(Object.entries(by).map(([id, v]) => [id, round(v)]).filter(([, v]) => v !== 0));
   }
   if (cap) applied.push("CAP");
-  return { scores, excluded, blocked, applied, styles };
+  return { scores, excluded, blocked, applied, styles, contributions };
 }
 
 /** 点が最も高い行動（同点は §5 の優先順）。self_calm は after_makeup.once 以外では選ばない */
@@ -214,7 +226,8 @@ function styleVariantsOf(x, action) {
 /**
  * 次の一手。
  * { gate, phase, action, addons, timing, recheck, styles, styleVariants, notes, variants, confidence, margin,
- *   scores:[[行動, 点]…], applied, avoid }
+ *   scores:[[行動, 点]…], applied, avoid, contributions:{補正 ID: 一手の点を動かした量} }
+ * contributions は元の入力（鍵の領域は不明のまま）での一手の内訳（scoreActions の contributions[一手]）。
  * 相手の鍵の領域（§8）が分からないときは、A・B 両方で点数を出して行動ごとの低いほうで選ぶ（scores はその低いほう）。
  * A と B で一手が違えば variants = { A: 一手, B: 一手 }。付け足し・期限・applied・styles は元の入力（鍵の領域は不明のまま）で決める。
  */
@@ -222,7 +235,7 @@ export function judge(input) {
   const x = normalizeInput(input);
   if (x.danger) {
     return { gate: "danger", phase: null, action: "safety", addons: [], timing: "now", recheck: null,
-      styles: [], styleVariants: null, notes: [], variants: null, confidence: null, margin: null, scores: [], applied: [], avoid: [] };
+      styles: [], styleVariants: null, notes: [], variants: null, confidence: null, margin: null, scores: [], applied: [], avoid: [], contributions: {} };
   }
   const phase = classifyPhase(x);
   const base = scoreActions(x, phase);
@@ -262,5 +275,6 @@ export function judge(input) {
     scores: sortScores(scores),
     applied: uniq([...base.applied, ...ao.applied]),
     avoid: [...(AVOID[phase] || [])],
+    contributions: { ...(base.contributions[action] || {}) },
   };
 }

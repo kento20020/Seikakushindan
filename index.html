@@ -9,6 +9,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='9' width='12' height='14' rx='2' fill='%232E5E8C'/%3E%3Crect x='17' y='9' width='12' height='14' rx='2' fill='%23A3456F'/%3E%3C/svg%3E">
   <!-- 相対パスのみ（GitHub Pages のサブパス /Seikakushindan/ で動かすため） -->
   <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/consult.css">
   <script type="module" src="./js/app.js"></script>
 </head>
 <body>
@@ -20,6 +21,7 @@
         <span class="brand-name">16次元診断</span>
       </a>
       <p class="brand-sub">喧嘩のときの動き方を、8つの軸の両側から測る</p>
+      <a class="head-link" href="#consult" data-tab="consult">相談（試作）</a>
     </div>
     <nav class="tabs" aria-label="ページ切り替え" hidden>
       <div class="wrap tabs-inner">
@@ -40,6 +42,7 @@
     <section class="view view-wide" id="view-questions" data-view="questions" aria-label="設問" hidden></section>
     <section class="view view-wide" id="view-design" data-view="design" aria-label="設計" hidden></section>
     <section class="view" id="view-three" data-view="three" aria-label="三択診断" hidden></section>
+    <section class="view" id="view-consult" data-view="consult" aria-label="相談（試作）" hidden></section>
     <noscript><p class="wrap">この診断は JavaScript で動きます。ブラウザの設定で JavaScript を有効にしてください。</p></noscript>
   </main>
 
