@@ -1,14 +1,16 @@
 // node tests/version3.test.mjs
-// 三択版の設問の版（v1／v2）のテスト。仕様：docs/three-choice-logic.md の「v2（3choice-2026-10-10）」
+// 三択版の設問の版（v1／v2／v3）のテスト。仕様：docs/three-choice-logic.md の「v2（3choice-2026-10-10）」「v3（3choice-2026-10-16）」
 //  - 版の決め方（URL ?qv= ＞ 保存中のセッションの版 ＞ 既定）、設問バンクの version → 版
 //  - v1 のセッションは従来どおり（全部拮抗で96問）、v2 は上限 W8・X8（全部拮抗で80問）
 //  - v2 の W追加の優先順位（拮抗 → 向きが逆 → 優勢（弱））、X追加に向きが逆の領域の両傾向
 //  - v2 の判定：確度低の領域を含むパターン ×0.8（形状を除く）、矛盾枠の向きの条件（同じ level は不成立）
 //  - 場面例の差し替えは v2 だけ、練習カードは記録に入らない、送信 JSON の qv、toJSON/fromJSON で版が残る
 //  - 集計ページ：v1 と v2 の送信を一緒に読み、版で文が違う設問は別の行、再採点のロジックを切り替えられる
+//  - v3：v2 の W1-1・W3-3・W3-4 だけを差し替え（changesFromV2）。ロジック・上限・場面例・練習カード・X は v2 と同じ。既定は v3。
+//        集計では同じ文の設問を版をまたいで1行にまとめる（v2 と v3 で同じ W1-2 は W1-2_v2）
 import assert from "node:assert/strict";
 import {
-  THREE_VERSIONS, DEFAULT_THREE_VERSION, LIB_DEFAULT_VERSION, resolveVersion, versionFromBank, versionFromSearch, scenesFor, scenesChanged, SCENES_V2, PRACTICE_CARD,
+  THREE_VERSIONS, VERSION_IDS, DEFAULT_THREE_VERSION, LIB_DEFAULT_VERSION, resolveVersion, versionFromBank, versionFromSearch, scenesFor, scenesChanged, SCENES_V2, PRACTICE_CARD,
 } from "../js/three_version.js";
 import { createSession3, Session3, drive, bankFor, fromLikertAnswers, fromScores, W_ITEMS, ITEM3, isTied } from "../js/adaptive3.js";
 import { evaluateAll3, select3, lowConfDomains3, domainFlags3, contraMisaligned3, patternMargin3, META3_BY_ID, CONTRA_ALIGN_REASON, CONFLICT_GAP } from "../js/engine3.js";
@@ -16,9 +18,10 @@ import { encodeText } from "../js/feedback_format.js";
 import { DOMAINS, TRAITS, PAIR } from "../js/engine.js";
 import { QUESTIONS3 } from "../js/data/questions3.js";
 import { QUESTIONS3_V2 } from "../js/data/questions3_v2.js";
+import { QUESTIONS3_V3 } from "../js/data/questions3_v3.js";
 import { SAMPLES3, PROFILE_SAMPLES3 } from "../js/data/samples3.js";
 import { newFeedback, buildPayload, buildText, chipOrder, itemTexts, HARD_CODES } from "../js/feedback_collect.js";
-import { parseInput, analyzeParsed, itemTable, payloadQv, itemRowKey, cardSummary } from "../js/admin/aggregate.js";
+import { parseInput, analyzeParsed, itemTable, payloadQv, itemRowKey, itemTextVersion, itemSameAsV1, cardSummary } from "../js/admin/aggregate.js";
 import { PATTERN_BY_ID } from "../js/data/patterns.js";
 import { rescoreAll, rescoreSession } from "../js/admin/rescore.js";
 import { store3, start3, practice3, practicePending3, answer3, discard3, runSample3 } from "../js/ui/three_store.js";
@@ -69,10 +72,12 @@ const P = (w, levels) => {
 const V2 = THREE_VERSIONS.v2.logic;
 
 // ---------------------------------------------------------------- 1. 版の一覧と決め方
-test("版の一覧：v1＝questions3.js（3choice-2026-10-08）、v2＝questions3_v2.js（3choice-2026-10-10）。既定は v2、ライブラリの既定は v1", () => {
-  assert.equal(THREE_VERSIONS.v1.bank, QUESTIONS3); assert.equal(THREE_VERSIONS.v2.bank, QUESTIONS3_V2);
+test("版の一覧：v1＝questions3.js（3choice-2026-10-08）、v2＝questions3_v2.js（3choice-2026-10-10）、v3＝questions3_v3.js（3choice-2026-10-16）。既定は v3、ライブラリの既定は v1", () => {
+  assert.deepEqual(VERSION_IDS, ["v1", "v2", "v3"], "古い順（集計で「その文が最初に現れた版」を探す順）");
+  assert.equal(THREE_VERSIONS.v1.bank, QUESTIONS3); assert.equal(THREE_VERSIONS.v2.bank, QUESTIONS3_V2); assert.equal(THREE_VERSIONS.v3.bank, QUESTIONS3_V3);
   assert.equal(THREE_VERSIONS.v1.bankVersion, "3choice-2026-10-08"); assert.equal(THREE_VERSIONS.v2.bankVersion, "3choice-2026-10-10");
-  assert.equal(DEFAULT_THREE_VERSION, "v2", "仕様の既定は v2（v1 に戻したらここだけ直す）"); assert.equal(LIB_DEFAULT_VERSION, "v1");
+  assert.equal(THREE_VERSIONS.v3.bankVersion, "3choice-2026-10-16"); assert.equal(QUESTIONS3_V3.version, "3choice-2026-10-16");
+  assert.equal(DEFAULT_THREE_VERSION, "v3", "仕様の既定は v3（v2・v1 に戻したらここだけ直す）"); assert.equal(LIB_DEFAULT_VERSION, "v1");
   assert.deepEqual(THREE_VERSIONS.v1.caps, { wExtra: 16, xExtra: 16, wPerDomain: 2, xPerTrait: 2 });
   assert.deepEqual(THREE_VERSIONS.v2.caps, { wExtra: 8, xExtra: 8, wPerDomain: 2, xPerTrait: 2 });
   assert.equal(THREE_VERSIONS.v1.practice, false); assert.equal(THREE_VERSIONS.v2.practice, true);
@@ -87,11 +92,19 @@ test("resolveVersion：URL の ?qv= ＞ 保存中のセッションの版 ＞ �
   assert.equal(resolveVersion({ search: "?qv=v9", saved: "v1" }), "v1", "知らない qv は保存中の版へ");
   assert.equal(resolveVersion({ search: "?qv=v9", saved: "x" }), DEFAULT_THREE_VERSION, "どちらも知らなければ既定");
   assert.equal(resolveVersion({ search: "", saved: null, fallback: "v1" }), "v1", "既定（DEFAULT_THREE_VERSION）を v1 にした場合");
+  assert.equal(resolveVersion({ search: "", saved: null, fallback: "v2" }), "v2", "既定（DEFAULT_THREE_VERSION）を v2 にした場合");
   assert.equal(versionFromSearch("?qv="), null);
+  // v3
+  assert.equal(resolveVersion({ search: "?qv=v3", saved: "v1" }), "v3");
+  assert.equal(resolveVersion({ search: "?fb=1&qv=V3" }), "v3");
+  assert.equal(resolveVersion({ search: "?qv=v2", saved: "v3" }), "v2", "?qv=v2 で v2 を開ける");
+  assert.equal(resolveVersion({ saved: "v3" }), "v3", "途中再開は始めた版のまま");
+  assert.equal(versionFromSearch("?qv=v3"), "v3");
 });
 test("versionFromBank：設問バンクの version → 版（知らなければ null）", () => {
   assert.equal(versionFromBank("3choice-2026-10-08"), "v1");
   assert.equal(versionFromBank("3choice-2026-10-10"), "v2");
+  assert.equal(versionFromBank("3choice-2026-10-16"), "v3");
   assert.equal(versionFromBank("old"), null); assert.equal(versionFromBank(undefined), null);
 });
 
@@ -359,8 +372,8 @@ test("toJSON / fromJSON：版が残り、v2 の設問・計画のまま再開で
   delete old.config.version;
   assert.equal(Session3.fromJSON(old).version, "v1");
 });
-test("送信 JSON：app はセッションの設問バンクの version、末尾に qv。v1 は qv \"v1\"", () => {
-  for (const v of ["v1", "v2"]) {
+test("送信 JSON：app はセッションの設問バンクの version、末尾に qv。v1 は qv \"v1\"、v3 は app \"3choice-2026-10-16\"・qv \"v3\"", () => {
+  for (const v of ["v1", "v2", "v3"]) {
     const s = createSession3({ version: v });
     drive(s, c => c.kind === "W" ? "left" : "right");
     const fb = newFeedback({ code: "q" + v, now: new Date(2026, 9, 10, 10, 0, 0) });
@@ -404,7 +417,7 @@ test("集計：v1 と v2 の送信を一緒に読む。qv の無い送信は v1�
   const parsed = parseInput(text);
   assert.equal(parsed.errors.length, 0);
   assert.deepEqual(parsed.sessions.map(s => s.qv), ["v1", "v2"]);
-  assert.deepEqual(parsed.versions, { v1: 1, v2: 1 });
+  assert.deepEqual(parsed.versions, { v1: 1, v2: 1, v3: 0 }, "既知の版ごとの件数（v3 は 0 件）");
   assert.ok(!parsed.warnings.some(w => /設問版/.test(w)), parsed.warnings.join(" / "));
   const model = analyzeParsed(parsed);
   const rows = model.items.items;
@@ -450,6 +463,200 @@ test("集計：カード評価の場面例は、v2 で差し替えたパター�
       ["場面1（v2）", SCENES_V2[id][0], 0, 1, 0], ["場面2（v2）", SCENES_V2[id][1], 0, 0, 1]]);
     const only1 = cardSummary(parseInput(mk("v1", "a", ["y", "n"])).sessions).cards.find(c => c.id === id);
     assert.deepEqual(only1.scenes.map(x => [x.label, x.text]), [["場面1", PATTERN_BY_ID[id].text.scenes[0]], ["場面2", PATTERN_BY_ID[id].text.scenes[1]]]);
+  } finally { if (injected) delete SCENES_V2[id]; }
+});
+
+// ---------------------------------------------------------------- 9. v3（W1-1・W3-3・W3-4 を差し替え）
+const V3_TEXT = {
+  "W1-1": { stem: "言い合いになって、空気が悪くなった直後", a: "まずは、このまま話を続ける", b: "まずは、いったん一人になって頭を冷やす" },
+  "W3-3": { stem: "喧嘩が一応おさまったあと、相手がまだ怒っていないか気になるとき", a: "「もう怒ってない？」と聞いて確かめる", b: "聞かずに、相手の様子から判断する" },
+  "W3-4": { stem: "相手からの連絡がいつもより少なくて、少し不安になったとき", a: "「元気？」と自分から一言送ってみる", b: "不安でも、相手から連絡が来るまで待つ" },
+};
+const wText = (q) => ({ stem: q.stem, a: q.a, b: q.b });
+
+test("v3：ロジック・上限・場面例・練習カードは v2 と同じ（logic.id も v2）", () => {
+  const V3 = THREE_VERSIONS.v3, V2v = THREE_VERSIONS.v2;
+  assert.equal(V3.id, "v3"); assert.equal(V3.date, "2026-10-16"); assert.equal(V3.label, "v3（W1-1・W3-3・W3-4 を差し替え）");
+  assert.deepEqual(V3.logic, V2v.logic); assert.equal(V3.logic.id, "v2");
+  assert.deepEqual(V3.caps, V2v.caps); assert.equal(V3.scenes, V2v.scenes); assert.equal(V3.practice, true);
+  const ids = Object.keys(SCENES_V2);
+  const injected = !ids.length;
+  if (injected) SCENES_V2["B1-1"] = ["v2 の場面1", "v2 の場面2"];
+  try {
+    const id = Object.keys(SCENES_V2)[0];
+    assert.deepEqual(scenesFor(id, "v3", ["x", "y"]), scenesFor(id, "v2", ["x", "y"]));
+    assert.equal(scenesChanged(id, "v3"), true);
+  } finally { if (injected) delete SCENES_V2["B1-1"]; }
+});
+
+test("v3 の設問：v2 と文が違う W は W1-1・W3-3・W3-4 の3つだけで changesFromV2.w と一致。before は v2 の文、after は v3 の文。id・区分・並び順は同じ", () => {
+  const b2 = bankFor("v2"), b3 = bankFor("v3");
+  assert.notEqual(b3, b2); assert.equal(bankFor("v3"), b3, "一度だけ作る");
+  assert.deepEqual(Object.keys(b3.W_ITEMS), Object.keys(b2.W_ITEMS), "id と並び順");
+  for (const id of Object.keys(b2.W_ITEMS)) for (const k of ["src", "domain", "k"]) assert.equal(b3.W_ITEMS[id][k], b2.W_ITEMS[id][k], `${id} ${k}`);
+  for (const d of Object.keys(QUESTIONS3_V2.pairs)) assert.deepEqual(QUESTIONS3_V3.pairs[d].map(p => [p.id, p.kind]), QUESTIONS3_V2.pairs[d].map(p => [p.id, p.kind]), `領域${d}`);
+  const changed = Object.keys(b2.W_ITEMS).filter(id => JSON.stringify(wText(b2.W_ITEMS[id])) !== JSON.stringify(wText(b3.W_ITEMS[id])));
+  assert.deepEqual(changed, ["W1-1", "W3-3", "W3-4"]);
+  assert.deepEqual(QUESTIONS3_V3.changesFromV2.w.map(c => c.id), changed);
+  assert.deepEqual(QUESTIONS3_V3.changesFromV2.x, []);
+  for (const c of QUESTIONS3_V3.changesFromV2.w) {
+    assert.deepEqual(c.before, wText(b2.W_ITEMS[c.id]), `${c.id} の before は v2 の文`);
+    assert.deepEqual(c.after, V3_TEXT[c.id], `${c.id} の after は指定の文`);
+    assert.deepEqual(wText(b3.W_ITEMS[c.id]), V3_TEXT[c.id], `${c.id} の v3 の文`);
+    assert.ok(typeof c.why === "string" && c.why.length > 20, c.id);
+  }
+  assert.ok(QUESTIONS3_V3.changesFromV2.note);
+  assert.match(QUESTIONS3_V3.notes.version, /^v3（2026-10-16）/);
+});
+
+test("v3 の X・行動文・組み合わせ・extraPairSources・traitIndex・対決由来の W は v2 と同じ。v2 のオブジェクトは書き換えていない", () => {
+  const b2 = bankFor("v2"), b3 = bankFor("v3");
+  assert.deepEqual(b3.X_ITEMS, b2.X_ITEMS);
+  for (const k of ["traitIndex", "extraPairSources", "statements", "xRounds"]) assert.deepEqual(QUESTIONS3_V3[k], QUESTIONS3_V2[k], k);
+  assert.notEqual(QUESTIONS3_V3.pairs, QUESTIONS3_V2.pairs, "深いコピー");
+  for (const id of Object.keys(b2.W_ITEMS).filter(id => !id.startsWith("W"))) assert.deepEqual(b3.W_ITEMS[id], b2.W_ITEMS[id], id);
+  // v2 は元のまま
+  assert.equal(QUESTIONS3_V2.version, "3choice-2026-10-10");
+  assert.equal(QUESTIONS3_V2.pairs[1][0].stem, "夜、LINEで言い合いになって、相手の返事が止まったとき");
+  assert.equal(QUESTIONS3_V2.pairs[3][2].a, "「忙しかった？」など軽く一言送る");
+  assert.equal(QUESTIONS3_V2.pairs[3][3].b, "いつも通りのペースで返して、様子を見る");
+  assert.equal(QUESTIONS3_V2.changesFromV2, undefined);
+  assert.equal(QUESTIONS3_V2.changesFromV1.w.find(c => c.id === "W1-1").after.stem, "夜、LINEで言い合いになって、相手の返事が止まったとき");
+  assert.equal(QUESTIONS3_V2.notes.version, "v2（2026-10-10）。v1 は questions3.js（3choice-2026-10-08）");
+});
+
+test("v3 の changesFromV1：v1 → v3 の差分一覧。W の before は v1 の文・after は v3 の文。3問の理由に v3 の一言。X は v2 と同じ", () => {
+  const b1 = bankFor("v1"), b3 = bankFor("v3");
+  const ch = QUESTIONS3_V3.changesFromV1;
+  const changedW = Object.keys(b1.W_ITEMS).filter(id => JSON.stringify(wText(b1.W_ITEMS[id])) !== JSON.stringify(wText(b3.W_ITEMS[id])));
+  assert.deepEqual(changedW.sort(), ch.w.map(c => c.id).sort());
+  assert.deepEqual(ch.w.map(c => c.id), QUESTIONS3_V2.changesFromV1.w.map(c => c.id), "並びは v2 の一覧と同じ");
+  for (const c of ch.w) {
+    assert.deepEqual(c.before, wText(b1.W_ITEMS[c.id]), `${c.id} before`);
+    assert.deepEqual(c.after, wText(b3.W_ITEMS[c.id]), `${c.id} after`);
+    const c2 = QUESTIONS3_V2.changesFromV1.w.find(x => x.id === c.id);
+    if (V3_TEXT[c.id]) {
+      assert.deepEqual(c.after, V3_TEXT[c.id]);
+      assert.ok(c.why.startsWith(c2.why) && c.why.length > c2.why.length && /v3/.test(c.why.slice(c2.why.length)), `${c.id} の理由の末尾に v3 の一言`);
+    } else assert.deepEqual(c, c2, `${c.id} は v2 の一覧のまま`);
+  }
+  assert.deepEqual(ch.x, QUESTIONS3_V2.changesFromV1.x);
+  // v1 → v3 の X の差は v1 → v2 と同じ4か所
+  const changedX = Object.keys(b1.X_ITEMS).filter(id => b1.X_ITEMS[id].left !== b3.X_ITEMS[id].left || b1.X_ITEMS[id].right !== b3.X_ITEMS[id].right);
+  assert.deepEqual(changedX.sort(), ch.x.flatMap(c => c.ids).sort());
+});
+
+test("v3 のセッション：1問目は新しい W1-1。全部拮抗で80問（v2 と同じ上限）。result は version v3・logic v2", () => {
+  const s = createSession3({ version: "v3" });
+  assert.equal(s.version, "v3"); assert.equal(s.bank, bankFor("v3"));
+  const c = s.current();
+  assert.equal(c.key, "WB-1-1"); assert.equal(c.question.id, "W1-1");
+  assert.equal(c.question.stem, V3_TEXT["W1-1"].stem);
+  assert.equal(c.question.left.text, V3_TEXT["W1-1"].a, "W1-1 は A行動が左（v1・v2 と同じ並び）");
+  assert.equal(c.question.right.text, V3_TEXT["W1-1"].b);
+  assert.equal(s.progress().max, 80);
+  const seq = runAllTie(s);
+  assert.deepEqual(counts(seq), { "W基本": 32, "X基本": 32, "W追加": 8, "X追加": 8 });
+  const r = s.result();
+  assert.equal(r.version, "v3"); assert.equal(r.bankVersion, "3choice-2026-10-16"); assert.equal(r.logic.id, "v2");
+  // 保存して再開しても v3 のまま
+  const t = Session3.fromJSON(JSON.parse(JSON.stringify(s.toJSON())));
+  assert.equal(t.version, "v3"); assert.equal(t.bank, bankFor("v3"));
+});
+
+test("v3 と v2 は、同じ回答なら W追加の計画・判定・選択が同じ（ロジックが同じで、変えたのは文だけ）", () => {
+  const a = planCase("v2"), b = planCase("v3");
+  assert.deepEqual(b.s.plan.s3.map(st => [st.domain, st.why, st.item]), a.s.plan.s3.map(st => [st.domain, st.why, st.item]));
+  for (const smp of SAMPLES3) {
+    const r2 = fromLikertAnswers(smp.answers, smp.wording, { version: "v2" }).result();
+    const r3 = fromLikertAnswers(smp.answers, smp.wording, { version: "v3" }).result();
+    assert.equal(r3.version, "v3");
+    assert.deepEqual(r3.select.chosen.map(h => h.meta.id), r2.select.chosen.map(h => h.meta.id), smp.key);
+    assert.deepEqual(r3.lowConf, r2.lowConf, smp.key);
+    assert.deepEqual(r3.select.chosen.map(h => h.meta.id), select3(r3.profile3, { logic: V2 }).chosen.map(h => h.meta.id), smp.key);
+  }
+  for (const p of PROFILE_SAMPLES3) {
+    const r2 = fromScores(p.scores, p.duel, { version: "v2" }).result(), r3 = fromScores(p.scores, p.duel, { version: "v3" }).result();
+    assert.deepEqual(r3.select.chosen.map(h => h.meta.id), r2.select.chosen.map(h => h.meta.id), p.key);
+  }
+});
+
+test("v3：練習カードが出て、そのあとの1問目が新しい W1-1。振り返りの文も v3。サンプルも v3 で流せる", () => {
+  discard3();
+  start3({ adaptive: true, version: "v3" });
+  assert.equal(store3.session.version, "v3");
+  assert.equal(practicePending3(), true);
+  assert.equal(practice3("right"), true);
+  assert.equal(store3.session.records().length, 0);
+  assert.equal(store3.session.current().question.stem, V3_TEXT["W1-1"].stem);
+  discard3();
+  assert.deepEqual(itemTexts("W3-3", "v3"), { kind: "W", ...V3_TEXT["W3-3"] });
+  assert.deepEqual(itemTexts("W1-2", "v3"), itemTexts("W1-2", "v2"));
+  const prev = store3.qv;
+  store3.qv = "v3"; runSample3(0);
+  assert.equal(store3.session.version, "v3"); assert.equal(store3.result.version, "v3");
+  discard3(); store3.qv = prev;
+});
+
+test("集計：v1・v2・v3 の送信を一緒に読む。同じ文の設問は版をまたいで1行（W1-2 は v2・v3 で W1-2_v2、W2-1 は全版で W2-1）", () => {
+  const respond = (c) => c.kind === "W" ? (c.n % 3 ? "left" : "right") : (c.question.id.endsWith("1") ? "right" : "left");
+  const a = textFor("v1", "one", respond), b = textFor("v2", "two", respond), c = textFor("v3", "three", respond);
+  assert.equal(c.payload.app, "3choice-2026-10-16"); assert.equal(c.payload.qv, "v3");
+  assert.equal(payloadQv(c.payload), "v3"); assert.equal(payloadQv({ app: "3choice-2026-10-16" }), "v3");
+  // 行のキー
+  assert.deepEqual(VERSION_IDS.map(v => itemRowKey("W1-1", v)), ["W1-1", "W1-1_v2", "W1-1_v3"]);
+  assert.deepEqual(VERSION_IDS.map(v => itemRowKey("W3-3", v)), ["W3-3", "W3-3_v2", "W3-3_v3"]);
+  assert.deepEqual(VERSION_IDS.map(v => itemRowKey("W1-2", v)), ["W1-2", "W1-2_v2", "W1-2_v2"]);
+  assert.deepEqual(VERSION_IDS.map(v => itemRowKey("X1-1", v)), ["X1-1", "X1-1_v2", "X1-1_v2"]);
+  for (const id of ["W2-1", "W3-1", "X1-2", "Q73a"]) assert.deepEqual(VERSION_IDS.map(v => itemRowKey(id, v)), [id, id, id], id);
+  assert.equal(itemTextVersion("W1-2", "v3"), "v2"); assert.equal(itemTextVersion("W1-1", "v3"), "v3"); assert.equal(itemTextVersion("W2-1", "v3"), "v1");
+  assert.equal(itemSameAsV1("W2-1", "v3"), true); assert.equal(itemSameAsV1("W1-2", "v3"), false);
+  assert.equal(itemRowKey("NOPE-1", "v3"), "NOPE-1", "どの版にもない id は id のまま");
+  // 3版を一緒に読む
+  const parsed = parseInput([a.text, b.text, c.text].join("\n\n"));
+  assert.equal(parsed.errors.length, 0);
+  assert.deepEqual(parsed.sessions.map(s => s.qv), ["v1", "v2", "v3"]);
+  assert.deepEqual(parsed.versions, { v1: 1, v2: 1, v3: 1 });
+  assert.ok(!parsed.warnings.some(w => /設問版/.test(w)), parsed.warnings.join(" / "));
+  const rows = analyzeParsed(parsed).items.items;
+  const rowsOf = (id) => rows.filter(x => x.id === id).map(x => [x.key, x.variant, x.shown]);
+  assert.deepEqual(rowsOf("W1-1"), [["W1-1", "v1", 1], ["W1-1_v2", "v2", 1], ["W1-1_v3", "v3", 1]]);
+  assert.deepEqual(rowsOf("W1-2"), [["W1-2", "v1", 1], ["W1-2_v2", "v2", 2]]);
+  assert.deepEqual(rowsOf("W2-1"), [["W2-1", null, 3]]);
+  assert.equal(rows.find(x => x.key === "W1-1_v3").stem, V3_TEXT["W1-1"].stem);
+  assert.equal(rows.find(x => x.key === "W1-2_v2").stem, bankFor("v2").W_ITEMS["W1-2"].stem);
+  // v2 と v3 だけなら、文が同じ設問には版の印を付けない
+  const p23 = parseInput([b.text, c.text].join("\n\n"));
+  const t23 = itemTable(p23.sessions, { includeUnseen: true });
+  const r23 = (id) => t23.items.filter(x => x.id === id).map(x => [x.key, x.variant]);
+  assert.deepEqual(r23("W1-2"), [["W1-2_v2", null]]);
+  assert.deepEqual(r23("W3-4"), [["W3-4_v2", "v2"], ["W3-4_v3", "v3"]]);
+  assert.deepEqual(r23("W2-1"), [["W2-1", null]]);
+  assert.equal(t23.totalW, 72 + 3); assert.equal(t23.totalX, 56);
+  // v3 だけなら 72＋56 行
+  assert.equal(itemTable(parseInput(c.text).sessions, { includeUnseen: true }).items.length, 72 + 56);
+  // 再採点：当時の版のロジック（v3 の送信は v2 のロジック）なら全員「同じ」
+  const rs = rescoreAll(parsed.sessions);
+  assert.deepEqual(rs.rows.map(r => [r.qv, r.logic, r.status]), [["v1", "v1", "same"], ["v2", "v2", "same"], ["v3", "v2", "same"]]);
+  assert.deepEqual(rs.rows[2].now, c.payload.res);
+  assert.equal(rescoreAll(parsed.sessions, { mode: "v2" }).rows[2].status, "same");
+});
+
+test("集計：カード評価の場面例は、v2 と v3 で同じ文なので1つにまとめて「（v2）」として数える", () => {
+  const id = Object.keys(SCENES_V2).find(k => PATTERN_BY_ID[k]) || "B1-1";
+  const injected = !SCENES_V2[id];
+  if (injected) SCENES_V2[id] = ["v2 の場面1", "v2 の場面2"];
+  try {
+    const mk = (qv, code, sc) => encodeText({ v: 1, app: THREE_VERSIONS[qv].bankVersion, code, ts: `2026-10-1${qv.slice(1)}T10:00:00+09:00`, mode: "a", dur: 1, back: 0, ua: "m",
+      rec: [["WB-1-1", "W1-1", "L", 0, 1, 0, 0, 30, "s", ""]], res: null, fb: { cards: [[id, 4, [], sc, ""]] }, qv }, ["x"]);
+    const all = cardSummary(parseInput([mk("v1", "a", ["y", "n"]), mk("v2", "b", ["n", ""]), mk("v3", "c", ["y", "y"])].join("\n")).sessions).cards.find(c => c.id === id);
+    assert.deepEqual(all.scenes.map(x => [x.label, x.text, x.y, x.n, x.blank]), [
+      ["場面1（v1）", PATTERN_BY_ID[id].text.scenes[0], 1, 0, 0], ["場面2（v1）", PATTERN_BY_ID[id].text.scenes[1], 0, 1, 0],
+      ["場面1（v2）", SCENES_V2[id][0], 1, 1, 0], ["場面2（v2）", SCENES_V2[id][1], 1, 0, 1]]);
+    const only3 = cardSummary(parseInput(mk("v3", "c", ["y", "n"])).sessions).cards.find(c => c.id === id);
+    assert.deepEqual(only3.scenes.map(x => [x.label, x.text, x.y, x.n]), [
+      ["場面1（v1）", PATTERN_BY_ID[id].text.scenes[0], 0, 0], ["場面2（v1）", PATTERN_BY_ID[id].text.scenes[1], 0, 0],
+      ["場面1（v2）", SCENES_V2[id][0], 1, 0], ["場面2（v2）", SCENES_V2[id][1], 0, 1]]);
   } finally { if (injected) delete SCENES_V2[id]; }
 });
 

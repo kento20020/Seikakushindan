@@ -208,7 +208,7 @@ function mulberry32(seed) {
 }
 /**
  * 振り返り（パート3）の理由チップの並び。設問ごとに並びを変える（最初のチップばかり選ばれないように）。
- * 参加者コード＋設問 id を種にするので、同じ人・同じ設問なら再描画しても同じ並び（v1・v2 とも）
+ * 参加者コード＋設問 id を種にするので、同じ人・同じ設問なら再描画しても同じ並び（どの版でも）
  */
 export function chipOrder(code, itemId, codes = HARD_CODES) {
   const rand = mulberry32(seedOf(`${code ?? ""}|${itemId ?? ""}`));
@@ -223,7 +223,7 @@ const ti = (t) => TI.indexOf(t);
 
 /**
  * session: 終わった Session3、result: store3.result（session.result()）、fb: 記録、ua: "m" | "d"
- * 返り値は仕様 §2 の JSON（キーの順も仕様どおり）。app はセッションの設問バンクの version、最後に qv（"v1" | "v2"）を足す
+ * 返り値は仕様 §2 の JSON（キーの順も仕様どおり）。app はセッションの設問バンクの version、最後に qv（"v1" | "v2" | "v3"）を足す
  */
 export function buildPayload({ session, result, fb, ua = "d" }) {
   const records = result?.records || session.records();

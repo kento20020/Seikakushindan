@@ -36,8 +36,8 @@
 
 | URL | 中身 |
 | --- | --- |
-| `/`（`#three`） | **既定**。三択診断（左／右／問題を変える、スワイプ可）。設問は v2 が既定 |
-| `?qv=v1#three` | 三択の設問 v1 で開く（`js/three_version.js` の `DEFAULT_THREE_VERSION` で既定を切り替え） |
+| `/`（`#three`） | **既定**。三択診断（左／右／問題を変える、スワイプ可）。設問は v3 が既定（2026-10-16） |
+| `?qv=v2#three`、`?qv=v1#three` | 三択の古い設問（v2・v1）で開く。`?qv=v3` で v3（`js/three_version.js` の `DEFAULT_THREE_VERSION` で既定を切り替え） |
 | `?fb=1#three` | テスト協力モード（回答ログと感想をテキストで送ってもらう）。集計は `admin.html` |
 | `#consult` | 相談（試作）。状況のタップ入力 → 次の一手カード。AI は未接続で、決まった文型で答える |
 | `?five=1#diagnose` ほか `#result` `#logic` `#questions` `#design` | 旧版（5択）。コードは残してあるが、表には出していない |
@@ -64,7 +64,7 @@
 ### 3.2 進め方（持ち主の希望）
 
 - **実装作業は Opus や Sonnet のサブエージェントに振り分けて任せる**（何度も明示的に依頼されている）。設計・レビュー・確認はメイン、実装はサブエージェント、が基本
-- **既存のものは壊さず残す**。新しい版は別ファイル・別タブ・別バージョンで足し、戻せるようにする（例：5択を残したまま三択を足した、三択 v1 を残したまま v2 を足した）
+- **既存のものは壊さず残す**。新しい版は別ファイル・別タブ・別バージョンで足し、戻せるようにする（例：5択を残したまま三択を足した、三択 v1 を残したまま v2 を足し、v1・v2 を残したまま v3 を足した）
 - **決めたこと・変えたことは記録する**
   - 方針は `docs/decisions.md`（日付・理由・反映先）
   - 判定表の点数の変更は `docs/consult-scoring.md` §12
@@ -77,7 +77,7 @@
 | 何 | ファイル |
 | --- | --- |
 | 解釈パターン本文 | `docs/design.md`。`python3 tools/build_patterns.py` で `js/data/patterns_text_*.js` を生成するので、生成物を直接直さない |
-| 三択の設問 | `js/data/questions3.js`（v1）、`js/data/questions3_v2.js`（v2）。場面例は `js/data/scenes_v2.js` |
+| 三択の設問 | `js/data/questions3.js`（v1）、`js/data/questions3_v2.js`（v2）、`js/data/questions3_v3.js`（v3。v2 を元に W1-1・W3-3・W3-4 の3問を差し替え。変更点は `changesFromV2`）。場面例は `js/data/scenes_v2.js`（v2・v3 共通） |
 | 傾向の絵と一言 | `js/data/type_images.js`。絵は `img/types/<1A〜8B>.jpg`（960×960） |
 | 相談の判定表 | `js/consult/rules.js`（点数）、`js/consult/judge.js`（判定）。仕様は `docs/consult-scoring.md` |
 | 相談の文言 | `js/consult/texts.js`。カードの文型、理由の文型、相手の2択の質問 |
@@ -91,9 +91,10 @@
 index.html, js/app.js            ハッシュルーター
 js/engine.js, adaptive.js        5択版の判定・可変質問（旧版）
 js/engine3.js, adaptive3.js      三択版の判定・出題の流れ（domainStates3 / domainFlags3 / lowConfDomains3）
-js/three_version.js              三択の設問の版（v1/v2）の切り替え
+js/three_version.js              三択の設問の版（v1/v2/v3）の切り替え。v3 のロジックは v2 と同じ（logic.id も "v2"）
+js/data/questions3*.js           三択の設問（questions3.js＝v1、_v2.js＝v2、_v3.js＝v3）
 js/ui/three*.js, swipe.js        三択の画面（結果画面に type_images の部品）
-js/ui/feedback.js, feedback_*.js テスト協力モード（送信テキスト 16DFB1 形式）、admin.html と js/admin/ が集計
+js/ui/feedback.js, feedback_*.js テスト協力モード（送信テキスト 16DFB1 形式）、admin.html と js/admin/ が集計（同じ文の設問は版をまたいで1行）
 js/consult/                      相談モードの中身（下の表）
 js/ui/consult*.js, css/consult.css  相談画面（#consult）
 js/data/type_images.js, js/ui/type_images.js, img/types/  傾向の絵
@@ -124,7 +125,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 
 | 文書 | 中身 |
 | --- | --- |
-| `three-choice-logic.md` | 三択の判定ロジック（v1 と v2 の違い） |
+| `three-choice-logic.md` | 三択の判定ロジック（v1 と v2 の違い、v3 で差し替えた3問と理由） |
 | `feedback-spec.md` | テスト協力モードの送信形式・集計 |
 | `design.md` | 診断の設計とパターン本文の原典（古い書き出し。最新の設計書は下の Claude Docs） |
 | `consult-mode.md` | 相談モードの構想。局面9つ＋安全ゲート、行動16個、共通ルール R1〜R8、避ける言葉 |
@@ -134,16 +135,17 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 | `type-images.md` | 傾向の絵の16枠と差し替え手順 |
 | `marketing-plan.md` | 集客計画（広がる仕組み → SNS → 検索） |
 | `test-results.md` | テスト結果のまとめ（6人）。一致率、問題のある設問、ロジック変更の影響、次にやること |
-| `decisions.md` | **決定記録**。K1〜K4、D1〜D7、A1〜A7 |
+| `decisions.md` | **決定記録**。K1〜K5、D1〜D7、A1〜A7 |
 
 ---
 
 ## 6. 今どこまで進んでいるか
 
 - **診断**
-  - 三択 v2 が既定（2026-10-10）
+  - 三択 v3 が既定（2026-10-16）。v2（2026-10-10）の W1-1・W3-3・W3-4 だけを差し替えた版で、ロジックは v2 と同じ（決定 K5）
   - 5人テスト（v1）のあと、v2 を1人で確認した。逆側に外した判定は0件。数字のまとめは `docs/test-results.md`、原文は `data/testers/`
-  - 未解決：W1-1 が答えにくい、W3-3・W3-4 は全員 B、追加質問で上限の80問に届きやすい、全員が「長い」と回答
+  - W1-1 が答えにくい・W3-3・W3-4 は全員 B だった問題は、v3 で差し替え済み（**未検証**。v3 で受けた人はまだいない）
+  - 未解決：追加質問で上限の80問に届きやすい、全員が「長い」と回答
 - **相談モード**
   - 判定表（点数つき・実装・検証ケース）ができている
   - Fable の改善案（D1〜D5）も採用済み
@@ -153,6 +155,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
   - 残り8つは「準備中」の枠。たたき台で、今後変える前提
 - **戻せる地点**
   - 三択 v1 だけの状態：コミット `2fc9f11`
+  - 設問 v2 だけ：`?qv=v2`、または `DEFAULT_THREE_VERSION` を `"v2"`
   - 設問の版：`?qv=v1`、または `DEFAULT_THREE_VERSION`
 
 ---
@@ -160,7 +163,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 ## 7. 次にやること（候補。持ち主に優先順を確認して進める）
 
 ### 診断
-1. **W1-1・W3-3・W3-4 を差し替える**。領域1・3は相談でいちばん使う（決定 K1）。8分類そのものは変えない
+1. **W1-1・W3-3・W3-4 は v3 で差し替え済み。次のテストで確認**（W1-1 の迷いと回答時間、W3-3・W3-4 の左右の割れ方、領域3の追加質問の数。`docs/three-choice-logic.md` の v3 の節）。領域1・3は相談でいちばん使う（決定 K1・K5）。8分類そのものは変えない
 2. **短い版（クイック版）を検討する**（W 問題だけで16〜24問・2〜3分）。精度は `data/testers/` の回答を W だけで採点し直して確かめる
 3. 元の5人に v2 を同じ参加者コードで受け直してもらい、`admin.html` で集計する
 4. 主軸の名前付け・一言ラベル（シェア用）

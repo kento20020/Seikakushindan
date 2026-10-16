@@ -812,6 +812,8 @@ html.t3-swiping, html.t3-swiping * { cursor: grabbing !important; }
   padding: 0 8px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--ink-2); background: var(--surface);
 }
 .t3-ver-v2 { border-color: var(--ink-2); color: var(--ink); }
+/* v3（既定の版）：塗りつぶして目立たせる。v2 の見た目はそのまま */
+.t3-ver-v3 { border-color: var(--ink); color: var(--surface); background: var(--ink); }
 .res-head h1 .t3-ver, .page-head h1 .t3-ver { font-size: .78rem; }
 .q-count .t3-ver { margin-left: .5em; vertical-align: 0; }
 .t3-qv { display: grid; gap: 8px; }
@@ -836,7 +838,7 @@ table.t3-lowconf-table td:nth-child(3) { min-width: 18em; }
 .t3-contra-out li span { color: var(--ink-2); }
 
 /* 版の違い・v1 からの変更 */
-table.t3-ver-table { min-width: 640px; }
+table.t3-ver-table { min-width: 820px; }   /* v1・v2・v3 の3列 */
 .t3-ver-table th[scope="row"] { white-space: nowrap; text-align: left; }
 .t3-ver-table td.t3-ver-now { background: var(--surface-2); font-weight: 600; }
 table.t3-changes-w, table.t3-changes-x { min-width: 760px; }

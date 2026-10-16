@@ -14,9 +14,9 @@ export const store3 = {
   sub: "diagnose",   // サブ画面 "diagnose" | "result" | "logic" | "questions"
   fbMode: false,     // テスト協力モード（?fb=1 か開始画面のチェック）。オンのまま保存する
   fb: null,          // テスト協力の記録（このセッションをテスト協力モードで始めたときだけ。js/feedback_collect.js）。screen "fb" はその画面
-  qv: resolveVersion({}),   // 新しく始める診断・サンプルの設問の版（"v1" | "v2"）。restore3 で URL ?qv= ＞ 保存中のセッションの版 ＞ 既定 から決める
+  qv: resolveVersion({}),   // 新しく始める診断・サンプルの設問の版（"v1" | "v2" | "v3"）。restore3 で URL ?qv= ＞ 保存中のセッションの版 ＞ 既定 から決める
   qvFromUrl: false,  // qv を URL の ?qv= で決めたか（開始画面に表示する）
-  practice: null,    // v2 の練習カード："pending"＝1問目の前に出す（採点しない・時間を測らない）。答えるか、回答が1つでもあれば出さない
+  practice: null,    // v2・v3 の練習カード："pending"＝1問目の前に出す（採点しない・時間を測らない）。答えるか、回答が1つでもあれば出さない
 };
 
 const listeners = new Set();
@@ -107,7 +107,7 @@ function afterStep() {
   }
   persist(); emit();
 }
-// ---------------------------------------------------------------- 練習カード（v2）
+// ---------------------------------------------------------------- 練習カード（v2・v3）
 /** いま練習カードを出すか：練習が残っていて、まだ1問も答えていない（途中再開で回答があれば出さない） */
 export function practicePending3() {
   const s = store3.session;

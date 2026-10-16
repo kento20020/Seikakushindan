@@ -1,13 +1,17 @@
 // data/testers/ に置いたテスターの回答原文が、壊れずに読めるか（CRC 一致・1ファイル1人）を確かめる
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import assert from "node:assert/strict";
 import { decodeAll } from "../js/feedback_format.js";
 import { analyze } from "../js/admin/aggregate.js";
+import { VERSION_IDS } from "../js/three_version.js";
 
 const base = new URL("../data/testers/", import.meta.url);
 const files = [];
-for (const ver of ["v1", "v2"]) {
-  for (const f of readdirSync(new URL(`${ver}/`, base)).filter(f => f.endsWith(".txt"))) files.push(`${ver}/${f}`);
+// 版ごとのフォルダ（v1/・v2/・v3/ …）。回答がまだ無い版のフォルダは無くてよい
+for (const ver of VERSION_IDS) {
+  const dir = new URL(`${ver}/`, base);
+  if (!existsSync(dir)) continue;
+  for (const f of readdirSync(dir).filter(f => f.endsWith(".txt"))) files.push(`${ver}/${f}`);
 }
 let fail = 0;
 const check = (name, fn) => { try { fn(); console.log("ok  ", name); } catch (e) { fail++; console.log("FAIL", name, "\n  ", e.message); } };

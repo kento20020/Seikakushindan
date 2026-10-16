@@ -33,7 +33,7 @@ export function renderThree(el) {
   el.classList.toggle("view-wide", sub === "logic" || sub === "questions");
   const s = store3.session;
   const asking = sub === "diagnose" && store3.screen === "question" && s && !s.isDone();
-  const practice = !!asking && practicePending3();   // v2 の練習カード（質問画面と同じ形。採点しない・時間を測らない）
+  const practice = !!asking && practicePending3();   // v2・v3 の練習カード（質問画面と同じ形。採点しない・時間を測らない）
   // 質問から質問へ（回答・差し替え・戻る）の再描画では、画面をスクロールさせない。
   //   中身を作り直す間にページが短くなってもスクロール位置が押し戻されないよう、いまの高さを下限にしておく。
   const keep = !!asking && lastAsking && lastEpoch === tabEpoch;
@@ -121,13 +121,13 @@ function startView() {
   const done = s && s.isDone() && store3.result;
 
   const adaptive = h("input", { type: "checkbox", id: "t3-adaptive", checked: true });
-  // 設問の版（v2 既定・v1）。URL の ?qv= があればそれを選んだ状態で出す（store3.qv）。切り替えても画面は作り直さず、文だけ差し替える
+  // 設問の版（v3 既定・v2・v1）。URL の ?qv= があればそれを選んだ状態で出す（store3.qv）。切り替えても画面は作り直さず、文だけ差し替える
   const qv0 = store3.qv;
   const adaptiveNote = h("small", { id: "t3-adaptive-note" }, adaptiveNoteText(qv0));
   const leadCount = h("span", { id: "t3-lead-count" }, leadCountText(qv0));
   const qvField = h("fieldset", { class: "opt t3-qv", id: "t3-qv" },
     h("legend", null, "設問の版"),
-    ["v2", "v1"].map(v => h("label", { class: "check t3-qv-opt", for: `t3-qv-${v}` },
+    QV_ORDER.map(v => h("label", { class: "check t3-qv-opt", for: `t3-qv-${v}` },
       h("input", { type: "radio", name: "t3-qv", id: `t3-qv-${v}`, value: v, checked: qv0 === v, onchange: (e) => {
         if (!e.target.checked) return;
         setQv3(v);
@@ -214,14 +214,17 @@ function startView() {
 const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
 
 // ---------------------------------------------------------------- 設問の版
+/** 開始画面に出す版の並び（新しい版を上に） */
+const QV_ORDER = ["v3", "v2", "v1"];
 const QV_DESC = {
+  v3: "v2 の設問のうち、迷いやすかった・全員が同じ側を選んだ3問（W1-1・W3-3・W3-4）を差し替えた版。ほかの設問と追加の質問の出し方は v2 と同じ（最大16問、全部で64〜80問）。1問目の前に練習カード。",
   v2: "5人テストの結果で W 10問を書き直し、X の組を4か所入れ替えた版。追加の質問は最大16問（全部で64〜80問）。1問目の前に練習カード。",
   v1: "最初の版（5人テストで使った設問）。追加の質問は最大32問（全部で64〜96問）。",
 };
 function adaptiveNoteText(v) {
-  const c = versionOf(v).caps;
-  const extra = v === "v2" ? "左右が拮抗した領域・W と X の向きが逆の領域・優勢が弱い領域" : "左右が拮抗した領域";
-  return `${extra}に最大${c.wExtra}問、強さが曖昧な傾向${v === "v2" ? "（向きが逆の領域の傾向を含む）" : ""}に最大${c.xExtra}問を足します（合計${64 + c.wExtra + c.xExtra}問まで）。オフにすると固定の64問です。`;
+  const V = versionOf(v), c = V.caps, wide = V.logic.xExtraConflict;   // v2・v3 のロジック：向きが逆・優勢（弱）の領域も追加で聞く
+  const extra = wide ? "左右が拮抗した領域・W と X の向きが逆の領域・優勢が弱い領域" : "左右が拮抗した領域";
+  return `${extra}に最大${c.wExtra}問、強さが曖昧な傾向${wide ? "（向きが逆の領域の傾向を含む）" : ""}に最大${c.xExtra}問を足します（合計${64 + c.wExtra + c.xExtra}問まで）。オフにすると固定の64問です。`;
 }
 function leadCountText(v) {
   const c = versionOf(v).caps, max = 64 + c.wExtra + c.xExtra;
@@ -313,7 +316,7 @@ function questionView(s) {
       h("button", { type: "button", class: "linkish", onclick: toStart3 }, "中断して最初の画面へ（回答は保存されています）")));
 }
 
-// ---------------------------------------------------------------- 練習カード（v2。1問目の前。採点しない・時間を測らない・記録しない）
+// ---------------------------------------------------------------- 練習カード（v2・v3。1問目の前。採点しない・時間を測らない・記録しない）
 function practiceView(s) {
   const pc = PRACTICE_CARD;
   const card = (side) => h("button", { type: "button", class: ["t3-card", `t3-${side}`], "data-side": side, "aria-pressed": "false", onclick: () => practiceDone(side) },
@@ -681,7 +684,7 @@ function domainRow3(d, r) {
         bar3("b", st.LB))));
 }
 
-/** 確度低（v2）のバッジ。理由（優勢（弱）／W と X の向きが逆）を添える */
+/** 確度低（v2・v3 のロジック）のバッジ。理由（優勢（弱）／W と X の向きが逆）を添える */
 function lowConfFlag(lc) {
   if (!lc) return null;
   return h("span", { class: "flag flag-ng t3-lowconf", "data-reasons": lc.reasons.join(" "), title: `${lc.text}。この領域を含むパターンはスコア ×0.8（形状を除く）` },

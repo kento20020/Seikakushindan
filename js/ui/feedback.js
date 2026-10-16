@@ -38,7 +38,7 @@ onAction3(({ type, before, via }) => {
   if (store3.session?.isDone()) { clock.pause(); fb.phase = "part1"; }
 });
 
-// 練習カード（v2）を出している間は時計を進めない
+// 練習カード（v2・v3）を出している間は時計を進めない
 const askingNow = () => store3.fb?.phase === "q" && store3.sub === "diagnose" && store3.screen === "question" && !practicePending3() &&
   !!document.querySelector("#view-three:not([hidden]) .t3-qcard:not(.t3-practice)");
 

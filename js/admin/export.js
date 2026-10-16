@@ -177,7 +177,7 @@ export function buildMarkdown(model, { rescore = null } = {}) {
   if (rescore && rescore.diff) {
     const lc = (o) => Object.keys(o || {}).map(d => `領域${d}(${(o[d].reasons || []).map(x => LOWCONF_LABEL[x]).join("・")})`).join(" ") || "なし";
     out.push(`## 8. 再採点（${RESCORE_MODES[rescore.mode || "then"]}で作り直した結果が当時と違う人）`);
-    if (rescore.mode === "v2") out.push(`- v2 のロジック（確度低 ×0.8・矛盾枠の向きの条件）で、当時答えた設問だけを採点し直した。追加質問の出し方（計画）は再現できない。`);
+    if (rescore.mode === "v2") out.push(`- v2 のロジック（確度低 ×0.8・矛盾枠の向きの条件。v3 も同じ）で、当時答えた設問だけを採点し直した。追加質問の出し方（計画）は再現できない。`);
     for (const r of rescore.rows.filter(x => x.status === "diff")) {
       out.push(`- ${r.session.code}（${r.session.tsLabel}・${r.qv}）: ${[
         r.diff.chosen.same ? null : `採用 ${r.diff.chosen.then.map(c => c.join("/")).join(" ")} → ${r.diff.chosen.now.map(c => c.join("/")).join(" ")}`,
