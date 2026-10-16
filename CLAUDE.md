@@ -69,7 +69,7 @@
   - 方針は `docs/decisions.md`（日付・理由・反映先）
   - 判定表の点数の変更は `docs/consult-scoring.md` §12
 - **ドキュメントとコードを一緒に直す**。判定表は `docs/consult-scoring.md` と `js/consult/rules.js`・`judge.js` の両方を直し、§10 の検証ケースをテストで通す
-- **公開リポジトリなので個人データを入れない**。テスターの回答テキスト（`16DFB1|…|END`）は絶対にコミットしない。持ち主が手元で保管している
+- **テスターの回答は `data/testers/` に置く**（持ち主の判断で公開。決定 D7）。新しい回答も版ごとのフォルダに足し、一覧（`data/testers/README.md`）を更新する。自由記述に本名・連絡先・第三者が分かる内容があれば、入れる前に持ち主に確認する。それ以外の個人データは入れない
 - UI と文書は日本語で、平易な言葉で書く。結果の文言は相手や本人を評価しない（決めつけない、「〜な人」と言わない）
 
 ### 3.3 唯一の正（ここを直せば全体が変わる）
@@ -99,6 +99,7 @@ js/ui/consult*.js, css/consult.css  相談画面（#consult）
 js/data/type_images.js, js/ui/type_images.js, img/types/  傾向の絵
 workers/consult-proxy.js         AI 中継の見本（Cloudflare Worker。未デプロイ）
 tests/                           Node テスト。fixtures/consult_cases.mjs が相談の検証ケース
+data/testers/                    テスター6人の回答原文（v1 5人・v2 1人）と自動集計 summary-*.md
 tools/build_patterns.py          docs/design.md → パターン本文 JS
 .github/workflows/pages.yml      テスト → Pages 公開
 ```
@@ -132,7 +133,8 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 | `consult-ai.md` | 回答の層の仕組みと AI のつなぎ方。公開前のチェックリスト |
 | `type-images.md` | 傾向の絵の16枠と差し替え手順 |
 | `marketing-plan.md` | 集客計画（広がる仕組み → SNS → 検索） |
-| `decisions.md` | **決定記録**。K1〜K4、D1〜D6、A1〜A7 |
+| `test-results.md` | テスト結果のまとめ（6人）。一致率、問題のある設問、ロジック変更の影響、次にやること |
+| `decisions.md` | **決定記録**。K1〜K4、D1〜D7、A1〜A7 |
 
 ---
 
@@ -140,7 +142,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 
 - **診断**
   - 三択 v2 が既定（2026-10-10）
-  - 5人テスト（v1）のあと、v2 を1人で確認した。逆側に外した判定は0件
+  - 5人テスト（v1）のあと、v2 を1人で確認した。逆側に外した判定は0件。数字のまとめは `docs/test-results.md`、原文は `data/testers/`
   - 未解決：W1-1 が答えにくい、W3-3・W3-4 は全員 B、追加質問で上限の80問に届きやすい、全員が「長い」と回答
 - **相談モード**
   - 判定表（点数つき・実装・検証ケース）ができている
@@ -159,7 +161,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 
 ### 診断
 1. **W1-1・W3-3・W3-4 を差し替える**。領域1・3は相談でいちばん使う（決定 K1）。8分類そのものは変えない
-2. **短い版（クイック版）を検討する**（W 問題だけで16〜24問・2〜3分）。精度はテスターの回答を W だけで採点し直して確かめる（回答は持ち主の手元にある）
+2. **短い版（クイック版）を検討する**（W 問題だけで16〜24問・2〜3分）。精度は `data/testers/` の回答を W だけで採点し直して確かめる
 3. 元の5人に v2 を同じ参加者コードで受け直してもらい、`admin.html` で集計する
 4. 主軸の名前付け・一言ラベル（シェア用）
 
@@ -191,4 +193,4 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
   - 「16次元診断 まとめ（2026-10-10時点）」
   - サブフォルダ「キャラクター作成」（https://drive.google.com/drive/folders/19rWQMhzLFw-VeYKsx2ZsRTkz98zGqS9O）：キャラクター案まとめ・描き方の切り口と絵柄
   - 50.市場戦略 ほか
-- **テスターの回答テキスト**：リポジトリには入れていない（持ち主が保管）。`admin.html` に貼れば集計と採点し直しができる
+- **テスターの回答テキスト**：リポジトリの `data/testers/` にある（決定 D7）。`admin.html` に貼れば集計と採点し直しができる
