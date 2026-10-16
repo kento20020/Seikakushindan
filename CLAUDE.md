@@ -1,6 +1,6 @@
 # CLAUDE.md — 16次元診断（引き継ぎメモ）
 
-このリポジトリで作業する Claude Code 向けの引き継ぎです。最終更新 2026-10-16。
+このリポジトリで作業する Claude Code 向けの引き継ぎです。最終更新 2026-10-16（UI の改善 段階0・1）。
 詳しい仕様は README.md と docs/ にある。ここは「全体像・決まりごと・今どこまで進んでいて次に何をするか」をまとめる。
 
 ---
@@ -39,10 +39,13 @@
 | `/`（`#three`） | **既定**。三択診断（左／右／問題を変える、スワイプ可）。設問は v3 が既定（2026-10-16） |
 | `?qv=v2#three`、`?qv=v1#three` | 三択の古い設問（v2・v1）で開く。`?qv=v3` で v3（`js/three_version.js` の `DEFAULT_THREE_VERSION` で既定を切り替え） |
 | `?fb=1#three` | テスト協力モード（回答ログと感想をテキストで送ってもらう）。集計は `admin.html` |
+| `?ui=v2` | **新しい見た目**（トークンと部品。`css/tokens.css`・`css/ui2.css`）。既定は今の見た目 v1 で、`?ui=v1` で戻せる。既定の切り替えは `index.html` の `data-ui-default` と `js/ui_flags.js` の `DEFAULT_UI`（決定 U9） |
+| `?dev=1` | **開発・検証用の表示**（設問の版、サンプル、内部の段階名、点数の内訳、5択版との比較、相談の判定・プロンプトなど）。利用者向けの既定では隠す（クラス `dev-only`。機能は消していない。決定 U10）。`?ui=` `?qv=` `?fb=` と組み合わせられる |
 | `#consult` | 相談（試作）。状況のタップ入力 → 次の一手カード。AI は未接続で、決まった文型で答える |
 | `?five=1#diagnose` ほか `#result` `#logic` `#questions` `#design` | 旧版（5択）。コードは残してあるが、表には出していない |
 
 結果画面（三択）には傾向の絵が出る（主軸の傾向の絵＋「8つの軸の絵」）。
+サンプル（石原など）は `?dev=1` の開始画面にある。検証で結果画面を見るときは `?dev=1#three` でサンプルを流す（利用者向けの見た目は、そのあと `?dev=` を外して「結果」タブで見られる）。
 
 ---
 
@@ -82,13 +85,18 @@
 | 相談の判定表 | `js/consult/rules.js`（点数）、`js/consult/judge.js`（判定）。仕様は `docs/consult-scoring.md` |
 | 相談の文言 | `js/consult/texts.js`。カードの文型、理由の文型、相手の2択の質問 |
 | AI の設定 | `js/consult/config.js`。`aiEndpoint` と `aiEndpointHosts` の許可リスト（既定は空） |
+| デザイントークン | `css/tokens.css`（色・文字・余白・形・影・動き・レイアウト。ライト／ダークは役割の値だけを切り替える）。一覧とコントラストは `docs/design-tokens.md` |
+| 新しい見た目（v2） | `css/ui2.css`（すべて `:root[data-ui="v2"]` の下。古い変数名を役割の値に結び直し、部品を上書きする）。アイコンは `img/icons.svg`（名前は `js/ui/dom.js` の `ICON_NAMES`） |
 
 ---
 
 ## 4. 構成（主なもの）
 
 ```
-index.html, js/app.js            ハッシュルーター
+index.html, js/app.js            ハッシュルーター。index.html の先頭のスクリプトが <html data-ui data-dev> を付ける
+js/ui_flags.js                   見た目の版（?ui=v1|v2）・開発用の表示（?dev=1）の判定（resolveUiFlags・isDev）
+css/tokens.css, css/ui2.css      デザイントークン、新しい見た目 v2（style.css・consult.css は今の見た目 v1）
+img/icons.svg                    線のアイコン（<symbol>。js/ui/dom.js の icon(name)）
 js/engine.js, adaptive.js        5択版の判定・可変質問（旧版）
 js/engine3.js, adaptive3.js      三択版の判定・出題の流れ（domainStates3 / domainFlags3 / lowConfDomains3）
 js/three_version.js              三択の設問の版（v1/v2/v3）の切り替え。v3 のロジックは v2 と同じ（logic.id も "v2"）
@@ -135,9 +143,10 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 | `type-images.md` | 傾向の絵の16枠と差し替え手順 |
 | `marketing-plan.md` | 集客計画（広がる仕組み → SNS → 検索） |
 | `test-results.md` | テスト結果のまとめ（6人）。一致率、問題のある設問、ロジック変更の影響、次にやること |
-| `decisions.md` | **決定記録**。K1〜K5、D1〜D7、A1〜A7、U1〜U8 |
+| `decisions.md` | **決定記録**。K1〜K5、D1〜D7、A1〜A7、U1〜U11 |
 | `ui-ux.md` | UI/UX 設計（進行中）。戦略・体験・世界観の決定（U1〜U8）、次に決める構造、検証の方法 |
-| `ui-audit.md` | UI の現状分析（撮影・評価・重要度順の改善点）、デザイン方針とトークン案、改善計画（承認待ち）。改善前の画面は `ui-audit/before/` |
+| `ui-audit.md` | UI の現状分析（撮影・評価・重要度順の改善点）、デザイン方針とトークン案、改善計画（段階0〜3 承認済み。段階0・1 実装済み）。改善前の画面は `ui-audit/before/` |
+| `design-tokens.md` | トークンの一覧（役割・値・ライト／ダーク・コントラストの実測）、部品のルール、`?ui=v2` の仕組みと既定の切り替え方、古い変数名との対応、`?dev=1` の表示の分け方 |
 
 ---
 
@@ -155,6 +164,10 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 - **傾向の絵（D6）**
   - 16傾向のうち8つに絵がある（1A 向き合う、2B 熟考、3A 追う、4B 内に置く、5A 理由・具体、6B 調整する、7A 広げる、8B 関係を戻す）
   - 残り8つは「準備中」の枠。たたき台で、今後変える前提
+- **UI の改善**（`docs/ui-audit.md` の改善計画。決定 U9〜U11）
+  - 段階0（トークン・部品・`?ui=v2` の切り替え）と段階1（開発・検証用の表示を `?dev=1` に移す）が実装済み。既定の見た目は v1 のまま
+  - 段階1 は v1 にも効く：利用者向けの既定では、設問の版・サンプル・内部の段階名・点数の内訳・5択版との比較・相談の「（試作）」などが隠れる（`?dev=1` で今までどおり見える）
+  - 次は段階2（質問画面）・段階3（結果画面）。どちらも `?ui=v2` の中で、`docs/design-tokens.md` の部品を使って作る
 - **戻せる地点**
   - 三択 v1 だけの状態：コミット `2fc9f11`
   - 設問 v2 だけ：`?qv=v2`、または `DEFAULT_THREE_VERSION` を `"v2"`
@@ -185,6 +198,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 
 ### UI/UX（2026-10-16 から持ち主と対話で設計中。`docs/ui-ux.md`）
 12. 戦略・体験・世界観は決定済み（U1〜U8：主役は相談、入口を2つ、まず書いてタップで補う、世界観「味方・落ち着き・確か」）。次は**構造**（サイトの地図・相談の流れ）→ 骨格 → 表層（デザインシステム）→ 検証。案はデザインキャンバスで2〜3案ずつ並べて決め、実装は既存の画面を残して別の版で足す
+13. **UI の改善計画の段階2・3**（`docs/ui-audit.md` §4）：質問画面（カード・進み具合・説明の整理）と結果画面（最初の画面に主軸の要点と合う絵、「詳しく」で開く）を `?ui=v2` の中で作り直す。確かめてから既定を v2 にする（段階0・1 は済み）
 
 ### 将来の構成（構想・未着手）
 - 段階拡張：Phase 1 診断 → **Phase 2 AI相談（最初に出す、ログインなし）** → Phase 3 会員・保存 → Phase 4 スクショ解析 → Phase 5 音声

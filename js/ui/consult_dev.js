@@ -1,4 +1,5 @@
 // 相談（試作）の開発者向けの表示：判定の中身と、AI に渡すプロンプト。ふだんは閉じておく（<details>）。
+// どちらもクラス dev-only で、?dev=1 のときだけ見える（css/style.css の末尾）。
 import { h, table } from "./dom.js";
 import { PHASE_LABELS, ACTION_DEFS, STYLE_DEFS } from "../consult/texts.js";
 import { estimateTokens } from "../consult/prompt.js";
@@ -30,7 +31,7 @@ export function judgeDetails(ctx) {
   ];
   const scores = r.scores.map(([a, s]) => h("tr", { class: a === r.action ? "cs-picked" : null }, h("td", null, h("code", null, a)), h("td", { class: "num" }, String(s))));
   const contrib = Object.entries(r.contributions || {});
-  return h("details", { class: "cs-dev", "data-dev": "judge" },
+  return h("details", { class: "cs-dev dev-only", "data-dev": "judge" },
     h("summary", null, "判定の中身（開発用）"),
     h("div", { class: "cs-dev-body" },
       h("dl", { class: "cs-dl" }, rows.map(([k, v]) => [h("dt", null, k), h("dd", null, String(v))])),
@@ -63,7 +64,7 @@ export function promptDetails(res, endpoint) {
   const p = res.prompt;
   let host = null;
   if (endpoint) { try { host = new URL(endpoint).host; } catch { host = "（URL が読めない）"; } }
-  return h("details", { class: "cs-dev", "data-dev": "prompt" },
+  return h("details", { class: "cs-dev dev-only", "data-dev": "prompt" },
     h("summary", null, "AI に渡すプロンプト"),
     h("div", { class: "cs-dev-body" },
       h("p", { class: "note cs-prompt-note" }, host

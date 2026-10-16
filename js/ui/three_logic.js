@@ -14,7 +14,8 @@ const HI = TH3.high, LO = TH3.low + 1;
 /** 設問の版のバッジ（質問・結果・ロジック・設問の画面） */
 export function verBadge(v) {
   const V = versionOf(v);
-  return h("span", { class: ["t3-ver", `t3-ver-${V.id}`], "data-qv": V.id, title: `設問の版 ${V.label}（${V.bankVersion}）` }, `設問 ${V.id}`);
+  // 設問の版の印は開発・検証用（?dev=1 のときだけ見える。css/style.css の末尾）
+  return h("span", { class: ["t3-ver", `t3-ver-${V.id}`, "dev-only"], "data-qv": V.id, title: `設問の版 ${V.label}（${V.bankVersion}）` }, `設問 ${V.id}`);
 }
 
 // ================================================================ ロジック

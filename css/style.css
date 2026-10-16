@@ -879,3 +879,14 @@ table.t3-changes-w, table.t3-changes-x { min-width: 760px; }
   .ti-fig { width: 100%; }
   .ti-name { font-size: 1.5rem; }
 }
+
+/* ---------------------------------------------------------------- 利用者向けと開発・検証用（?dev=1）の表示の切り替え。見た目の版（v1・v2）に関係なく効く
+   <html data-dev="1"> は index.html の先頭のスクリプトが ?dev=1 のときだけ付ける（js/ui_flags.js）。機能は消さず、表示を分けるだけ
+   - dev-only  … 開発・検証用。?dev=1 のときだけ見える（設問の版、サンプル、内部の段階名、点数の内訳、5択版との比較など）
+   - user-only … 利用者向けの代わりの一行。?dev=1 のときは隠す（開発用の表示と同じ内容を二重に出さない）
+   - kbd-hint  … キーボード操作の説明。?dev=1 か、マウスなどで細かく指せる端末（hover かつ pointer: fine）のときだけ見える */
+:root:not([data-dev="1"]) .dev-only { display: none !important; }
+:root[data-dev="1"] .user-only { display: none !important; }
+@media (hover: none), (pointer: coarse), (pointer: none) {
+  :root:not([data-dev="1"]) .kbd-hint { display: none !important; }
+}
