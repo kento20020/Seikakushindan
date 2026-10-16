@@ -170,7 +170,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 - **UI の改善**（`docs/ui-audit.md` の改善計画。決定 U9〜U11）
   - 段階0（トークン・部品・`?ui=v2` の切り替え）と段階1（開発・検証用の表示を `?dev=1` に移す）が実装済み。既定の見た目は v1 のまま
   - 段階1 は v1 にも効く：利用者向けの既定では、設問の版・サンプル・内部の段階名・点数の内訳・5択版との比較・相談の「（試作）」などが隠れる（`?dev=1` で今までどおり見える）
-  - 次は段階2（質問画面）・段階3（結果画面）。どちらも `?ui=v2` の中で、`docs/design-tokens.md` の部品を使って作る（承認済み。プラグイン frontend-design を確かめてから始める）
+  - 次は段階2（質問画面）・段階3（結果画面）。どちらも `?ui=v2` の中で、`docs/design-tokens.md` の部品を使って作る（承認済み。プラグイン frontend-design は使えることを確認済み）
 - **UI/UX の設計**（`docs/ui-ux.md`・`docs/ui-design-thinking.md`）
   - 決定：U1〜U8（戦略・体験・世界観）、U12（トップは案B＋「送ったけど返事が来ない」）、U13（安全の確認は相談のタップの1問目）
   - 返事待ち：相談の流れを案A「場面から」にするか、タップで聞く問（T3）、次の一手カードの順番（C4）、Figma の下書きで試すか（`docs/session-log-2026-10-16.md` §4）
@@ -224,5 +224,5 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
   - 50.市場戦略 ほか
 - **デザインキャンバス「彼氏診断 画面構造の案」**：https://claude.ai/artifact/Ms4NvmoBVorYa17DHvXn4q （白黒の骨組み7枚：トップ案 A・B・C、相談の流れ4画面。持ち主だけが見られる設定）
 - **Figma**：Claude のセッションからつながる（アカウント「けんと」、Starter・View 席）。Figma から読む操作は月20回まで、書き込みは上限の対象外。View 席で編集できるかは未確認
-- **プラグイン**：持ち主が frontend-design と Design（どちらも Anthropic）を入れる。使えるかは新しいセッションで確かめる（`docs/session-log-2026-10-16.md` §0）
+- **プラグイン**：frontend-design・Design（どちらも Anthropic）・Playwright（Microsoft）が入っていて、使える（2026-10-16 に確認。`docs/session-log-2026-10-16.md` §0）。スキル名は `frontend-design:frontend-design`、`design:design-critique`・`design:accessibility-review`・`design:ux-copy`・`design:design-system`・`design:user-research`・`design:research-synthesis`・`design:design-handoff`
 - **テスターの回答テキスト**：リポジトリの `data/testers/` にある（決定 D7）。`admin.html` に貼れば集計と採点し直しができる

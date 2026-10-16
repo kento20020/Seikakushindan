@@ -12,6 +12,8 @@
    - **frontend-design**（Anthropic）：スキル `frontend-design`
    - **Design**（Anthropic）：スキル `design-critique`・`accessibility-review`・`ux-copy`・`design-system`・`user-research`・`research-synthesis`・`design-handoff`
    - claude.ai のプラグイン一覧（ListPlugins）でも確かめる。このセッションでは、持ち主が「入れた」と言ったあとも `enabled: false` のままで、スキルも出てこなかった。出なければ、claude.ai の設定 →「プラグイン」でオンになっているか、セットアップが終わっているかを持ち主に確かめてもらう
+   - **→ 確認済み（2026-10-16 の次のセッション）**：スキル一覧に `frontend-design:frontend-design` と `design:` の7つ（上のとおり）が出ていて、使える。同期されたプラグインは3つ：frontend-design・design（v1.2.0）・**playwright**（Microsoft。ブラウザ操作の MCP。画面の確認に使える）。ListPlugins は空の一覧を返したが、セッションへの同期（`~/.claude/plugins/synced/`）は済んでいるので、使うのに支障はない
+   - Design プラグインに付いてくるつなぎ先（Slack・Notion・Linear・Figma・Intercom・Atlassian）は未認証、Asana はつながらなかった。この作業では使わないので、そのままでよい（Figma は別の公式のつなぎ先が使える）
 2. **返事待ちのこと（§4）を持ち主に確かめる**
 3. **段階2・3（質問画面・結果画面）をサブエージェントに渡す**（承認済み。frontend-design が使えればそれを使う前提で。§5）
 
@@ -29,7 +31,7 @@
 | 8 | 「1〜3 承認。4 は質問してきて」 | 段階0（トークン・部品・`?ui=v2`）と段階1（開発用の表示を `?dev=1` に）をサブエージェントで実装。最終報告は再起動で失われたので、メインがテスト・撮影で確かめた | コミット `25683ba`。決定 U9〜U11。[design-tokens.md](design-tokens.md) |
 | 9 | 構造の質問（トップ・タップの問・安全・カードの順番） | トップと安全は決定（U12・U13）。タップの問とカードの順番は追加の確認が必要になった（§4） | この記録 §3 |
 | 10 | 「デザイン思考とペルソナを考えて、いろんなパターンを考えて」 | ペルソナ6人、課題と問い、入力6案・タップの問4案・カードの順番5案・待つ間4案・診断とのつなぎ3案をペルソナごとに比較、組み合わせ3案と試し方 | コミット `8e6dd0a`。[ui-design-thinking.md](ui-design-thinking.md) |
-| 11 | 「デザイン作るときのスキルズいいのがないか探して」 | 単体のスキルは無し。プラグインを推奨（frontend-design・Design・Figma・design-skills）。持ち主は frontend-design と Design を入れることにした | このセッションでは反映を確認できず（§0） |
+| 11 | 「デザイン作るときのスキルズいいのがないか探して」 | 単体のスキルは無し。プラグインを推奨（frontend-design・Design・Figma・design-skills）。持ち主は frontend-design と Design を入れることにした | このセッションでは反映を確認できず。次のセッションで確認済み（§0） |
 | 12 | 「新セッションでプラグインの確認をするので、今までの会話を記録して」 | この記録。決定 U12・U13 の記録、CLAUDE.md の更新 | このファイル |
 
 ### 1.1 短い版の精度の試算（6人の回答を W だけで採点し直し）
