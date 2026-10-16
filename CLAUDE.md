@@ -1,0 +1,194 @@
+# CLAUDE.md — 16次元診断（引き継ぎメモ）
+
+このリポジトリで作業する Claude Code 向けの引き継ぎです。最終更新 2026-10-16。
+詳しい仕様は README.md と docs/ にある。ここは「全体像・決まりごと・今どこまで進んでいて次に何をするか」をまとめる。
+
+---
+
+## 1. これは何か
+
+- **彼氏診断 Web サービス**の試作。恋人との喧嘩での動き方を測る「16次元診断」と、その結果を使って次の一手を助言する「相談モード」でできている
+- 8つの領域 × 2つの傾向（A/B）＝16傾向。固定タイプに分類せず、解釈パターン集（156本＋弱い版16本）から2〜4本を選んで人物像を示す
+- 今はビルドなしの静的サイトで、GitHub Pages に公開している。判定はすべてブラウザ内で計算し、サーバーへは何も送らない
+- 持ち主：Ken（kento20020）。日本語で話す。説明は詳しめが好み
+
+| 項目 | 場所 |
+| --- | --- |
+| リポジトリ | https://github.com/kento20020/Seikakushindan （main に push すると Actions がテスト → Pages に公開） |
+| 公開ページ | https://kento20020.github.io/Seikakushindan/ |
+
+### 8領域と A/B（`js/data/questions.js` の `domains` が正）
+
+| 領域 | A | B |
+| --- | --- | --- |
+| 1 衝突への向き合い方 | 向き合う | 距離を取る |
+| 2 反応速度 | 即応 | 熟考 |
+| 3 不安時の確認行動 | 追う | 待つ |
+| 4 感情表出 | 表に出す | 内に置く |
+| 5 納得の条件 | 理由・具体 | 気持ち・共感 |
+| 6 話し合いの主導 | 主導する | 調整する |
+| 7 問題の広げ方 | 広げる | 切り分ける |
+| 8 修復の条件 | 解決する | 関係を戻す |
+
+---
+
+## 2. 画面と URL
+
+| URL | 中身 |
+| --- | --- |
+| `/`（`#three`） | **既定**。三択診断（左／右／問題を変える、スワイプ可）。設問は v2 が既定 |
+| `?qv=v1#three` | 三択の設問 v1 で開く（`js/three_version.js` の `DEFAULT_THREE_VERSION` で既定を切り替え） |
+| `?fb=1#three` | テスト協力モード（回答ログと感想をテキストで送ってもらう）。集計は `admin.html` |
+| `#consult` | 相談（試作）。状況のタップ入力 → 次の一手カード。AI は未接続で、決まった文型で答える |
+| `?five=1#diagnose` ほか `#result` `#logic` `#questions` `#design` | 旧版（5択）。コードは残してあるが、表には出していない |
+
+結果画面（三択）には傾向の絵が出る（主軸の傾向の絵＋「8つの軸の絵」）。
+
+---
+
+## 3. 作業の決まり
+
+### 3.1 動かし方とテスト
+
+- **ビルドなし**。素の HTML＋ES モジュール＋CSS。サイトには npm 依存を入れない（外部は `#design` の marked を cdnjs から読むだけ）
+- ローカル表示：`python3 -m http.server` → `http://127.0.0.1:8000/#three`
+- テスト（Node の素のスクリプト）：
+  ```sh
+  for t in tests/*.test.mjs; do node "$t" >/dev/null || echo "FAIL $t"; done
+  ```
+- **CI は UTC で Node 20 を使う**。時刻を扱うテストは時差に依存しないこと。確認するときは `TZ=UTC` でも流す
+- 画面の確認は Playwright（スクリプトは置いていない）。サーバーを立てて、スマホ幅 390×844 と PC 幅 1280×900 で確かめるのが慣例
+  - 横スクロールが出ないこと
+  - コンソールエラーがないこと
+
+### 3.2 進め方（持ち主の希望）
+
+- **実装作業は Opus や Sonnet のサブエージェントに振り分けて任せる**（何度も明示的に依頼されている）。設計・レビュー・確認はメイン、実装はサブエージェント、が基本
+- **既存のものは壊さず残す**。新しい版は別ファイル・別タブ・別バージョンで足し、戻せるようにする（例：5択を残したまま三択を足した、三択 v1 を残したまま v2 を足した）
+- **決めたこと・変えたことは記録する**
+  - 方針は `docs/decisions.md`（日付・理由・反映先）
+  - 判定表の点数の変更は `docs/consult-scoring.md` §12
+- **ドキュメントとコードを一緒に直す**。判定表は `docs/consult-scoring.md` と `js/consult/rules.js`・`judge.js` の両方を直し、§10 の検証ケースをテストで通す
+- **公開リポジトリなので個人データを入れない**。テスターの回答テキスト（`16DFB1|…|END`）は絶対にコミットしない。持ち主が手元で保管している
+- UI と文書は日本語で、平易な言葉で書く。結果の文言は相手や本人を評価しない（決めつけない、「〜な人」と言わない）
+
+### 3.3 唯一の正（ここを直せば全体が変わる）
+
+| 何 | ファイル |
+| --- | --- |
+| 解釈パターン本文 | `docs/design.md`。`python3 tools/build_patterns.py` で `js/data/patterns_text_*.js` を生成するので、生成物を直接直さない |
+| 三択の設問 | `js/data/questions3.js`（v1）、`js/data/questions3_v2.js`（v2）。場面例は `js/data/scenes_v2.js` |
+| 傾向の絵と一言 | `js/data/type_images.js`。絵は `img/types/<1A〜8B>.jpg`（960×960） |
+| 相談の判定表 | `js/consult/rules.js`（点数）、`js/consult/judge.js`（判定）。仕様は `docs/consult-scoring.md` |
+| 相談の文言 | `js/consult/texts.js`。カードの文型、理由の文型、相手の2択の質問 |
+| AI の設定 | `js/consult/config.js`。`aiEndpoint` と `aiEndpointHosts` の許可リスト（既定は空） |
+
+---
+
+## 4. 構成（主なもの）
+
+```
+index.html, js/app.js            ハッシュルーター
+js/engine.js, adaptive.js        5択版の判定・可変質問（旧版）
+js/engine3.js, adaptive3.js      三択版の判定・出題の流れ（domainStates3 / domainFlags3 / lowConfDomains3）
+js/three_version.js              三択の設問の版（v1/v2）の切り替え
+js/ui/three*.js, swipe.js        三択の画面（結果画面に type_images の部品）
+js/ui/feedback.js, feedback_*.js テスト協力モード（送信テキスト 16DFB1 形式）、admin.html と js/admin/ が集計
+js/consult/                      相談モードの中身（下の表）
+js/ui/consult*.js, css/consult.css  相談画面（#consult）
+js/data/type_images.js, js/ui/type_images.js, img/types/  傾向の絵
+workers/consult-proxy.js         AI 中継の見本（Cloudflare Worker。未デプロイ）
+tests/                           Node テスト。fixtures/consult_cases.mjs が相談の検証ケース
+tools/build_patterns.py          docs/design.md → パターン本文 JS
+.github/workflows/pages.yml      テスト → Pages 公開
+```
+
+**相談モードの中身（`js/consult/`）**
+
+| ファイル | 役割 |
+| --- | --- |
+| `judge.js` / `rules.js` | 状況 → 局面 → 行動の点数 → 一手。結果は毎回同じ（決定論） |
+| `from_diagnosis.js` | 診断結果を8領域の向き・確かさに変換。本人の修正（D5）と、相手の同意（D4）も扱う |
+| `context.js` | 判定に必要なものをまとめた `buildContext` と、追加の質問（`refineQuestions`） |
+| `template_responder.js` | 決まった文型でカードを作る（今の回答はこれ） |
+| `card.js` | カードの形と点検（`validateCard`） |
+| `prompt.js` | AI 用の3層プロンプト（L1 固定、L2 人ごと、L3 毎回） |
+| `ai_responder.js` / `respond.js` | AI 呼び出し。失敗したら文型に自動で戻る |
+| `draft_check.js` | 送る前チェック。届きやすさ3段階で、数字は出さない |
+| `person_layer.js` | AI に渡す人ごとの層 |
+
+---
+
+## 5. 主な文書（docs/）
+
+| 文書 | 中身 |
+| --- | --- |
+| `three-choice-logic.md` | 三択の判定ロジック（v1 と v2 の違い） |
+| `feedback-spec.md` | テスト協力モードの送信形式・集計 |
+| `design.md` | 診断の設計とパターン本文の原典（古い書き出し。最新の設計書は下の Claude Docs） |
+| `consult-mode.md` | 相談モードの構想。局面9つ＋安全ゲート、行動16個、共通ルール R1〜R8、避ける言葉 |
+| `consult-scoring.md` | 点数つき判定表の仕様。§10 検証ケース、§12 変更履歴 |
+| `consult-answer-guide.md` | Fable（レビュー役の AI）による連携レビューと回答方針。カードの形、言い切り方、回答例、自動点検、L1 の骨組み |
+| `consult-ai.md` | 回答の層の仕組みと AI のつなぎ方。公開前のチェックリスト |
+| `type-images.md` | 傾向の絵の16枠と差し替え手順 |
+| `marketing-plan.md` | 集客計画（広がる仕組み → SNS → 検索） |
+| `decisions.md` | **決定記録**。K1〜K4、D1〜D6、A1〜A7 |
+
+---
+
+## 6. 今どこまで進んでいるか
+
+- **診断**
+  - 三択 v2 が既定（2026-10-10）
+  - 5人テスト（v1）のあと、v2 を1人で確認した。逆側に外した判定は0件
+  - 未解決：W1-1 が答えにくい、W3-3・W3-4 は全員 B、追加質問で上限の80問に届きやすい、全員が「長い」と回答
+- **相談モード**
+  - 判定表（点数つき・実装・検証ケース）ができている
+  - Fable の改善案（D1〜D5）も採用済み
+  - 画面（#consult）は試作が公開済み。回答は決まった文型で、AI は設定だけで差し込める
+- **傾向の絵（D6）**
+  - 16傾向のうち8つに絵がある（1A 向き合う、2B 熟考、3A 追う、4B 内に置く、5A 理由・具体、6B 調整する、7A 広げる、8B 関係を戻す）
+  - 残り8つは「準備中」の枠。たたき台で、今後変える前提
+- **戻せる地点**
+  - 三択 v1 だけの状態：コミット `2fc9f11`
+  - 設問の版：`?qv=v1`、または `DEFAULT_THREE_VERSION`
+
+---
+
+## 7. 次にやること（候補。持ち主に優先順を確認して進める）
+
+### 診断
+1. **W1-1・W3-3・W3-4 を差し替える**。領域1・3は相談でいちばん使う（決定 K1）。8分類そのものは変えない
+2. **短い版（クイック版）を検討する**（W 問題だけで16〜24問・2〜3分）。精度はテスターの回答を W だけで採点し直して確かめる（回答は持ち主の手元にある）
+3. 元の5人に v2 を同じ参加者コードで受け直してもらい、`admin.html` で集計する
+4. 主軸の名前付け・一言ラベル（シェア用）
+
+### 相談モード
+5. **16傾向の対応ガイド**（効く対応・逆効果・伝え方。形式は `consult-answer-guide.md` §2.14 の6）
+6. **お手本の相談30〜50件**（期待する一手と理由の補正 ID つき）で、文章の回帰テストを作る
+7. **AI をつなぐ**：`workers/consult-proxy.js` を Cloudflare にデプロイ → API キーを秘密として登録 → `config.js` の `aiEndpoint` と `aiEndpointHosts` を設定（手順は `docs/consult-ai.md`）
+   - モデル `claude-haiku-5-5`、L1 は1時間キャッシュ、回答は構造化出力（`output_config.format`）
+   - L1 が約1.1万トークンで、目安より大きい。お手本を減らすか検討
+8. 結果報告からの続き（「送った → 返事が来ない」で次の一手）
+9. 公開前に必要なこと：窓口の電話番号を公式で確認（#8008、DV相談＋、よりそいホットライン）、中継の利用回数の上限、18歳未満の扱い（未決）
+
+### 絵・集客
+10. 残り8傾向の絵（`type_images.js` に1行足すだけで出る）
+11. 結果カード画像とシェアボタン、結果ごとの静的ページ（リンクプレビュー用）、「相手に送る」リンクとふたり診断、独自ドメイン、計測（回答の中身は送らずイベントだけ）
+
+### 将来の構成（構想・未着手）
+- 段階拡張：Phase 1 診断 → **Phase 2 AI相談（最初に出す、ログインなし）** → Phase 3 会員・保存 → Phase 4 スクショ解析 → Phase 5 音声
+- 実行基盤は Cloudflare（Pages / Workers / R2）に決定。アプリの枠組み（Next.js＋OpenNext ほか）と DB（Supabase 案）は未決
+
+---
+
+## 8. リポジトリの外にある資料
+
+- **設計書（Claude Docs）「16次元診断 解釈パターン集」**：https://claude.ai/code/artifact/53a84009-831f-49ec-9430-7d9c11cbfaf4
+  - STEP4〜7 に、選択ロジック・AI 相談の情報設計（STEP5・5-2）・三択とフィードバックの経緯がある
+  - claude.ai の中の文書なので、ここから読めない場合は持ち主に内容を貼ってもらう
+- **Google Drive「彼氏診断アプリ」**：https://drive.google.com/drive/folders/1A2AXjEvCFiQg1M9wn902-zd69u7mMU9l
+  - 「16次元診断 まとめ（2026-10-10時点）」
+  - サブフォルダ「キャラクター作成」（https://drive.google.com/drive/folders/19rWQMhzLFw-VeYKsx2ZsRTkz98zGqS9O）：キャラクター案まとめ・描き方の切り口と絵柄
+  - 50.市場戦略 ほか
+- **テスターの回答テキスト**：リポジトリには入れていない（持ち主が保管）。`admin.html` に貼れば集計と採点し直しができる

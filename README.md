@@ -11,6 +11,7 @@
   - `#diagnose` `#result` `#logic` `#questions` `#design` を直接指定（例 `.../#design`。5択版の画面を開いている間は上部のタブが出ます）
 - **相談（試作）** は `#consult`（ヘッダー右上の「相談（試作）」リンクから、どの画面でも開けます）。診断結果と状況から「次の一手」のカードを作ります。今は AI を呼ばず決まった文型で答え、入力は端末の localStorage（`consult-form-v1`）にだけ保存します。
 - 判定はすべてブラウザ内の JavaScript で計算します。サーバーへの送信はありません（途中保存は端末の localStorage のみ）。
+- 開発の引き継ぎ（全体像・決まりごと・次にやること）は [CLAUDE.md](CLAUDE.md)。
 - ビルド不要。HTML＋ES モジュール＋CSS だけで動きます。外部依存は「設計」タブの Markdown 表示に使う marked（cdnjs、版固定）だけです。
 
 ## 画面（5択版）
