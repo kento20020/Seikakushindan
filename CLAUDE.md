@@ -137,6 +137,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 | `test-results.md` | テスト結果のまとめ（6人）。一致率、問題のある設問、ロジック変更の影響、次にやること |
 | `decisions.md` | **決定記録**。K1〜K5、D1〜D7、A1〜A7、U1〜U8 |
 | `ui-ux.md` | UI/UX 設計（進行中）。戦略・体験・世界観の決定（U1〜U8）、次に決める構造、検証の方法 |
+| `ui-audit.md` | UI の現状分析（撮影・評価・重要度順の改善点）、デザイン方針とトークン案、改善計画（承認待ち）。改善前の画面は `ui-audit/before/` |
 
 ---
 
