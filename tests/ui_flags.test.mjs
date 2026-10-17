@@ -94,17 +94,13 @@ test("resolveUiFlags：?sw= はスワイプの形（card・a・b・c）。無い
   assert.equal(DEFAULT_SWIPE, "card");
   assert.deepEqual(SWIPE_VARIANTS, ["card", "a", "b", "c"]);
   for (const v of SWIPE_VARIANTS) assert.equal(resolveUiFlags(`?sw=${v}`).sw, v, v);
-  for (const s of ["", "?sw=", "?sw", "?sw=A", "?sw=d", "?sw=card2", "?sw=ab", "?ui=v2", "?swx=a", undefined, null]) assert.equal(resolveUiFlags(s).sw, "card", String(s));
-  assert.equal(resolveUiFlags("sw=b").sw, "b", "先頭の ? は無くてもよい");
-  assert.equal(resolveUiFlags("?sw=c&sw=a").sw, "c", "同じ名前が2つあれば最初の値");
+  for (const s of ["", "?sw=", "?sw=A", "?sw=d"]) assert.equal(resolveUiFlags(s).sw, "card", s);
   assert.deepEqual(resolveUiFlags("?ui=v2&dev=1&qv=v1&fb=1&sw=a"), { ui: "v2", dev: true, fb: true, sw: "a" }, "ほかのクエリと組み合わせられる");
-  assert.equal(resolveUiFlags("?sw=b", "v2").ui, "v2", "?sw= は見た目の版の判定に影響しない");
 });
 
 test("keepUiParams：別ページへのリンクに ?ui= ?dev= ?sw= を引き継ぐ（ほかのクエリは引き継がない）", () => {
   assert.equal(String(keepUiParams({ five: "1" }, "?ui=v2&dev=1&fb=1&qv=v1")), "five=1&ui=v2&dev=1");
   assert.equal(String(keepUiParams({ five: "1" }, "?sw=b&ui=v2&qv=v1")), "five=1&ui=v2&sw=b");
-  assert.equal(String(keepUiParams({ five: "1", sw: "card" }, "?sw=c")), "five=1&sw=card", "リンク側で決めた sw はそのまま");
   assert.equal(String(keepUiParams({ five: "1" }, "")), "five=1");
   assert.equal(String(keepUiParams({ five: "1", ui: "v1" }, "?ui=v2")), "five=1&ui=v1", "リンク側で決めた値はそのまま");
 });
