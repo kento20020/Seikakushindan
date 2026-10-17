@@ -12,6 +12,7 @@
 - 8つの領域 × 2つの傾向（A/B）＝16傾向。固定タイプに分類せず、解釈パターン集（156本＋弱い版16本）から2〜4本を選んで人物像を示す
 - 今はビルドなしの静的サイトで、GitHub Pages に公開している。判定はすべてブラウザ内で計算し、サーバーへは何も送らない
 - 持ち主：Ken（kento20020）。日本語で話す。説明は詳しめが好み
+- **役割分担（決定 U19）**：実際の画面（見た目・画面の流れ・部品・並び）は**この Seikakushindan が正**。プロダクトの細かい中身（料金・ログイン・年齢・保存・安全の決まり・データ・技術の構成・集客など）は **Website（`kento20020/Website`、非公開）が正**。食い違いは持ち主に確かめる。Website の非公開の中身はこのリポジトリに書き写さない
 
 | 項目 | 場所 |
 | --- | --- |
@@ -144,7 +145,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 | `type-images.md` | 傾向の絵の16枠と差し替え手順 |
 | `marketing-plan.md` | 集客計画（広がる仕組み → SNS → 検索） |
 | `test-results.md` | テスト結果のまとめ（6人）。一致率、問題のある設問、ロジック変更の影響、次にやること |
-| `decisions.md` | **決定記録**。K1〜K5、D1〜D7、A1〜A7、U1〜U18 |
+| `decisions.md` | **決定記録**。K1〜K5、D1〜D7、A1〜A7、U1〜U19 |
 | `ui-ux.md` | UI/UX 設計（進行中）。戦略・体験・世界観の決定（U1〜U8）、次に決める構造、検証の方法 |
 | `ui-audit.md` | UI の現状分析（撮影・評価・重要度順の改善点）、デザイン方針とトークン案、改善計画（段階0〜3 承認済み。段階0・1 実装済み）。改善前の画面は `ui-audit/before/` |
 | `ui-design-thinking.md` | 相談の体験のデザイン思考。ペルソナ6人、課題と問い、入力・タップの問・カードの順番・待つ間・診断とのつなぎの案をペルソナごとに比較、組み合わせ3案（案A「場面から」を推奨）と試し方。§6 に**採用した案D「書いて、足りない分だけ聞く」**（流れ、要る項目の決め方、試作10件の結果、弱いところ、作るときの形） |
@@ -233,4 +234,5 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 - **デザインキャンバス「彼氏診断 画面構造の案」**：https://claude.ai/artifact/Ms4NvmoBVorYa17DHvXn4q （白黒の骨組み7枚：トップ案 A・B・C、相談の流れ4画面。持ち主だけが見られる設定）
 - **Figma**：使わない（2026-10-17 持ち主が決定）。画面の案はデザインキャンバスと実際のコード（`?ui=v2`）で作る。参考：アカウント「けんと」、Starter・View 席
 - **プラグイン**：frontend-design・Design（どちらも Anthropic）・Playwright（Microsoft）が入っていて、使える（2026-10-16 に確認。`docs/session-log-2026-10-16.md` §0）。スキル名は `frontend-design:frontend-design`、`design:design-critique`・`design:accessibility-review`・`design:ux-copy`・`design:design-system`・`design:user-research`・`design:research-synthesis`・`design:design-handoff`
+- **Website**（`kento20020/Website`、非公開）：プロダクトの細かい中身の正（U19）。docs/00-overview.md が全体、docs/decisions/ が決定記録。作業の決まりはそのリポジトリの CLAUDE.md（決定は `docs/decisions/new-<名前>.md`、番号は PR の直前に付ける など）
 - **テスターの回答テキスト**：リポジトリの `data/testers/` にある（決定 D7）。`admin.html` に貼れば集計と採点し直しができる
