@@ -221,6 +221,7 @@
 :root[data-ui="v2"] .res-head h1 .t3-ver,
 :root[data-ui="v2"] .page-head h1 .t3-ver { font-size: var(--fs-12); }
 :root[data-ui="v2"] .t3-qv .t3-qv-date { font-size: var(--fs-12); }
+:root[data-ui="v2"] .t3-sw .t3-sw-code, :root[data-ui="v2"] .t3-sw .t3-sw-now { font-size: var(--fs-12); }
 :root[data-ui="v2"] .t3-practice-tag { font-size: var(--fs-12); }
 :root[data-ui="v2"] .t3-practice-note { font-size: var(--fs-14); }
 :root[data-ui="v2"] .t3-lowconf-why { font-weight: 700; font-size: var(--fs-12); }
@@ -455,6 +456,7 @@
   min-height: var(--btn-h); background: var(--color-surface); border: var(--border-w) solid var(--color-control-border); border-radius: var(--radius-md);
 }
 :root[data-ui="v2"] :is(.check, .cs-radio, .cs-toggle):has(input:checked) { border-color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary); }
+:root[data-ui="v2"] .t3-sw .t3-sw-opt[aria-current="true"] { border-color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary); }   /* スワイプの形（?dev=1）のいま選んでいる行 */
 :root[data-ui="v2"] .cs-radio:has(input:checked) { background: var(--color-surface); }
 :root[data-ui="v2"] :is(.check, .cs-radio, .cs-danger-item) input { accent-color: var(--color-primary); }
 :root[data-ui="v2"] .cs-danger-item { min-height: var(--tap); align-items: center; }

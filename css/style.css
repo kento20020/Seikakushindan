@@ -594,6 +594,23 @@ html.t3-swiping, html.t3-swiping * { cursor: grabbing !important; }
   .t3-qcard:not(.t3-dragging) .t3-swipe-badge { transition: none; }
 }
 
+/* スワイプの形の別案（?sw=a|b|c。js/ui/swipe_variants.js）。カードに data-sw が付くのは a・b・c のときだけ（?sw= が無い・card なら、ここは効かない）
+   a：回答2枚の入れ物（.t3-pair）だけが動く／b：向きの側の回答だけ／c：指を置いた回答だけ。上・下はどの形でもカード全体が動く（上の規則のまま） */
+.t3-qcard[data-sw] .t3-pair, .t3-qcard[data-sw] .t3-card { transform-origin: 50% 85%; }
+/* 動いている間（指に付いている・飛ばす・戻す・初回の見本）だけ前面に出す。縁の手がかり（z-index 1）より上、上のラベル（2。あとに並ぶ）より下 */
+.t3-qcard[data-sw] .t3-moving { position: relative; z-index: 2; }
+/* 左右で確定したあとの次の設問：カード自身は滑らせない。質問文の側は短くフェードだけ、回答の側は a なら反対側から滑り込み、b・c なら少し下からフェードイン */
+.t3-qcard[data-sw]:is(.t3-enter-left, .t3-enter-right) { animation: none; }
+.t3-qcard[data-sw]:is(.t3-enter-left, .t3-enter-right) > :is(.notice, .t3-kicker, .t3-stem, .t3-ask) { animation: t3-fade-in .18s ease-out; }
+.t3-qcard[data-sw="a"].t3-enter-right > .t3-pair { animation: t3-in-right .22s ease-out; }
+.t3-qcard[data-sw="a"].t3-enter-left > .t3-pair { animation: t3-in-left .22s ease-out; }
+.t3-qcard:is([data-sw="b"], [data-sw="c"]):is(.t3-enter-left, .t3-enter-right) > .t3-pair { animation: t3-rise-in .22s ease-out; }
+@keyframes t3-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes t3-rise-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .t3-qcard[data-sw][class*="t3-enter-"] > * { animation: none; }
+}
+
 /* ---------------------------------------------------------------- スワイプできることの手がかり（カードの縁・つまみ・初回のデモ）。js/ui/three.js */
 /* つまみ（ボトムシートの取っ手のような短い棒）と「スワイプで回答」 */
 .t3-grip { display: flex; align-items: center; justify-content: center; gap: 8px; height: 12px; margin: -6px 0 8px; color: var(--muted); font-size: .68rem; font-weight: 700; letter-spacing: .06em; line-height: 1; }
@@ -819,6 +836,13 @@ html.t3-swiping, html.t3-swiping * { cursor: grabbing !important; }
 .t3-qv { display: grid; gap: 8px; }
 .t3-qv .t3-qv-date { display: inline; font-weight: 400; font-size: .8rem; color: var(--muted); font-family: var(--mono); }
 .t3-qv .note { margin-top: 2px; }
+/* スワイプの形（?sw=。?dev=1 の開始画面で比べる用）。設問の版の欄と同じ形の行で、押すと sw だけ差し替えて読み込み直すリンク */
+.t3-sw { display: grid; gap: 8px; }
+.t3-sw .t3-sw-opt { margin-top: 0; color: inherit; text-decoration: none; }
+.t3-sw .t3-sw-opt[aria-current="true"] { border-color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--ink-2); }
+.t3-sw .t3-sw-code { display: inline; font-weight: 400; font-size: .8rem; color: var(--muted); font-family: var(--mono); }
+.t3-sw .t3-sw-now { display: inline-block; margin-left: .6em; padding: 0 8px; border-radius: 999px; font-size: .72rem; line-height: 1.6; color: var(--paper); background: var(--ink-2); vertical-align: .1em; }
+.t3-sw .note { margin-top: 2px; }
 
 /* 練習カード（採点しない。本番のカードと同じ形で、上に「練習」の札） */
 .t3-practice { border-style: dashed; }
