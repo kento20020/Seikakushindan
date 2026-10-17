@@ -3,6 +3,7 @@
 // 1件：{ id, name, text（書いた文）, truth（正解の判定の入力。書かれていない項目は既定値）, context（文以外から決まるもの。深夜かどうかは端末の時計）,
 //        read（規則で必ず読めてほしい項目と値。§6.3 の「読み取れたこと」） }
 // 正解の入力は 2026-10-17 の試作（docs/ui-design-thinking.md §6.3）と同じ。P3 の経過は「さっき」なので lt3h。
+import { normalizeInput } from "../../js/consult/judge.js";
 
 const BASE = { goal: "reconcile", cause: "unknown", ongoing: false, intent: "none", partnerLast: "none", selfTemp: "cooling" };
 
@@ -78,3 +79,17 @@ export const READ_CASES = [
     read: { lastSender: "partner", partnerLast: "apology", elapsed: "12h_2d" },
   },
 ];
+
+/** 正解の入力から問に答える：patch がすべて正解と同じ選択肢（なければいちばん多く合うもの）。runQuestions の answer に渡す */
+export function answerFromTruth(truth) {
+  const t = normalizeInput(truth);
+  return (q) => {
+    let best = null, bestScore = -1;
+    for (const o of q.options) {
+      const keys = Object.keys(o.patch), ok = keys.filter(k => t[k] === o.patch[k]).length;
+      const score = (ok === keys.length ? 1000 : 0) + ok;
+      if (score > bestScore) { best = o; bestScore = score; }
+    }
+    return best;
+  };
+}

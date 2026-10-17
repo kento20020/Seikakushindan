@@ -4,7 +4,7 @@
 // 安全の言葉は texts.js の SELF_HARM_RE・PARTNER_THREAT_RE をそのまま使う（ここでは新しく作らない）。
 //
 // 言葉を足すときは、下の「言葉の表」の配列に1行足す。正規表現は先読み（(?=…)・(?!…)）まで。
-// 後読み（(?<=…)・(?<!…)）は古いスマホのブラウザで読み込みごと失敗するので使わない（前の文字を見たいときは find の before を使う）。
+// 後読み（(?<=…)・(?<!…)）は古いスマホのブラウザで読み込みごと失敗するので使わない（前の文字を見たいときは findAll の before を使う）。
 import { SELF_HARM_RE, PARTNER_THREAT_RE } from "./texts.js";
 
 // ---------------------------------------------------------------- 言葉の表
@@ -14,6 +14,8 @@ const SELF_P = "(?:私|わたし|あたし|自分|僕|ぼく|俺)";
 const PARTNER_P = "(?:彼氏|彼(?!女)|カレシ|カレ|相手|向こう)";
 /** 恋人でも本人でもない人（「友達に…って言われた」を恋人の言葉と取り違えないため） */
 const OTHER_P = "(?:友達|友だち|友人|親|母|父|お母さん|お父さん|姉|兄|妹|弟|先輩|後輩|同僚)";
+/** 漢字＋「って」のあとにこれが続いたら、引用ではなく動詞の「て形」（帰ってから・謝ってきた・会ってた） */
+const TE_FORM_NEXT = /^(?:から|も|て|た|る|い|な|く|き|来|ま|ほし|欲し|ば|お|あ|し|や|もら|くれ)/;
 /** 句の切れ目（ここをまたいで引用や主語を探さない） */
 const CUT = "、。！？!?\\n「」";
 /** 打ち消し：当たった言葉のすぐ後ろにこれが来たら、当たらなかったことにする（「別れたいわけじゃない」） */
@@ -76,6 +78,7 @@ const PARTNER_SENT = [
   new RegExp(PARTNER_P + "(?:から|が|より)[^" + CUT + "]{0,24}?(?:来た|きた|来て|きて|届い|送って(?:き|来)|送られ)" + NOT_NEG),
   new RegExp(PARTNER_P + "(?:から|より)(?:の)?(?:LINE|ライン|連絡|メッセージ|返事|返信|電話)(?:が|は|も)?(?:あっ|来|き|届)" + NOT_NEG),
   /謝られ|謝って(?:き|来)(?!い?ない|なかっ)/,
+  new RegExp("[^" + CUT + "]{0,12}?送って(?:き|来)(?:た|て)(?!い?ない|なかっ)"),
   new RegExp(PARTNER_P + "(?:が|は|も|から)[^" + CUT + "]{0,8}?謝(?:った|って(?:き|来)|罪)"),
   /別れ(?:話|よう)(?:を|と|って)?(?:され|言われ|切り出され)/,
 ];
@@ -110,6 +113,7 @@ const STOPPED = [
   /黙(?:って|り込)/,
   /口(?:を)?きいて(?:い)?ない/,
   /寝(?:ちゃった|てしまった|た)(?:けど|から|あと)/,
+  /(?:週末|今度|次に?|明日|来週|あさって)(?:に)?会う/,   // これから会う＝いまは言い合っていない
 ];
 /** したいこと（intent）。引用を消した地の文に当てる */
 const INTENT = [
@@ -219,7 +223,6 @@ function findAll(t, re, { neg = true, before = null } = {}) {
   return out;
 }
 const first = (t, re, opt) => findAll(t, re, opt)[0] || null;
-const last = (t, re, opt) => { const a = findAll(t, re, opt); return a.length ? a[a.length - 1] : null; };
 
 /** 表（[値, 正規表現] の配列）を上から当てて、最初に当たった値。{ value, hit } か null */
 function kindOf(text, table) {
@@ -247,18 +250,24 @@ export function normalizeText(text) {
 }
 
 // ---------------------------------------------------------------- 発言（引用）
+// 発言を見つける正規表現（引用のあとの動詞・前の主語）
+const PARTNER_AFTER = new RegExp("^(?:って|と|て)?[^" + CUT + "]{0,6}?" + PARTNER_VERB);
+const SELF_AFTER = new RegExp("^(?:って|と|て)?[^" + CUT + "]{0,6}?" + SELF_VERB);
+const SELF_BEFORE = new RegExp(SELF_P + "(?:が|から|は|も)[^" + CUT + "]{0,6}$");
+const PARTNER_BEFORE = new RegExp(PARTNER_P + "(?:が|から|は|も|より)[^" + CUT + "]{0,6}$");
+const TO_PARTNER_BEFORE = new RegExp(PARTNER_P + "に[^" + CUT + "]{0,6}$");
+const OTHER_BEFORE = new RegExp(OTHER_P + "(?:が|から|に|は)[^" + CUT + "]{0,10}$");
+const OTHER_IN = new RegExp(OTHER_P + "(?:が|から|に|は)");
+const PARTNER_VERB_HEAD = new RegExp("^" + PARTNER_VERB);
+const SUBJECT_HEAD = new RegExp("^.*(?:" + PARTNER_P + "|" + SELF_P + "|" + OTHER_P + ")(?:から|が|に|は|も|より)");
+const BARE_QUOTE = new RegExp("([^" + CUT + "]{1,30}?)(って|と(?=言われ))(?=([^" + CUT + "]{0,6}?)(" + PARTNER_VERB + "|" + SELF_VERB + "))", "g");
+
 /**
  * 文の中の発言。「」の引用と、「ごめんって来た」のような「」なしの引用。
- * [{ start, end（中身の範囲）, content, who: "self"|"partner"|"other"|null, at（動詞の位置）, verb }]
+ * [{ start, end（中身の範囲）, content, who: "self"|"partner"|"other"|null, at（動詞の終わりの位置）, tail（引用のあとの「って来た」など）, quoted }]
  */
 function findSpeech(t) {
   const out = [];
-  const partnerAfter = new RegExp("^(?:って|と|て)?[^" + CUT + "]{0,6}?" + PARTNER_VERB);
-  const selfAfter = new RegExp("^(?:って|と|て)?[^" + CUT + "]{0,6}?" + SELF_VERB);
-  const selfBefore = new RegExp(SELF_P + "(?:が|から|は|も)[^" + CUT + "]{0,6}$");
-  const partnerBefore = new RegExp(PARTNER_P + "(?:が|から|は|も|より)[^" + CUT + "]{0,6}$");
-  const toPartnerBefore = new RegExp(PARTNER_P + "に[^" + CUT + "]{0,6}$");
-  const otherBefore = new RegExp(OTHER_P + "(?:が|から|に|は)[^" + CUT + "]{0,10}$");
   // 「」の引用：後ろの動詞 → 前の主語 の順で、誰の言葉かを決める
   for (const m of t.matchAll(/「([^「」]{1,80})」/g)) {
     const start = m.index + 1, end = start + m[1].length;
@@ -266,28 +275,29 @@ function findSpeech(t) {
     const after = t.slice(end + 1, Math.min(afterEnd, end + 1 + 14));
     const before = t.slice(Math.max(0, m.index - 12), m.index);
     let who = null, verb = "";
-    const pa = after.match(partnerAfter), sa = after.match(selfAfter);
+    const pa = after.match(PARTNER_AFTER), sa = after.match(SELF_AFTER);
     if (pa && (!sa || pa[0].length <= sa[0].length)) { who = "partner"; verb = pa[0]; }
     else if (sa) { who = "self"; verb = sa[0]; }
-    else if (otherBefore.test(before)) who = "other";
-    else if (selfBefore.test(before) || toPartnerBefore.test(before)) who = "self";
-    else if (partnerBefore.test(before)) who = "partner";
-    if (who && otherBefore.test(before) && who === "partner" && /言われ/.test(verb)) who = "other";
+    else if (OTHER_BEFORE.test(before)) who = "other";
+    else if (SELF_BEFORE.test(before) || TO_PARTNER_BEFORE.test(before)) who = "self";
+    else if (PARTNER_BEFORE.test(before)) who = "partner";
+    if (who === "partner" && /言われ/.test(verb) && OTHER_BEFORE.test(before)) who = "other";   // 「友達に「…」って言われた」
     out.push({ start, end, content: m[1], who, at: end + 1 + verb.length, tail: verb, quoted: true });
   }
   // 「」なしの引用：「…って来た／言われた／送った」。前の切れ目から「って」までを中身にして、主語の言葉は外す
-  const bare = new RegExp("([^" + CUT + "]{1,30}?)(って|と(?=言われ))(?=([^" + CUT + "]{0,6}?)(" + PARTNER_VERB + "|" + SELF_VERB + "))", "g");
   const quotedRanges = out.map(q => [q.start - 1, q.end + 1]);
-  for (const m of t.matchAll(bare)) {
+  for (const m of t.matchAll(BARE_QUOTE)) {
     if (quotedRanges.some(([s, e]) => m.index < e && s < m.index + m[0].length)) continue;   // 「」の中の「って」は数えない
+    // 動詞の「て形」（帰ってから・謝ってきた・返ってきた）は引用ではない
+    if (/[\u4E00-\u9FFF々]$/.test(m[1]) && TE_FORM_NEXT.test(t.slice(m.index + m[1].length + m[2].length))) continue;
     let content = m[1], start = m.index;
-    const strip = content.match(new RegExp("^.*(?:" + PARTNER_P + "|" + SELF_P + "|" + OTHER_P + ")(?:から|が|に|は|も|より)"));
+    const strip = content.match(SUBJECT_HEAD);
     const clause = content;
     if (strip) { start += strip[0].length; content = content.slice(strip[0].length); }
     if (!content) continue;
     const verb = m[4];
-    let who = new RegExp("^" + PARTNER_VERB).test(verb) ? "partner" : "self";
-    if (new RegExp(OTHER_P + "(?:が|から|に|は)").test(clause)) who = "other";
+    let who = PARTNER_VERB_HEAD.test(verb) ? "partner" : "self";
+    if (OTHER_IN.test(clause)) who = "other";
     const at = m.index + m[0].length + m[3].length + verb.length;
     out.push({ start, end: start + content.length, content, who, at, tail: m[2] + m[3] + verb, quoted: false });
   }

@@ -86,6 +86,7 @@
 | 傾向の絵と一言 | `js/data/type_images.js`。絵は `img/types/<1A〜8B>.jpg`（960×960） |
 | 相談の判定表 | `js/consult/rules.js`（点数）、`js/consult/judge.js`（判定）。仕様は `docs/consult-scoring.md` |
 | 相談の文言 | `js/consult/texts.js`。カードの文型、理由の文型、相手の2択の質問 |
+| 書いた文の読み取り（案D） | `js/consult/extract_rules.js`（規則の言葉の一覧）、`js/consult/clef.js`（Clef の質問の組）。組み合わせは `extract.js`、足りない問は `needed.js`。仕様は `docs/consult-reading.md` |
 | AI の設定 | `js/consult/config.js`。`aiEndpoint` と `aiEndpointHosts` の許可リスト（既定は空） |
 | デザイントークン | `css/tokens.css`（色・文字・余白・形・影・動き・レイアウト。ライト／ダークは役割の値だけを切り替える）。一覧とコントラストは `docs/design-tokens.md` |
 | 新しい見た目（v2） | `css/ui2.css`（すべて `:root[data-ui="v2"]` の下。古い変数名を役割の値に結び直し、部品を上書きする）。アイコンは `img/icons.svg`（名前は `js/ui/dom.js` の `ICON_NAMES`） |
@@ -109,6 +110,7 @@ js/consult/                      相談モードの中身（下の表）
 js/ui/consult*.js, css/consult.css  相談画面（#consult）
 js/data/type_images.js, js/ui/type_images.js, img/types/  傾向の絵
 workers/consult-proxy.js         AI 中継の見本（Cloudflare Worker。未デプロイ）
+tools/clef_eval.mjs              Clef の読み取りを試す道具（CLOUDFLARE_API_TOKEN・CLOUDFLARE_ACCOUNT_ID が要る。CI では動かさない）
 tests/                           Node テスト。fixtures/consult_cases.mjs が相談の検証ケース
 data/testers/                    テスター6人の回答原文（v1 5人・v2 1人）と自動集計 summary-*.md
 tools/build_patterns.py          docs/design.md → パターン本文 JS
@@ -128,6 +130,8 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 | `ai_responder.js` / `respond.js` | AI 呼び出し。失敗したら文型に自動で戻る |
 | `draft_check.js` | 送る前チェック。届きやすさ3段階で、数字は出さない |
 | `person_layer.js` | AI に渡す人ごとの層 |
+| `extract_rules.js` / `clef.js` / `extract.js` | 案D の読み取り（U14・U17）。規則で読み、Clef（テストのあと）と組み合わせる（`readText`）。安全の言葉は規則で毎回見る |
+| `needed.js` | 案D の足りない問（`nextQuestion`・`applyAnswer`・`decide`）。一手が変わる項目だけ、場面の問も含めて合計3問まで。速さのため judge の手順の写しを持つ（点数は rules.js を読む）。**judge.js の手順を変えたら `tests/consult_read.test.mjs` を必ず流す** |
 
 ---
 
@@ -142,6 +146,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 | `consult-scoring.md` | 点数つき判定表の仕様。§10 検証ケース、§12 変更履歴 |
 | `consult-answer-guide.md` | Fable（レビュー役の AI）による連携レビューと回答方針。カードの形、言い切り方、回答例、自動点検、L1 の骨組み |
 | `consult-ai.md` | 回答の層の仕組みと AI のつなぎ方。公開前のチェックリスト |
+| `consult-reading.md` | 案D の読み取り（規則・Clef・組み合わせ）と足りない問の仕組み、Clef を試す道具の使い方 |
 | `type-images.md` | 傾向の絵の16枠と差し替え手順 |
 | `marketing-plan.md` | 集客計画（広がる仕組み → SNS → 検索） |
 | `test-results.md` | テスト結果のまとめ（6人）。一致率、問題のある設問、ロジック変更の影響、次にやること |
