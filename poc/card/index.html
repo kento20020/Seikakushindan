@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>次の一手カード（試作）</title>
+<meta name="description" content="相談の次の一手カードの並び（統合1・統合3）を、書く → 読み取り → 足りない問 → カードの流れごと試す試作">
+<link rel="stylesheet" href="../../css/tokens.css">
+<link rel="stylesheet" href="poc.css">
+<script>
+  // 表示（ライト／ダーク）を、描く前に決める（?theme=light|dark、なければ前に選んだもの）。保存が使えなくても動く
+  (function () {
+    var t = new URLSearchParams(location.search).get("theme");
+    if (t !== "light" && t !== "dark") { try { t = JSON.parse(localStorage.getItem("poc-card-theme")); } catch (e) { t = null; } }
+    if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
+</head>
+<body>
+  <div class="poc-bar" role="region" aria-label="試作の設定">
+    <span class="poc-tag">試作</span>
+    <div class="poc-seg" role="group" aria-label="カードの並び">
+      <span class="poc-seg-label">並び</span>
+      <button type="button" data-layout="1" aria-pressed="false">統合1</button>
+      <button type="button" data-layout="3" aria-pressed="true">統合3</button>
+    </div>
+    <button type="button" class="poc-btn" data-compare aria-pressed="false">見比べる</button>
+    <button type="button" class="poc-btn" data-theme-cycle>表示：自動</button>
+  </div>
+
+  <header class="app-head">
+    <button type="button" class="head-back" id="back">
+      <svg class="icon icon-back" aria-hidden="true"><use href="../../img/icons.svg#chevron-down"></use></svg>戻る
+    </button>
+    <p class="head-title">相談</p>
+    <a class="head-danger" id="danger" href="#safety">危ないときは</a>
+  </header>
+
+  <main id="main" class="screen" tabindex="-1"></main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <noscript><p class="screen">この試作は JavaScript で動きます。</p></noscript>
+  <script type="module" src="poc.js"></script>
+</body>
+</html>

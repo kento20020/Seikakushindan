@@ -12,6 +12,7 @@
 - 8つの領域 × 2つの傾向（A/B）＝16傾向。固定タイプに分類せず、解釈パターン集（156本＋弱い版16本）から2〜4本を選んで人物像を示す
 - 今はビルドなしの静的サイトで、GitHub Pages に公開している。判定はすべてブラウザ内で計算し、サーバーへは何も送らない
 - 持ち主：Ken（kento20020）。日本語で話す。説明は詳しめが好み
+- **役割分担（決定 U19）**：実際の画面（見た目・画面の流れ・部品・並び）は**この Seikakushindan が正**。プロダクトの細かい中身（料金・ログイン・年齢・保存・安全の決まり・データ・技術の構成・集客など）は **Website（`kento20020/Website`、非公開）が正**。食い違いは持ち主に確かめる。Website の非公開の中身はこのリポジトリに書き写さない
 
 | 項目 | 場所 |
 | --- | --- |
@@ -43,6 +44,7 @@
 | `?ui=v2` | **新しい見た目**（トークンと部品。`css/tokens.css`・`css/ui2.css`）。既定は今の見た目 v1 で、`?ui=v1` で戻せる。既定の切り替えは `index.html` の `data-ui-default` と `js/ui_flags.js` の `DEFAULT_UI`（決定 U9） |
 | `?dev=1` | **開発・検証用の表示**（設問の版、サンプル、内部の段階名、点数の内訳、5択版との比較、相談の判定・プロンプトなど）。利用者向けの既定では隠す（クラス `dev-only`。機能は消していない。決定 U10）。`?ui=` `?qv=` `?fb=` と組み合わせられる |
 | `#consult` | 相談（試作）。状況のタップ入力 → 次の一手カード。AI は未接続で、決まった文型で答える |
+| `poc/card/` | **案D の流れと次の一手カード（統合1・統合3）の動く試作**。書く → （兆しがあるときだけ）安全の確認 → こう読み取りました → 足りない問 → カード。`?v=1|3` で並び、`?compare=1` で左右に見比べ（900px 以上）。今の画面には入れていない（別のページ） |
 | `?five=1#diagnose` ほか `#result` `#logic` `#questions` `#design` | 旧版（5択）。コードは残してあるが、表には出していない |
 
 結果画面（三択）には傾向の絵が出る（主軸の傾向の絵＋「8つの軸の絵」）。
@@ -85,6 +87,7 @@
 | 傾向の絵と一言 | `js/data/type_images.js`。絵は `img/types/<1A〜8B>.jpg`（960×960） |
 | 相談の判定表 | `js/consult/rules.js`（点数）、`js/consult/judge.js`（判定）。仕様は `docs/consult-scoring.md` |
 | 相談の文言 | `js/consult/texts.js`。カードの文型、理由の文型、相手の2択の質問 |
+| 書いた文の読み取り（案D） | `js/consult/extract_rules.js`（規則の言葉の一覧）、`js/consult/clef.js`（Clef の質問の組）。組み合わせは `extract.js`、足りない問は `needed.js`。仕様は `docs/consult-reading.md` |
 | AI の設定 | `js/consult/config.js`。`aiEndpoint` と `aiEndpointHosts` の許可リスト（既定は空） |
 | デザイントークン | `css/tokens.css`（色・文字・余白・形・影・動き・レイアウト。ライト／ダークは役割の値だけを切り替える）。一覧とコントラストは `docs/design-tokens.md` |
 | 新しい見た目（v2） | `css/ui2.css`（すべて `:root[data-ui="v2"]` の下。古い変数名を役割の値に結び直し、部品を上書きする）。アイコンは `img/icons.svg`（名前は `js/ui/dom.js` の `ICON_NAMES`） |
@@ -108,6 +111,8 @@ js/consult/                      相談モードの中身（下の表）
 js/ui/consult*.js, css/consult.css  相談画面（#consult）
 js/data/type_images.js, js/ui/type_images.js, img/types/  傾向の絵
 workers/consult-proxy.js         AI 中継の見本（Cloudflare Worker。未デプロイ）
+poc/card/                        案D と次の一手カード（統合1・3）の動く試作（model.js＝DOM なしの部分、poc.js＝画面）
+tools/clef_eval.mjs              Clef の読み取りを試す道具（CLOUDFLARE_API_TOKEN・CLOUDFLARE_ACCOUNT_ID が要る。CI では動かさない）
 tests/                           Node テスト。fixtures/consult_cases.mjs が相談の検証ケース
 data/testers/                    テスター6人の回答原文（v1 5人・v2 1人）と自動集計 summary-*.md
 tools/build_patterns.py          docs/design.md → パターン本文 JS
@@ -127,6 +132,8 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 | `ai_responder.js` / `respond.js` | AI 呼び出し。失敗したら文型に自動で戻る |
 | `draft_check.js` | 送る前チェック。届きやすさ3段階で、数字は出さない |
 | `person_layer.js` | AI に渡す人ごとの層 |
+| `extract_rules.js` / `clef.js` / `extract.js` | 案D の読み取り（U14・U17）。規則で読み、Clef（テストのあと）と組み合わせる（`readText`）。安全の言葉は規則で毎回見る |
+| `needed.js` | 案D の足りない問（`nextQuestion`・`applyAnswer`・`decide`）。一手が変わる項目だけ、場面の問も含めて合計3問まで。速さのため judge の手順の写しを持つ（点数は rules.js を読む）。**judge.js の手順を変えたら `tests/consult_read.test.mjs` を必ず流す** |
 
 ---
 
@@ -141,10 +148,11 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 | `consult-scoring.md` | 点数つき判定表の仕様。§10 検証ケース、§12 変更履歴 |
 | `consult-answer-guide.md` | Fable（レビュー役の AI）による連携レビューと回答方針。カードの形、言い切り方、回答例、自動点検、L1 の骨組み |
 | `consult-ai.md` | 回答の層の仕組みと AI のつなぎ方。公開前のチェックリスト |
+| `consult-reading.md` | 案D の読み取り（規則・Clef・組み合わせ）と足りない問の仕組み、Clef を試す道具の使い方 |
 | `type-images.md` | 傾向の絵の16枠と差し替え手順 |
 | `marketing-plan.md` | 集客計画（広がる仕組み → SNS → 検索） |
 | `test-results.md` | テスト結果のまとめ（6人）。一致率、問題のある設問、ロジック変更の影響、次にやること |
-| `decisions.md` | **決定記録**。K1〜K5、D1〜D7、A1〜A7、U1〜U18 |
+| `decisions.md` | **決定記録**。K1〜K5、D1〜D7、A1〜A7、U1〜U26 |
 | `ui-ux.md` | UI/UX 設計（進行中）。戦略・体験・世界観の決定（U1〜U8）、次に決める構造、検証の方法 |
 | `ui-audit.md` | UI の現状分析（撮影・評価・重要度順の改善点）、デザイン方針とトークン案、改善計画（段階0〜3 承認済み。段階0・1 実装済み）。改善前の画面は `ui-audit/before/` |
 | `ui-design-thinking.md` | 相談の体験のデザイン思考。ペルソナ6人、課題と問い、入力・タップの問・カードの順番・待つ間・診断とのつなぎの案をペルソナごとに比較、組み合わせ3案（案A「場面から」を推奨）と試し方。§6 に**採用した案D「書いて、足りない分だけ聞く」**（流れ、要る項目の決め方、試作10件の結果、弱いところ、作るときの形） |
@@ -174,7 +182,9 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 - **UI/UX の設計**（`docs/ui-ux.md`・`docs/ui-design-thinking.md`）
   - 決定：U1〜U8（戦略・体験・世界観）、U12（トップは案B＋「送ったけど返事が来ない」）、U13（安全の確認は相談のタップの1問目）、**U14（相談の入力は案D「書いて、足りない分だけ聞く」：書く → 安全（毎回）→ 書いた文から項目を機械的に埋めて見せる（直せる）→ 足りない項目のうち一手に要るものだけ、合計3問まで）**、U15（Figma は使わない）、U16（次の一手カードは C6：結論 → 理由の1行目 → 文面 → 理由の続き → 避けたい言葉 → その後 → 確かさ）
   - **U17（読み取りは規則＋Clef。Clef は日本語をテストで確かめてから）**、**U18（進め方は案ウ。公開は Clef が通れば規則＋Clef、通らなければ規則だけ。カードの文章の AI は公開のあと）**
-  - Website（`kento20020/Website`）は Seikakushindan の内容を固めたもの。違いを調べている（Seikakushindan が優先）
+  - **U19〜U23（Website との役割分担）**：画面は Seikakushindan、プロダクトの細かい中身は Website が正（U19）。**公開は Website の計画どおり Website のアプリで行い、U18 の「公開の形」は取り消し。Seikakushindan は画面の試作と手本・テスター用**（U20）。一手は判定表、AI は文章（U21）。安全の確認は兆しがあるときだけ聞く（U22、U13 を置き換え）。理由の1行目は無料で全員に、2行目からは［なぜ？］（U23）
+  - **U24〜U26（PoC を見ての意見）**：［コピー］は吹き出しの右上の小さなボタン（U24）。「預ける」は使わない（U25）。書いたあとの画面は「受け止めと状況の整理」の1画面（共感＝感情の整理〔気持ち・どうしたいか〕と状況の整理＝事実〔誰が何を送ったか・どれくらい前か〕を、分けずにひと続きの1文で出す＋直す手段。U26）
+  - Website と残る差：カードへの Website の中身の入れ方、診断の中身（タイプ・全問・短い版）、実在の2人とテスターの回答の公開（D7）、ペルソナ（`docs/session-log-2026-10-16.md` §9）
   - 骨組みはデザインキャンバス（§8）
 - **戻せる地点**
   - 三択 v1 だけの状態：コミット `2fc9f11`
@@ -212,7 +222,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 - 線1（Claude とサブエージェント）：読み取り（規則＋Clef の差し替え口）と足りない問の中身 → 案D の流れをキャンバスに → 相談画面の新しい版（今の画面は残す）→ お手本の相談30〜50件 → 16傾向の対応ガイド
 - 線2（持ち主）：v3 の再テストをテスターに頼む
 - 線3（線1の合間）：UI の段階2・3
-- 合流：公開前の安全 → 公開（Clef がテストを通れば規則＋Clef、通らなければ規則だけ）→ AI（カードの文章）→ 広げる
+- 合流：~~公開前の安全 → 公開（Clef がテストを通れば規則＋Clef、通らなければ規則だけ）→ AI（カードの文章）→ 広げる~~ → **公開は Website の計画どおり Website のアプリで（U20）**。Seikakushindan で作った画面を Website に移す
 - Clef のテストは、持ち主が Cloudflare の鍵（`CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`）を環境の設定に入れてから
 
 ### 将来の構成（構想・未着手）
@@ -233,4 +243,5 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 - **デザインキャンバス「彼氏診断 画面構造の案」**：https://claude.ai/artifact/Ms4NvmoBVorYa17DHvXn4q （白黒の骨組み7枚：トップ案 A・B・C、相談の流れ4画面。持ち主だけが見られる設定）
 - **Figma**：使わない（2026-10-17 持ち主が決定）。画面の案はデザインキャンバスと実際のコード（`?ui=v2`）で作る。参考：アカウント「けんと」、Starter・View 席
 - **プラグイン**：frontend-design・Design（どちらも Anthropic）・Playwright（Microsoft）が入っていて、使える（2026-10-16 に確認。`docs/session-log-2026-10-16.md` §0）。スキル名は `frontend-design:frontend-design`、`design:design-critique`・`design:accessibility-review`・`design:ux-copy`・`design:design-system`・`design:user-research`・`design:research-synthesis`・`design:design-handoff`
+- **Website**（`kento20020/Website`、非公開）：プロダクトの細かい中身の正（U19）。docs/00-overview.md が全体、docs/decisions/ が決定記録。作業の決まりはそのリポジトリの CLAUDE.md（決定は `docs/decisions/new-<名前>.md`、番号は PR の直前に付ける など）
 - **テスターの回答テキスト**：リポジトリの `data/testers/` にある（決定 D7）。`admin.html` に貼れば集計と採点し直しができる
