@@ -158,6 +158,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 | `ui-design-thinking.md` | 相談の体験のデザイン思考。ペルソナ6人、課題と問い、入力・タップの問・カードの順番・待つ間・診断とのつなぎの案をペルソナごとに比較、組み合わせ3案（案A「場面から」を推奨）と試し方。§6 に**採用した案D「書いて、足りない分だけ聞く」**（流れ、要る項目の決め方、試作10件の結果、弱いところ、作るときの形） |
 | `session-log-2026-10-16.md` | **2026-10-16 のセッションの作業記録（引き継ぎ用）**。最初にやること、やったことの順番、決定、持ち主の回答、返事待ち、次にやること、優先順の提案、外部の物（キャンバス・Figma・プラグイン）、作業の注意 |
 | `design-tokens.md` | トークンの一覧（役割・値・ライト／ダーク・コントラストの実測）、部品のルール、`?ui=v2` の仕組みと既定の切り替え方、古い変数名との対応、`?dev=1` の表示の分け方 |
+| `result-ux-design-thinking.md` | **診断の結果画面の UI/UX のデザイン思考（Fable、2026-10-17）**。結果画面の4つの仕事、ペルソナごとの初回と喧嘩の夜、HMW、発想12案、3案（案1「一枚から、めくる」・案2「夜に引く結果」・案3「合ってる？で仕上げる結果」）、比較表、推奨（案3 を骨に案1 の表紙と共有）、キャンバスの見た目6案（A〜F）への批評。**未決定**（持ち主の確認待ち） |
 
 ---
 
@@ -241,6 +242,8 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
   - サブフォルダ「キャラクター作成」（https://drive.google.com/drive/folders/19rWQMhzLFw-VeYKsx2ZsRTkz98zGqS9O）：キャラクター案まとめ・描き方の切り口と絵柄
   - 50.市場戦略 ほか
 - **デザインキャンバス「彼氏診断 画面構造の案」**：https://claude.ai/artifact/Ms4NvmoBVorYa17DHvXn4q （白黒の骨組み7枚：トップ案 A・B・C、相談の流れ4画面。持ち主だけが見られる設定）
+- **デザインキャンバス「診断の結果画面 3案」**：https://claude.ai/artifact/6mFaNcfzsBZJqBaHLdmkTB （結果画面の見た目の案6つ。上の段＝16枚の絵を入れた案D 紙の上に立つ・案E 赤い糸をたどる・案F 夜の展示室、下の段＝絵が8枚の時点の案A〜C。サンプル P1。持ち主だけが見られる設定。D〜F の明朝の見出しは決定 U9 とぶつかる。批評は `docs/result-ux-design-thinking.md` §11）
+- **16傾向の絵（16枚そろい）**：Google Drive「性格診断_16傾向イラスト_2026-10-17」（https://drive.google.com/drive/folders/1jxnLA1v82Ou3d3n39yW9djqvbx4dy87K）。960×960 の JPEG 16枚、README、強弱グラデーション設計書、16傾向画像プロンプト。新しい8枚（1B 2A 3B 4A 5B 6A 7B 8A）は試作で解像度が低く、地の色が元の8枚より暗く黄みに寄る。6A の矢印、7B の色片、8A が 8B と紛らわしい点は描き直し候補。まだ `img/types/` には入れていない
 - **Figma**：使わない（2026-10-17 持ち主が決定）。画面の案はデザインキャンバスと実際のコード（`?ui=v2`）で作る。参考：アカウント「けんと」、Starter・View 席
 - **プラグイン**：frontend-design・Design（どちらも Anthropic）・Playwright（Microsoft）が入っていて、使える（2026-10-16 に確認。`docs/session-log-2026-10-16.md` §0）。スキル名は `frontend-design:frontend-design`、`design:design-critique`・`design:accessibility-review`・`design:ux-copy`・`design:design-system`・`design:user-research`・`design:research-synthesis`・`design:design-handoff`
 - **Website**（`kento20020/Website`、非公開）：プロダクトの細かい中身の正（U19）。docs/00-overview.md が全体、docs/decisions/ が決定記録。作業の決まりはそのリポジトリの CLAUDE.md（決定は `docs/decisions/new-<名前>.md`、番号は PR の直前に付ける など）
