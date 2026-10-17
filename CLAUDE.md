@@ -242,7 +242,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
   - サブフォルダ「キャラクター作成」（https://drive.google.com/drive/folders/19rWQMhzLFw-VeYKsx2ZsRTkz98zGqS9O）：キャラクター案まとめ・描き方の切り口と絵柄
   - 50.市場戦略 ほか
 - **デザインキャンバス「彼氏診断 画面構造の案」**：https://claude.ai/artifact/Ms4NvmoBVorYa17DHvXn4q （白黒の骨組み7枚：トップ案 A・B・C、相談の流れ4画面。持ち主だけが見られる設定）
-- **デザインキャンバス「診断の結果画面 3案」**：https://claude.ai/artifact/6mFaNcfzsBZJqBaHLdmkTB （結果画面の見た目の案6つ。上の段＝16枚の絵を入れた案D 紙の上に立つ・案E 赤い糸をたどる・案F 夜の展示室、下の段＝絵が8枚の時点の案A〜C。サンプル P1。持ち主だけが見られる設定。D〜F の明朝の見出しは決定 U9 とぶつかる。批評は `docs/result-ux-design-thinking.md` §11）
+- **デザインキャンバス「診断の結果画面 3案」**：https://claude.ai/artifact/6mFaNcfzsBZJqBaHLdmkTB （上から順に：**Fable の UI/UX 3案の画面の流れ**（案1 一枚から、めくる・案2 夜に引く結果・案3 合ってる？で仕上げる結果、各4画面。画面どうしはリンクでつながり、案3 のカードと8つの軸は押せる。ゴシックのみ）→ 見た目の案D 紙の上に立つ・E 赤い糸をたどる・F 夜の展示室（16枚の絵）→ 見た目の案A〜C（絵が8枚の時点）。サンプル P1。持ち主だけが見られる設定。D〜F の明朝の見出しは決定 U9 とぶつかる。批評は `docs/result-ux-design-thinking.md` §11）
 - **16傾向の絵（16枚そろい）**：Google Drive「性格診断_16傾向イラスト_2026-10-17」（https://drive.google.com/drive/folders/1jxnLA1v82Ou3d3n39yW9djqvbx4dy87K）。960×960 の JPEG 16枚、README、強弱グラデーション設計書、16傾向画像プロンプト。新しい8枚（1B 2A 3B 4A 5B 6A 7B 8A）は試作で解像度が低く、地の色が元の8枚より暗く黄みに寄る。6A の矢印、7B の色片、8A が 8B と紛らわしい点は描き直し候補。まだ `img/types/` には入れていない
 - **Figma**：使わない（2026-10-17 持ち主が決定）。画面の案はデザインキャンバスと実際のコード（`?ui=v2`）で作る。参考：アカウント「けんと」、Starter・View 席
 - **プラグイン**：frontend-design・Design（どちらも Anthropic）・Playwright（Microsoft）が入っていて、使える（2026-10-16 に確認。`docs/session-log-2026-10-16.md` §0）。スキル名は `frontend-design:frontend-design`、`design:design-critique`・`design:accessibility-review`・`design:ux-copy`・`design:design-system`・`design:user-research`・`design:research-synthesis`・`design:design-handoff`
