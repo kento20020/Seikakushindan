@@ -15,7 +15,7 @@ import { attachSwipe, isCoarsePointer, prefersReducedMotion } from "./swipe.js";
 import { fbBody, fbRendered, fbStartFields, fbStartOptions, fbStartBlocks, fbHidesDone, fbQuestionExtra, fbCard, fbResultTop, fbResultTail } from "./feedback.js";
 import { typeHero, typeTiles } from "./type_images.js";   // 傾向の絵（結果の本番だけ。ブラインド比較には出さない）
 import { isDev, currentUiFlags, SWIPE_VARIANTS, DEFAULT_SWIPE } from "../ui_flags.js";   // ?dev=1：開発・検証用の表示（クラス dev-only）。利用者向けの既定では隠す（css/style.css の末尾）
-import { swipePart, swipeAllows, swipeHref, SWIPE_LABEL, SWIPE_NAME, SWIPE_DESC, SWIPE_TIP } from "./swipe_variants.js";   // ?sw=：スワイプの形（card が既定）
+import { swipePart, swipeAllows, swipeHref, SWIPE_LABEL, SWIPE_NAME, SWIPE_DESC, SWIPE_TIP } from "./swipe_variants.js";   // ?sw=：スワイプの形（c が既定。card はカードごと動く前の形）
 
 const HI = TH3.high, LO = TH3.low + 1;
 const DEV_SUBS = new Set(["logic", "questions"]);   // 開発・検証用のサブ画面（?dev=1 のときだけタブを出す）
@@ -535,13 +535,13 @@ function runDemo(card) {
 //   左右のスワイプで動かす要素（target）と、c の向きの制限（allow）、控えめな傾きを attachSwipe に渡す。上・下はどの形でもカード全体
 const PART_TILT = 5;   // a・b・c の傾き（度）。動く要素が小さいので、カード全体（8°）より控えめに
 const swipeForm = () => currentUiFlags().sw;
-const swAttr = (sw) => sw === DEFAULT_SWIPE ? null : sw;
+const swAttr = (sw) => sw === "card" ? null : sw;   // card（カードごと）だけ data-sw を付けない（前の既定と同じ DOM）
 /** ?dev=1 の質問画面で、設問の版のバッジのそばに出す（card のときは出さない） */
 function swBadge(sw) {
-  return sw === DEFAULT_SWIPE ? null
+  return sw === "card" ? null
     : h("span", { class: ["t3-ver", "t3-ver-sw", "dev-only"], "data-sw": sw, title: `スワイプの形 ${SWIPE_LABEL[sw]}：${SWIPE_NAME[sw]}（?sw=${sw}）` }, `スワイプ ${SWIPE_LABEL[sw]}`);
 }
-/** attachSwipe に足すオプション（card なら何も足さない＝今と同じ動き） */
+/** attachSwipe に足すオプション（card なら何も足さない＝カードごと動く前の形） */
 function partOptions(card) {
   const sw = card.dataset.sw;
   if (!sw) return {};
