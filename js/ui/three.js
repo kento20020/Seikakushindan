@@ -14,7 +14,8 @@ import { renderLogic3, renderQuestions3, verBadge } from "./three_logic.js";
 import { attachSwipe, isCoarsePointer, prefersReducedMotion } from "./swipe.js";
 import { fbBody, fbRendered, fbStartFields, fbStartOptions, fbStartBlocks, fbHidesDone, fbQuestionExtra, fbCard, fbResultTop, fbResultTail } from "./feedback.js";
 import { typeHero, typeTiles } from "./type_images.js";   // 傾向の絵（結果の本番だけ。ブラインド比較には出さない）
-import { isDev } from "../ui_flags.js";   // ?dev=1：開発・検証用の表示（クラス dev-only）。利用者向けの既定では隠す（css/style.css の末尾）
+import { isDev, currentUiFlags, SWIPE_VARIANTS, DEFAULT_SWIPE } from "../ui_flags.js";   // ?dev=1：開発・検証用の表示（クラス dev-only）。利用者向けの既定では隠す（css/style.css の末尾）
+import { swipePart, swipeAllows, swipeHref, SWIPE_LABEL, SWIPE_NAME, SWIPE_DESC, SWIPE_TIP } from "./swipe_variants.js";   // ?sw=：スワイプの形（card が既定）
 
 const HI = TH3.high, LO = TH3.low + 1;
 const DEV_SUBS = new Set(["logic", "questions"]);   // 開発・検証用のサブ画面（?dev=1 のときだけタブを出す）
@@ -104,7 +105,9 @@ function settleScroll(el, seq) {
   });
 }
 
-// 飛ばした向きの反対側から滑り込ませる（スクロール位置を決めたあとにクラスを付ける）
+// 飛ばした向きの反対側から滑り込ませる（スクロール位置を決めたあとにクラスを付ける）。
+//   スワイプの形が a・b・c（カードに data-sw）で左右に確定したときは、css でカード自身は止め、質問文の側はフェード、
+//   回答の側は a なら .t3-pair が反対側から滑り込み、b・c なら少し下からフェードインする（上・下はどの形でもカード全体）
 function startEnter(card) {
   const dir = card?.dataset.enter;
   if (!dir) return;
@@ -141,6 +144,15 @@ function startView() {
         h("small", null, QV_DESC[v])))),
     store3.qvFromUrl ? h("p", { class: "note", id: "t3-qv-url" }, `URL の ?qv=${qv0} で「${qv0}」を選んだ状態にしています。`) : null,
     h("p", { class: "note" }, "途中から再開するときは、始めたときの版のまま続きます。サンプルもここで選んだ版で流します。"));
+  // スワイプの形（?sw=。比べる用）。URL で決めるので、切り替えはリンク（ほかのクエリは残し、sw だけ差し替えて読み込み直す）
+  const sw0 = swipeForm();
+  const swField = h("fieldset", { class: "opt t3-sw dev-only", id: "t3-sw" },
+    h("legend", null, "スワイプの形（比べる用）"),
+    SWIPE_VARIANTS.map(v => h("a", { class: ["check", "t3-sw-opt"], id: `t3-sw-${v}`, href: swipeHref(v, location.search), "data-sw": v, "aria-current": v === sw0 ? "true" : null },
+      h("span", null, h("b", null, `${SWIPE_LABEL[v]}　${SWIPE_NAME[v]}${v === DEFAULT_SWIPE ? "（既定）" : ""}`, h("span", { class: "t3-sw-code" }, `　?sw=${v}`),
+        v === sw0 ? h("span", { class: "t3-sw-now" }, "いま") : null),
+        h("small", null, SWIPE_DESC[v])))),
+    h("p", { class: "note" }, "上（問題を変える）・下（戻る）は、どの形でもカード全体が動きます。質問カードと練習カードの両方に効きます。切り替えるとページを読み込み直します（途中の回答は続きから）。"));
   const fileInput = h("input", { type: "file", accept: ".json,application/json", id: "t3-file", class: "visually-hidden",
     onchange: async (e) => {
       const f = e.target.files?.[0]; if (!f) return;
@@ -185,6 +197,7 @@ function startView() {
       if (fb !== false) start3({ adaptive: adaptive.checked, fb, version: store3.qv });
     } },
       qvField,
+      swField,
       h("fieldset", { class: "opt dev-only" },
         h("legend", null, "聞き方"),
         h("label", { class: "check", for: "t3-adaptive" }, adaptive,
@@ -284,13 +297,14 @@ function questionView(s) {
   const enter = enterFrom && !prefersReducedMotion() ? enterFrom : null;   // スワイプの直後なら、反対側から滑り込ませる
   enterFrom = null;
   const coarse = isCoarsePointer();
+  const sw = swipeForm();
 
   return h("div", { class: "q-screen t3-q" },
     h("h1", { class: "visually-hidden" }, "三択診断の質問"),
     h("div", { class: "q-progress" }, stagePills, bar,
       h("p", { class: "q-count" }, h("b", { class: "dev-only" }, `${c.stage} ${c.stageIndex + 1}/${c.stageTotal}`),
-        h("span", null, `全体 ${p.answered}/${p.total}問 回答済み${s.config.adaptive && (s.plan.s3 === null || s.plan.s4 === null) ? `（最大${p.max}問）` : ""}`, verBadge(s.version)))),
-    h("div", { class: ["q-card", "t3-qcard", `t3-kind-${c.kind}`], "data-enter": enter },
+        h("span", null, `全体 ${p.answered}/${p.total}問 回答済み${s.config.adaptive && (s.plan.s3 === null || s.plan.s4 === null) ? `（最大${p.max}問）` : ""}`, verBadge(s.version), swBadge(sw)))),
+    h("div", { class: ["q-card", "t3-qcard", `t3-kind-${c.kind}`], "data-enter": enter, "data-sw": swAttr(sw) },
       h("div", { class: "t3-grip", "aria-hidden": "true" }, h("i", { class: "t3-grip-bar" }), h("span", null, "スワイプで回答")),
       notice,
       h("p", { class: "t3-kicker" }, c.kind === "W" ? "この場面で" : "別々の場面の行動を比べて"),
@@ -305,7 +319,7 @@ function questionView(s) {
       ? `← 左へスワイプ ／ 右へスワイプ → ／ ↑ ${c.canSwap ? "問題を変える" : "答えずに進む"}`
       : "カードをドラッグ／スワイプでも回答できます"),
     tipSeen() ? null : h("div", { class: "t3-tip", id: "t3-swipe-tip", role: "note" },
-      h("span", null, "カードを左右にスワイプ（マウスならドラッグ）して答えられます。上へ＝", c.canSwap ? "問題を変える" : "答えずに進む", "、下へ＝戻る。"),
+      h("span", null, SWIPE_TIP[sw], c.canSwap ? "問題を変える" : "答えずに進む", "、下へ＝戻る。"),
       h("button", { type: "button", class: "t3-tip-close", id: "t3-swipe-tip-close", onclick: dismissTip }, "閉じる")),
     h("div", { class: "q-tools t3-tools" },
       h("button", { type: "button", class: "btn ghost", id: "t3-back", onclick: back3, disabled: c.index === 0 }, "戻る"),
@@ -329,13 +343,14 @@ function practiceView(s) {
     h("span", { class: "t3-text" }, side === "left" ? pc.left : pc.right));
   const enter = enterFrom && !prefersReducedMotion() ? enterFrom : null;
   enterFrom = null;
+  const sw = swipeForm();
   const c = s.current(), p = s.progress();
   const { stagePills, bar } = progressParts(c, p, { practice: true });
   return h("div", { class: "q-screen t3-q t3-practice-screen" },
     h("h1", { class: "visually-hidden" }, "三択診断の練習カード"),
     h("div", { class: "q-progress" }, stagePills, bar,
-      h("p", { class: "q-count" }, h("b", null, "練習"), h("span", null, `このあと本番（全体 0/${p.total}問${s.config.adaptive ? `・最大${p.max}問` : ""}）`, verBadge(s.version)))),
-    h("div", { class: ["q-card", "t3-qcard", "t3-kind-W", "t3-practice"], id: "t3-practice", "data-enter": enter },
+      h("p", { class: "q-count" }, h("b", null, "練習"), h("span", null, `このあと本番（全体 0/${p.total}問${s.config.adaptive ? `・最大${p.max}問` : ""}）`, verBadge(s.version), swBadge(sw)))),
+    h("div", { class: ["q-card", "t3-qcard", "t3-kind-W", "t3-practice"], id: "t3-practice", "data-enter": enter, "data-sw": swAttr(sw) },
       h("div", { class: "t3-grip", "aria-hidden": "true" }, h("i", { class: "t3-grip-bar" }), h("span", null, "スワイプで回答")),
       h("p", { class: "t3-kicker" }, h("span", { class: "t3-practice-tag" }, "練習"), "結果には入りません"),
       h("p", { class: "q-text t3-stem", id: "t3-q", tabindex: "-1" }, pc.stem),
@@ -359,10 +374,11 @@ function bindPracticeSwipe(card) {
   const go = (dir, fn) => () => { enterFrom = ENTER_FROM[dir]; try { fn(); } finally { enterFrom = null; } };
   detachSwipe = attachSwipe(card, {
     ignore: SWIPE_IGNORE,
+    ...partOptions(card),
     onLeft: go("left", () => practiceDone("left")),
     onRight: go("right", () => practiceDone("right")),
     onStart: () => { holdClip(); card.classList.add("t3-dragging"); },
-    onEnd: () => releaseClip(0),
+    onEnd: () => { releaseClip(0); unmarkMoving(card); },
     onProgress: ({ dir, progress, ready, dragging }) => {
       card.classList.toggle("t3-dragging", dragging);
       card.classList.toggle("t3-ready", ready && !!label[dir]);
@@ -472,6 +488,7 @@ function planDemo(card, s) {
   }, DEMO_DELAY);
 }
 
+//   スワイプの形が a なら .t3-pair を、b・c なら前半に右の回答が右へ、後半に左の回答が左へ動く（ラベル「右」「左」の出し方は同じ）
 function runDemo(card) {
   const badge = card.querySelector(".t3-swipe-badge");
   const half = DEMO_MS / 2;
@@ -482,13 +499,24 @@ function runDemo(card) {
     anims.push(badge.animate([{ opacity: 0 }, { opacity: 1, offset: .35 }, { opacity: 1, offset: .65 }, { opacity: 0 }], { duration: half, easing: "ease-in-out" }));
   };
   const ease = "ease-in-out";
-  anims.push(card.animate([
-    { transform: "translateX(0)", easing: ease },
-    { transform: `translateX(${DEMO_PX}px) rotate(1.5deg)`, easing: ease, offset: .25 },
-    { transform: "translateX(0)", easing: ease, offset: .5 },
-    { transform: `translateX(${-DEMO_PX}px) rotate(-1.5deg)`, easing: ease, offset: .75 },
-    { transform: "translateX(0)" },
-  ], { duration: DEMO_MS, easing: "linear" }));
+  const sw = card.dataset.sw;
+  const parts = sw === "b" || sw === "c" ? [card.querySelector(".t3-card.t3-right"), card.querySelector(".t3-card.t3-left")].filter(Boolean) : [];
+  if (parts.length === 2) {
+    const [R, L] = parts, still = { transform: "translateX(0)", easing: ease };
+    anims.push(R.animate([still, { transform: `translateX(${DEMO_PX}px) rotate(1deg)`, easing: ease, offset: .25 }, { ...still, offset: .5 }, { transform: "translateX(0)" }], { duration: DEMO_MS, easing: "linear" }));
+    anims.push(L.animate([still, { ...still, offset: .5 }, { transform: `translateX(${-DEMO_PX}px) rotate(-1deg)`, easing: ease, offset: .75 }, { transform: "translateX(0)" }], { duration: DEMO_MS, easing: "linear" }));
+  } else {
+    const el = (sw === "a" && card.querySelector(".t3-pair")) || card, tilt = el === card ? 1.5 : 1;
+    if (el !== card) parts.push(el);
+    anims.push(el.animate([
+      { transform: "translateX(0)", easing: ease },
+      { transform: `translateX(${DEMO_PX}px) rotate(${tilt}deg)`, easing: ease, offset: .25 },
+      { transform: "translateX(0)", easing: ease, offset: .5 },
+      { transform: `translateX(${-DEMO_PX}px) rotate(${-tilt}deg)`, easing: ease, offset: .75 },
+      { transform: "translateX(0)" },
+    ], { duration: DEMO_MS, easing: "linear" }));
+  }
+  for (const x of parts) x.classList.add("t3-moving");   // 動く間だけ前面に（a・b・c）
   holdClip();
   phase("right", "右");
   timers.push(setTimeout(() => phase("left", "左"), half), setTimeout(() => stopDemo(), DEMO_MS));
@@ -497,8 +525,44 @@ function runDemo(card) {
     anims.forEach(a => { try { a.cancel(); } catch { /* 無視 */ } });
     delete card.dataset.demo;
     badge.textContent = "";
+    for (const x of parts) x.classList.remove("t3-moving");
     releaseClip(0);
   };
+}
+
+// ---------------------------------------------------------------- スワイプの形（?sw=card|a|b|c。js/ui/swipe_variants.js）
+//   card（既定）はカード全体が動く今の形で、カードに data-sw を付けない（今と同じ DOM）。a・b・c は data-sw="a|b|c" を付け、
+//   左右のスワイプで動かす要素（target）と、c の向きの制限（allow）、控えめな傾きを attachSwipe に渡す。上・下はどの形でもカード全体
+const PART_TILT = 5;   // a・b・c の傾き（度）。動く要素が小さいので、カード全体（8°）より控えめに
+const swipeForm = () => currentUiFlags().sw;
+const swAttr = (sw) => sw === DEFAULT_SWIPE ? null : sw;
+/** ?dev=1 の質問画面で、設問の版のバッジのそばに出す（card のときは出さない） */
+function swBadge(sw) {
+  return sw === DEFAULT_SWIPE ? null
+    : h("span", { class: ["t3-ver", "t3-ver-sw", "dev-only"], "data-sw": sw, title: `スワイプの形 ${SWIPE_LABEL[sw]}：${SWIPE_NAME[sw]}（?sw=${sw}）` }, `スワイプ ${SWIPE_LABEL[sw]}`);
+}
+/** attachSwipe に足すオプション（card なら何も足さない＝今と同じ動き） */
+function partOptions(card) {
+  const sw = card.dataset.sw;
+  if (!sw) return {};
+  const parts = { card, pair: card.querySelector(".t3-pair"), left: card.querySelector(".t3-card.t3-left"), right: card.querySelector(".t3-card.t3-right") };
+  // 指を置いた回答（"left"|"right"）。回答の外（質問文など）から始めたときは null
+  const sideOf = (start) => {
+    const b = start instanceof Element ? start.closest(".t3-card") : null;
+    return b && card.contains(b) && (b.dataset.side === "left" || b.dataset.side === "right") ? b.dataset.side : null;
+  };
+  return {
+    maxTilt: PART_TILT,
+    target: ({ axis, dir, start }) => {
+      const el = parts[swipePart(sw, { axis, dir, startSide: sideOf(start) })] || card;
+      if (el !== card) el.classList.add("t3-moving");   // 動いている間だけ前面に出す（css。onEnd で外す）
+      return el;
+    },
+    allow: (dir, { start }) => swipeAllows(sw, dir, sideOf(start)),
+  };
+}
+function unmarkMoving(card) {
+  for (const x of card.querySelectorAll(".t3-moving")) x.classList.remove("t3-moving");
 }
 
 function bindSwipe(card, c) {
@@ -510,12 +574,13 @@ function bindSwipe(card, c) {
   const go = (dir, fn) => () => { enterFrom = ENTER_FROM[dir]; try { fn(); } finally { enterFrom = null; } };
   detachSwipe = attachSwipe(card, {
     ignore: SWIPE_IGNORE,
+    ...partOptions(card),
     onLeft: go("left", () => answer3("left", "s")),
     onRight: go("right", () => answer3("right", "s")),
     onUp: go("up", c.canSwap ? () => swap3("s") : () => skip3("s")),
     onDown: c.index > 0 ? go("down", () => back3("s")) : undefined,
     onStart: () => { dismissTip(); holdClip(); card.classList.add("t3-dragging"); },
-    onEnd: () => releaseClip(0),
+    onEnd: () => { releaseClip(0); unmarkMoving(card); },
     onProgress: ({ dir, progress, ready, dragging }) => {
       card.classList.toggle("t3-dragging", dragging);
       card.classList.toggle("t3-ready", ready);
