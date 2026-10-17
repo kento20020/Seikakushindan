@@ -90,7 +90,7 @@ export function renderLoad(model, { includeRetests, onToggleRetests }) {
   }
   const used = model.used.length;
   kids.push(note(`集計対象：${model.people}人・${used}セッション（設問の版 ${versionsText(model.versions)}）。` + (!includeRetests && model.sessions.length > used ? `再検査 ${model.sessions.length - used}件は集計から除いています。` : "") +
-    (Object.values(model.versions || {}).filter(Boolean).length > 1 ? "版で文が違う設問（v2 で書き換えた W・組を入れ替えた X）は、設問ごとの表で版ごとに別の行にしています。" : "")));
+    (Object.values(model.versions || {}).filter(Boolean).length > 1 ? "版で文が違う設問（v2・v3 で書き換えた W・組を入れ替えた X）は、設問ごとの表で、その文が最初に現れた版ごとに別の行にしています（v2 と v3 で同じ文なら1行）。" : "")));
   return section("s1", "1", "読み込み結果", ...kids);
 }
 
@@ -315,7 +315,7 @@ const lowConfText = (o) => {
   return ds.length ? ds.map(d => `領域${d}（${(o[d].reasons || []).map(x => LOWCONF_LABEL[x]).join("・")}）`).join("、") : "なし";
 };
 
-/** rs = rescoreAll(…, {mode})。onMode(mode) で「当時の版のロジック」「v2 のロジック」を切り替える */
+/** rs = rescoreAll(…, {mode})。onMode(mode) で「当時の版のロジック」「v2 のロジック（v3 も同じ）」を切り替える */
 export function renderRescore(rs, { onMode = null } = {}) {
   const mode = rs.mode || "then";
   const rows = rs.rows.map(r => {
@@ -343,10 +343,10 @@ export function renderRescore(rs, { onMode = null } = {}) {
       label)));
   return section("s8", "8", "再採点（いまのロジックとの比較）",
     choice,
-    mode === "v2" ? h("p", { class: "msg info", id: "rescore-v2-note" }, "v2 のロジック（確度低の領域を含むパターン ×0.8、矛盾枠は W と X の向きがそろう領域だけ）で、当時答えた設問だけを採点し直しています。追加質問の出し方（v2 の計画：拮抗 → 向きが逆 → 優勢（弱）、上限 W8・X8）は再現できません（当時と違う設問を聞いていたはずなので、v2 で受けた場合の結果そのものではありません）。") : null,
+    mode === "v2" ? h("p", { class: "msg info", id: "rescore-v2-note" }, "v2 のロジック（確度低の領域を含むパターン ×0.8、矛盾枠は W と X の向きがそろう領域だけ。v3 のロジックも同じ）で、当時答えた設問だけを採点し直しています。追加質問の出し方（v2 の計画：拮抗 → 向きが逆 → 優勢（弱）、上限 W8・X8）は再現できません（当時と違う設問を聞いていたはずなので、v2 で受けた場合の結果そのものではありません）。") : null,
     h("div", { class: "stats" }, stat("当時と同じ", rs.same, null, rs.same ? "ok" : "", "人"), stat("差分あり", rs.diff, null, rs.diff ? "ng" : "", "人"), rs.other ? stat("結果なし／再採点できない", rs.other, null, "warn", "人") : null),
     rs.rows.length ? tableWrap("再採点", h("table", { class: "tbl", id: "tbl-rescore" }, h("thead", null, h("tr", null, th("コード"), th("開始日時"), th("結果"), th("差分"))), h("tbody", null, rows))) : h("p", { class: "empty" }, "再採点できる回答がありません。"),
-    note(`回答ログ（rec）から scoreRecords3 → select3 / domainStates3 を、いまのコードで計算し直して、当時の結果（res）と比べています。「当時の版のロジック」は送信の版（v1 の送信は v1、v2 の送信は v2。qv の無い送信は v1）のロジックで、閾値や設問を変えたあとの確認用です。level は ±${LV_TOLERANCE} までの違い（丸め方の差）は差分にしません。再検査も含め、読み込めた全セッションが対象です。`));
+    note(`回答ログ（rec）から scoreRecords3 → select3 / domainStates3 を、いまのコードで計算し直して、当時の結果（res）と比べています。「当時の版のロジック」は送信の版（v1 の送信は v1、v2 の送信は v2、v3 の送信は v2 と同じロジック。qv の無い送信は v1）のロジックで、閾値や設問を変えたあとの確認用です。level は ±${LV_TOLERANCE} までの違い（丸め方の差）は差分にしません。再検査も含め、読み込めた全セッションが対象です。`));
 }
 
 // ---------------------------------------------------------------- 9 出力

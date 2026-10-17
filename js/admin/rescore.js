@@ -1,7 +1,7 @@
 // 再採点：送られてきた回答ログ（rec）から、いまの採点・判定ロジックで結果を作り直し、当時の結果（res）と比べる。
 // 閾値や設問を変えたあとに「同じ回答だと結果がどう変わるか」を見るためのもの。仕様：docs/feedback-spec.md §3 の8
-//   mode "then"：当時の版のロジック（v1 の送信は v1、v2 の送信は v2）
-//   mode "v2"  ：全員を v2 のロジック（確度低 ×0.8・矛盾枠の向きの条件）で。追加質問の出し方（計画）は再現できないので、
+//   mode "then"：当時の版のロジック（v1 の送信は v1、v2 の送信は v2。v3 の送信は v2 と同じロジック＝THREE_VERSIONS.v3.logic）
+//   mode "v2"  ：全員を v2 のロジック（確度低 ×0.8・矛盾枠の向きの条件。v3 も同じロジック）で。追加質問の出し方（計画）は再現できないので、
 //                当時答えた設問だけで採点し直す
 import { QUESTIONS3 } from "../data/questions3.js";
 import { scoreRecords3, bankFor } from "../adaptive3.js";
@@ -9,7 +9,7 @@ import { DOMAINS, select3, domainStates3, lowConfDomains3, STATE_LABEL } from ".
 import { THREE_VERSIONS, versionOf } from "../three_version.js";
 import { LV_TOLERANCE, payloadQv } from "./aggregate.js";
 
-export const RESCORE_MODES = { then: "当時の版のロジック", v2: "v2 のロジック" };
+export const RESCORE_MODES = { then: "当時の版のロジック", v2: "v2 のロジック（v3 も同じ）" };
 
 const TI = QUESTIONS3.traitIndex;
 /** 結果画面の並び（参加者側 js/feedback_collect.js の chosenByRole と同じ：役割順、同じ役割は選ばれた順） */
@@ -82,7 +82,7 @@ export function diffLowConf(then, now) {
 }
 
 /**
- * 1セッションを再採点。mode "then"（当時の版のロジック）か "v2"（v2 のロジック）。
+ * 1セッションを再採点。mode "then"（当時の版のロジック）か "v2"（v2 のロジック。v3 も同じ）。logic には logic.id（v3 の送信も "v2"）
  * 返り値 { session, status: same|diff|nores|error, problems, now, diff, mode, qv, logic, lowConf:{same, then, now} }
  */
 export function rescoreSession(s, { mode = "then" } = {}) {

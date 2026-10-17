@@ -11,6 +11,7 @@ import { TYPE_IMAGES, isReady, tendencyKeyFor, domainTendencies3, heroTendency, 
 import { DOMAINS, TRAITS, domainFlags3, META3_BY_ID } from "../js/engine3.js";
 import { fromLikertAnswers, fromScores } from "../js/adaptive3.js";
 import { SAMPLES3, PROFILE_SAMPLES3 } from "../js/data/samples3.js";
+import { VERSION_IDS } from "../js/three_version.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 let fail = 0, pass = 0;
@@ -86,9 +87,9 @@ test("tendencyKeyFor：A/B でも傾向名でも同じキー。分からなけ�
   assert.equal(tendencyKeyFor(undefined, "A"), null);
 });
 
-// ---------------------------------------------------------------- 3. 結果（石原・別宮・P1〜P5。設問の版は v1・v2 の両方）
+// ---------------------------------------------------------------- 3. 結果（石原・別宮・P1〜P5。設問の版はすべて：v1・v2・v3）
 const results = [];
-for (const v of ["v1", "v2"]) {
+for (const v of VERSION_IDS) {
   for (const s of SAMPLES3) results.push({ name: `${s.key}/${v}`, r: fromLikertAnswers(s.answers, s.wording, { version: v }).result() });
   for (const p of PROFILE_SAMPLES3) results.push({ name: `${p.key}/${v}`, r: fromScores(p.scores, p.duel, { version: v }).result() });
 }
@@ -112,7 +113,7 @@ test("domainTendencies3：8領域それぞれ { domain, key, tendency, tie, weak
   }
 });
 
-test("heroTendency：石原・別宮・P1〜P5（v1・v2）で、絵のある傾向のキーか null。準備中の傾向は返さない", () => {
+test("heroTendency：石原・別宮・P1〜P5（すべての版）で、絵のある傾向のキーか null。準備中の傾向は返さない", () => {
   for (const { name, r } of results) {
     const hero = heroTendency(r.profile3, r.select.chosen);
     if (hero === null) continue;

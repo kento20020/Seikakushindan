@@ -1,17 +1,20 @@
-// 三択版の「版」の一覧（v1／v2）と、どの版で動かすかの決め方。仕様：docs/three-choice-logic.md の「v2（3choice-2026-10-10）」
+// 三択版の「版」の一覧（v1／v2／v3）と、どの版で動かすかの決め方。仕様：docs/three-choice-logic.md の「v2（3choice-2026-10-10）」「v3（3choice-2026-10-16）」
 //
 //   v1（3choice-2026-10-08）… 最初の版。設問 js/data/questions3.js、ロジックは §1〜5 のまま
 //   v2（3choice-2026-10-10）… 5人テストの結果で直した版。設問 js/data/questions3_v2.js、
 //                              W追加の優先順位（拮抗 → 向きが逆 → 優勢（弱））・X追加に向きが逆の領域の両傾向・追加の上限を半分・
 //                              確度低の領域を含むパターン ×0.8・矛盾枠の向きの条件・場面例の差し替え（js/data/scenes_v2.js）・練習カード
+//   v3（3choice-2026-10-16）… テスター6人の結果で W1-1・W3-3・W3-4 の3問だけを差し替えた版。設問 js/data/questions3_v3.js
+//                              （v2 を元に作る。変更点は changesFromV2）。ロジック・上限・場面例・練習カードは v2 と同じ（logic.id も "v2"）
 //
-// 決め方（resolveVersion）：URL の ?qv=v1|v2 ＞ 保存中のセッションの版（途中再開は始めた版のまま）＞ DEFAULT_THREE_VERSION。
+// 決め方（resolveVersion）：URL の ?qv=v1|v2|v3 ＞ 保存中のセッションの版（途中再開は始めた版のまま）＞ DEFAULT_THREE_VERSION。
 // ライブラリとしての既定（createSession3() に version を渡さないとき）は互換のため v1（LIB_DEFAULT_VERSION）。画面は常に解決した版を渡す。
 import { QUESTIONS3 } from "./data/questions3.js";
 import { QUESTIONS3_V2 } from "./data/questions3_v2.js";
+import { QUESTIONS3_V3 } from "./data/questions3_v3.js";
 import * as SCENES_MOD from "./data/scenes_v2.js";
 
-/** v2 で差し替える場面例 { パターンID: [場面1, 場面2] }（差し替えたパターンだけ）。ファイルが空のスタブでも動く */
+/** v2（と v3）で差し替える場面例 { パターンID: [場面1, 場面2] }（差し替えたパターンだけ）。ファイルが空のスタブでも動く */
 export const SCENES_V2 = SCENES_MOD.SCENES_V2 && typeof SCENES_MOD.SCENES_V2 === "object" ? SCENES_MOD.SCENES_V2 : {};
 export const SCENES_V2_NOTES = SCENES_MOD.SCENES_V2_NOTES ?? null;
 
@@ -52,12 +55,31 @@ export const THREE_VERSIONS = {
     scenes: SCENES_V2,
     practice: true,
   },
+  v3: {
+    id: "v3",
+    bank: QUESTIONS3_V3,
+    bankVersion: QUESTIONS3_V3.version,        // "3choice-2026-10-16"
+    label: "v3（W1-1・W3-3・W3-4 を差し替え）",
+    date: "2026-10-16",
+    // ロジックは v2 とまったく同じ。logic.id も "v2"（ロジックの種類を表す。adaptive3.js の result() は logic.id === "v1" だけを旧来の選択にする）
+    logic: {
+      id: "v2",
+      wExtra: ["tie", "conflict", "weak"],
+      xExtraConflict: true,
+      lowConf: true,
+      lowConfFactor: 0.8,
+      contraAlign: true,
+    },
+    caps: { wExtra: 8, xExtra: 8, wPerDomain: 2, xPerTrait: 2 },
+    scenes: SCENES_V2,
+    practice: true,
+  },
 };
 
 export const VERSION_IDS = Object.keys(THREE_VERSIONS);
 
-// v1 に戻すときはここを "v1" に（画面の既定の版。URL の ?qv=v2 でいつでも v2 も開ける）
-export const DEFAULT_THREE_VERSION = "v2";
+// 画面の既定の版。v2 に戻すときはここを "v2" に、v1 に戻すときは "v1" に（URL の ?qv=v1｜v2｜v3 でいつでもほかの版も開ける）
+export const DEFAULT_THREE_VERSION = "v3";
 
 /** ライブラリとしての既定（createSession3() などに版を渡さないとき）。既存のテスト・保存データとの互換のため v1 */
 export const LIB_DEFAULT_VERSION = "v1";
@@ -77,7 +99,7 @@ export function versionFromSearch(search) {
 
 /**
  * どの版で動かすか：URL の ?qv= ＞ 保存中のセッションの版 ＞ 既定（DEFAULT_THREE_VERSION）
- *   search … location.search（"?qv=v1" など）、saved … 保存中のセッションの版（"v1" | "v2" | なし）
+ *   search … location.search（"?qv=v1" など）、saved … 保存中のセッションの版（"v1" | "v2" | "v3" | なし）
  */
 export function resolveVersion({ search = "", saved = null, fallback = DEFAULT_THREE_VERSION } = {}) {
   return versionFromSearch(search) ?? (isVersion(saved) ? saved : null) ?? (isVersion(fallback) ? fallback : LIB_DEFAULT_VERSION);
@@ -89,7 +111,7 @@ export function versionFromBank(app) {
   return null;
 }
 
-/** パターンの場面例（版ごと）。v2 は scenes_v2.js に差し替えがあればそれを、弱い版（B?-1w／3w）は元の本文の id でも探す */
+/** パターンの場面例（版ごと）。v2・v3 は scenes_v2.js に差し替えがあればそれを、弱い版（B?-1w／3w）は元の本文の id でも探す */
 export function scenesFor(id, versionId, fallback = []) {
   const map = versionOf(versionId).scenes;
   if (map) {
@@ -108,7 +130,7 @@ export function scenesChanged(id, versionId) {
   return Array.isArray(s) && s.length > 0;
 }
 
-/** 練習カード（v2。1問目の前に出し、採点しない・時間を測らない） */
+/** 練習カード（v2・v3。1問目の前に出し、採点しない・時間を測らない） */
 export const PRACTICE_CARD = {
   stem: "練習：休日の朝、より近いのは？",
   left: "早起きして出かける",

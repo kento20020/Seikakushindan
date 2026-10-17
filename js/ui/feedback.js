@@ -38,7 +38,7 @@ onAction3(({ type, before, via }) => {
   if (store3.session?.isDone()) { clock.pause(); fb.phase = "part1"; }
 });
 
-// 練習カード（v2）を出している間は時計を進めない
+// 練習カード（v2・v3）を出している間は時計を進めない
 const askingNow = () => store3.fb?.phase === "q" && store3.sub === "diagnose" && store3.screen === "question" && !practicePending3() &&
   !!document.querySelector("#view-three:not([hidden]) .t3-qcard:not(.t3-practice)");
 
@@ -126,7 +126,9 @@ export function fbStartFields() {
     h("p", { class: "note" }, "再検査のときも同じコードを使います。"),
     h("p", { class: "fb-err", id: "fb-err", role: "alert", hidden: true }));
   const cb = h("input", { type: "checkbox", id: "fb-mode", checked: store3.fbMode, onchange: (e) => { setFbMode3(e.target.checked); box.hidden = !e.target.checked; hideErr(); } });
-  return h("fieldset", { class: "opt fb-start" },
+  // テスト協力モードのチェックは ?fb=1（restore3 で fbMode がオンになる）か ?dev=1 のときだけ出す。
+  //   一度オンにした端末（fbMode が保存されている）では、外せるように出したままにする
+  return h("fieldset", { class: ["opt", "fb-start", !store3.fbMode && "dev-only"] },
     h("legend", null, "テスト協力"),
     h("label", { class: "check", for: "fb-mode" }, cb,
       h("span", null, h("b", null, "テスト協力モード（回答時間・感想を記録して、最後に送ってもらう）"),

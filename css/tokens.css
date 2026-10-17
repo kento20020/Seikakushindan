@@ -1,0 +1,180 @@
+/* デザイントークン（色・文字・余白・形・影・動き・レイアウト）。ここだけを正にする。一覧と使い方は docs/design-tokens.md
+   - 基本の値（--c-…）と、役割の値（--color-… など）の2段。画面の CSS は役割の値だけを使う
+   - ライト／ダークは prefers-color-scheme で「役割の値」だけを切り替える（基本の値は変えない）
+   - 定義だけで、ここにはどの要素の見た目も書かない。今の見た目（v1）の CSS は古い変数名（--paper・--ink など）しか使わないので、
+     このファイルを読み込んでも v1 は変わらない。新しい見た目（?ui=v2）は css/ui2.css が、古い変数名をここの役割の値に結び付けて使う
+   - 名前が v1 と重なるのは --gutter だけ（v1 は style.css の :root で 16px に上書きする。v2 は ui2.css で結び直す） */
+
+:root {
+  /* ---------------------------------------------------------------- 基本の値（ライト） */
+  --c-paper-50: #F6F4F0;      /* 紙（暖かい中立。絵の生成り・灰色となじむ） */
+  --c-white: #FFFFFF;
+  --c-paper-100: #EEEAE4;     /* 入れ子の面 */
+  --c-paper-200: #E3DED6;     /* 区切り（飾りの線） */
+  --c-ink-900: #1F2230;       /* 本文 */
+  --c-ink-700: #474C5E;       /* 補助 */
+  --c-ink-600: #5F6475;       /* 控えめ */
+  --c-ink-400: #868A99;       /* 部品の枠 */
+  --c-indigo-900: #26304F;    /* 夜の藍（主色） */
+  --c-indigo-950: #1A2240;    /* 主色を押したとき */
+  --c-indigo-600: #3E56B8;    /* フォーカスの輪 */
+  --c-indigo-50: #E7EAF3;
+  --c-plum-600: #A8466F;      /* 紅梅（差し色） */
+  --c-plum-50: #F7E8EE;
+  --c-red-700: #B3261E;
+  --c-red-50: #FBE6E4;
+  --c-green-700: #2C7349;
+  --c-green-50: #E2F1E7;
+  --c-amber-800: #7F5600;
+  --c-amber-50: #F8EED8;
+  --c-rose-50: #FBEDEE;       /* 安全の面 */
+  --c-blue-700: #2E5E8C;      /* 診断の A 側 */
+  --c-blue-50: #E3EBF4;
+  --c-berry-700: #A3456F;     /* 診断の B 側 */
+  --c-berry-50: #F6E4EC;
+
+  /* ---------------------------------------------------------------- 基本の値（ダーク） */
+  --c-night-950: #121319;
+  --c-night-900: #1B1D25;
+  --c-night-800: #252833;
+  --c-night-700: #2E313C;
+  --c-night-400: #7D8295;
+  --c-mist-100: #ECEDF2;
+  --c-mist-300: #C5C8D4;
+  --c-mist-500: #9EA2B2;
+  --c-periwinkle-200: #C9D3F5;
+  --c-periwinkle-300: #B3C1F0;
+  --c-periwinkle-400: #9FB1F2;
+  --c-periwinkle-900: #262D45;
+  --c-navy-950: #151A2E;
+  --c-plum-300: #E79BBA;
+  --c-plum-900: #3D2431;
+  --c-red-300: #F28E84;
+  --c-red-900: #43221F;
+  --c-green-300: #7FCC9E;
+  --c-green-900: #1D3527;
+  --c-amber-300: #E5BC60;
+  --c-amber-900: #3A2F17;
+  --c-rose-900: #3A2228;
+  --c-blue-300: #8AB2DE;
+  --c-blue-900: #21304A;
+  --c-berry-300: #E391B6;
+  --c-berry-900: #40243A;
+
+  /* ---------------------------------------------------------------- 役割の値：色（ライト） */
+  --color-bg: var(--c-paper-50);
+  --color-surface: var(--c-white);
+  --color-surface-2: var(--c-paper-100);
+  --color-text: var(--c-ink-900);
+  --color-text-2: var(--c-ink-700);
+  --color-muted: var(--c-ink-600);
+  --color-primary: var(--c-indigo-900);
+  --color-primary-hover: var(--c-indigo-950);
+  --color-primary-soft: var(--c-indigo-50);
+  --color-on-primary: var(--c-white);
+  --color-accent: var(--c-plum-600);
+  --color-accent-soft: var(--c-plum-50);
+  --color-divider: var(--c-paper-200);
+  --color-control-border: var(--c-ink-400);
+  --color-error: var(--c-red-700);
+  --color-error-soft: var(--c-red-50);
+  --color-success: var(--c-green-700);
+  --color-success-soft: var(--c-green-50);
+  --color-warn: var(--c-amber-800);
+  --color-warn-soft: var(--c-amber-50);
+  --color-safety-bg: var(--c-rose-50);
+  --color-data-a: var(--c-blue-700);
+  --color-data-a-soft: var(--c-blue-50);
+  --color-data-b: var(--c-berry-700);
+  --color-data-b-soft: var(--c-berry-50);
+  --color-focus: var(--c-indigo-600);
+
+  /* ---------------------------------------------------------------- 文字 */
+  --font-sans: system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans CJK JP", "Yu Gothic UI", "Yu Gothic", Meiryo, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --fs-12: 0.75rem;     /* 注記 */
+  --fs-14: 0.875rem;    /* 補助 */
+  --fs-16: 1rem;        /* 本文 */
+  --fs-18: 1.125rem;    /* 小見出し */
+  --fs-22: 1.375rem;    /* 見出し */
+  --fs-28: 1.75rem;     /* 画面の題 */
+  --lh-body: 1.7;
+  --lh-head: 1.4;
+  --fw-regular: 400;
+  --fw-bold: 700;
+
+  /* ---------------------------------------------------------------- 余白（4px 単位の7段階） */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* ---------------------------------------------------------------- 形 */
+  --radius-sm: 8px;      /* タグ・小さな部品 */
+  --radius-md: 12px;     /* ボタン・入力欄 */
+  --radius-lg: 16px;     /* カード・絵 */
+  --radius-pill: 999px;  /* チップ */
+  --border-w: 1px;
+  --border-w-strong: 1.5px;
+
+  /* ---------------------------------------------------------------- 影（1段だけ。トーストと下から出る面にだけ使う） */
+  --shadow-float: 0 8px 24px rgba(20, 22, 32, 0.16), 0 1px 3px rgba(20, 22, 32, 0.10);
+
+  /* ---------------------------------------------------------------- 動き */
+  --dur-fast: 150ms;
+  --dur: 250ms;
+  --ease: ease-out;
+
+  /* ---------------------------------------------------------------- レイアウト・押せる大きさ */
+  --content-max: 720px;
+  --gutter-mobile: 16px;
+  --gutter-wide: 24px;
+  --gutter: var(--gutter-mobile);
+  --tap: 44px;
+  --btn-h: 48px;           /* 副ボタン・入力欄 */
+  --btn-h-primary: 52px;   /* 主ボタン */
+  --textarea-min-h: 120px;
+}
+
+@media (min-width: 641px) {
+  :root { --gutter: var(--gutter-wide); }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: var(--c-night-950);
+    --color-surface: var(--c-night-900);
+    --color-surface-2: var(--c-night-800);
+    --color-text: var(--c-mist-100);
+    --color-text-2: var(--c-mist-300);
+    --color-muted: var(--c-mist-500);
+    --color-primary: var(--c-periwinkle-200);
+    --color-primary-hover: var(--c-periwinkle-300);
+    --color-primary-soft: var(--c-periwinkle-900);
+    --color-on-primary: var(--c-navy-950);
+    --color-accent: var(--c-plum-300);
+    --color-accent-soft: var(--c-plum-900);
+    --color-divider: var(--c-night-700);
+    --color-control-border: var(--c-night-400);
+    --color-error: var(--c-red-300);
+    --color-error-soft: var(--c-red-900);
+    --color-success: var(--c-green-300);
+    --color-success-soft: var(--c-green-900);
+    --color-warn: var(--c-amber-300);
+    --color-warn-soft: var(--c-amber-900);
+    --color-safety-bg: var(--c-rose-900);
+    --color-data-a: var(--c-blue-300);
+    --color-data-a-soft: var(--c-blue-900);
+    --color-data-b: var(--c-berry-300);
+    --color-data-b-soft: var(--c-berry-900);
+    --color-focus: var(--c-periwinkle-400);
+    --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.30);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur: 0ms; }
+}

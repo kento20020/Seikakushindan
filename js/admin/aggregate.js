@@ -7,7 +7,7 @@
 import { decodeAll, FB_TAG } from "../feedback_format.js";
 import { QUESTIONS3 } from "../data/questions3.js";
 import { ITEM3, SRC_LABEL, ROUND_USE, bankFor } from "../adaptive3.js";
-import { THREE_VERSIONS, isVersion, versionFromBank, scenesFor, scenesChanged } from "../three_version.js";
+import { THREE_VERSIONS, VERSION_IDS, isVersion, versionFromBank, scenesFor, scenesChanged } from "../three_version.js";
 import { DOMAINS, STATE_LABEL, LEFT_RATE_HIGH, LEFT_RATE_LOW } from "../engine3.js";
 import { PATTERN_BY_ID } from "../data/patterns.js";
 
@@ -44,28 +44,54 @@ export const MODE_LABEL = { a: "可変", f: "固定64" };
 const TI = QUESTIONS3.traitIndex;
 const DOMAIN_NOS = Object.keys(DOMAINS).map(Number);
 
-// ---------------------------------------------------------------- 設問の版（v1／v2）
+// ---------------------------------------------------------------- 設問の版（v1／v2／v3）
 /** 既知の設問バンクの version（app） */
 export const KNOWN_APPS = Object.values(THREE_VERSIONS).map(v => v.bankVersion);
 /**
- * 送信テキストの版：qv（"v1" | "v2"）があればそれ、無ければ app（設問バンクの version）から。どちらも無い・知らない値なら v1。
+ * 送信テキストの版：qv（"v1" | "v2" | "v3"）があればそれ、無ければ app（設問バンクの version）から。どちらも無い・知らない値なら v1。
  * qv は v2 対応のあとに足した項目なので、それより前の送信（v1）には無い
  */
 export function payloadQv(p) {
   if (isVersion(p?.qv)) return p.qv;
   return versionFromBank(p?.app) ?? "v1";
 }
-/** 版 qv の設問が v1 と同じ文か（W：場面・A・B、X：左右の傾向と行動文） */
-export function itemSameAsV1(id, qv) {
-  if (qv === "v1") return true;
-  const a = bankFor("v1").ITEM3[id], b = bankFor(qv).ITEM3[id];
+/** 2つの設問が同じ文か（W：場面・A・B、X：左右の傾向と行動文）。どちらも無ければ同じとみなす */
+function sameItemText(a, b) {
   if (!a || !b) return !a && !b;
   if (a.kind !== b.kind) return false;
   return a.kind === "W" ? a.stem === b.stem && a.a === b.a && a.b === b.b
     : a.left === b.left && a.right === b.right && a.leftText === b.leftText && a.rightText === b.rightText;
 }
-/** 設問表の行のキー：v1 と同じ文なら id のまま（版をまたいで合算）、違えば id_版（別の行） */
-export const itemRowKey = (id, qv = "v1") => itemSameAsV1(id, qv) ? id : `${id}_${qv}`;
+/**
+ * 版 qv の設問 id と同じ文が最初に現れた版。版の並び（THREE_VERSIONS：v1 → v2 → v3）で古い方から探す。
+ * 例：W2-1（どの版も同じ）→ "v1"、W1-2（v2 で書き換え、v3 は v2 と同じ）→ v2・v3 とも "v2"、W1-1（v3 で再び差し替え）→ v3 は "v3"
+ */
+export function itemTextVersion(id, qv = "v1") {
+  const v = isVersion(qv) ? qv : "v1";
+  const q = bankFor(v).ITEM3[id];
+  for (const u of VERSION_IDS) {
+    if (u === v) break;
+    if (sameItemText(bankFor(u).ITEM3[id], q)) return u;
+  }
+  return v;
+}
+/** 版 qv の設問が v1 と同じ文か（W：場面・A・B、X：左右の傾向と行動文） */
+export const itemSameAsV1 = (id, qv) => itemTextVersion(id, qv) === "v1";
+/**
+ * 設問表の行のキー：同じ文の設問は版をまたいで1行にまとめる。その文が最初に現れた版が v1 なら id のまま、
+ * そうでなければ id_その版（v2 で書き換えて v3 でも同じ W1-2 は、v2・v3 の送信とも W1-2_v2）
+ */
+export const itemRowKey = (id, qv = "v1") => { const v = itemTextVersion(id, qv); return v === "v1" ? id : `${id}_${v}`; };
+/** 場面例の文が最初に現れた版（scenes_v2.js を共有する v2・v3 は "v2"）。版で差し替わっていなければ null（本文どおり） */
+export function scenesTextVersion(id, qv) {
+  if (!scenesChanged(id, qv)) return null;
+  const want = JSON.stringify(scenesFor(id, qv));
+  for (const u of VERSION_IDS) {
+    if (u === qv) break;
+    if (scenesChanged(id, u) && JSON.stringify(scenesFor(id, u)) === want) return u;
+  }
+  return qv;
+}
 
 // ---------------------------------------------------------------- 小さな道具
 export const median = (arr) => {
@@ -296,9 +322,10 @@ export function cardSummary(sessions) {
         scenes: (pat?.text?.scenes || ["", ""]).map((t, k) => ({ text: t, y: 0, n: 0, blank: 0, label: `場面${k + 1}`, qv: null })), vscenes: {}, n: 0, ratings: [], roles: [], axis: { yes: 0, partly: 0, no: 0, blank: 0 }, people: [] });
     }
     const x = byId.get(c.id);
-    // 場面例が版で差し替わっていれば（v2 の scenes_v2.js）、その版の文として別に数える
-    const sceneList = scenesChanged(c.id, s.qv)
-      ? (x.vscenes[s.qv] ||= scenesFor(c.id, s.qv).map((t, k) => ({ text: t, y: 0, n: 0, blank: 0, label: `場面${k + 1}（${s.qv}）`, qv: s.qv })))
+    // 場面例が版で差し替わっていれば（v2・v3 の scenes_v2.js）、その文が最初に現れた版の文として別に数える（v2 と v3 は同じ文なので1つにまとめる）
+    const sv = scenesTextVersion(c.id, s.qv);
+    const sceneList = sv
+      ? (x.vscenes[sv] ||= scenesFor(c.id, sv).map((t, k) => ({ text: t, y: 0, n: 0, blank: 0, label: `場面${k + 1}（${sv}）`, qv: sv })))
       : x.scenes;
     x.n++; x.people.push(s.code); if (c.rating > 0) x.ratings.push(c.rating);
     const role = roleOf(s, c.id); if (role) x.roles.push(role);
@@ -350,7 +377,7 @@ export function overallMedianTime(sessions) {
 
 export function itemTable(sessions, { includeUnseen = false } = {}) {
   const acc = new Map();
-  // 行は設問 id ごと。版で文が違う設問（v2 で書き換えた W・組を入れ替えた X）は版ごとに別の行（key = id_版）
+  // 行は設問 id ごと。版で文が違う設問（v2・v3 で書き換えた W・組を入れ替えた X）は、その文が最初に現れた版ごとに別の行（key = id_版。itemRowKey）
   const get = (id, qv = "v1") => {
     const key = itemRowKey(id, qv);
     if (!acc.has(key)) acc.set(key, { ...itemInfo(id, qv), shown: 0, answered: 0, pickFirst: 0, pickSecond: 0, pickOther: 0, swappedAway: 0, skips: 0, times: [],
@@ -390,8 +417,8 @@ export function itemTable(sessions, { includeUnseen = false } = {}) {
       flagTotal: FLAG_CODES.reduce((n, c) => n + x.flags[c], 0), hardTotal: HARD_CODES.reduce((n, c) => n + x.hard[c], 0),
       flagPeople: x.flagPeople.size, swapPeople: x.swapPeople.size, hardNonOkPeople: x.hardNonOkPeople.size, shownPeople: x.people.size, overallMedian: overall };
     delete out.times; delete out.people;
-    // 複数の版が混ざっていて、版で文が違う設問には版の印（v1／v2）
-    if (versions.length > 1 && (out.qv !== "v1" || versions.some(v => v !== "v1" && !itemSameAsV1(out.id, v)))) out.variant = out.qv;
+    // 複数の版が混ざっていて、読み込んだ版のあいだで文が違う設問には、その行の文が最初に現れた版の印（v1／v2／v3）
+    if (versions.length > 1 && new Set(versions.map(v => itemTextVersion(out.id, v))).size > 1) out.variant = itemTextVersion(out.id, out.qv);
     out.reasons = itemReasons(out, overall);
     return out;
   });

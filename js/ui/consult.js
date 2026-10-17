@@ -14,6 +14,8 @@ import {
 import { resolveSelf, deviceResult, domainRows, opposite } from "./consult_self.js";
 import { answerCard, fitDrafts } from "./consult_card.js";
 import { judgeDetails, promptDetails } from "./consult_dev.js";
+// 開発・検証用の表示（「回答：文型」の印、AI の接続の説明、サンプルのタイプ、判定・プロンプトの中身）にはクラス dev-only を付け、
+// ?dev=1 のときだけ見せる（css/style.css の末尾）。利用者向けには代わりの一行（user-only）を出す
 
 // ---------------------------------------------------------------- 画面の中の状態（renderConsult は何度呼ばれても作り直さない）
 let root = null;
@@ -100,6 +102,8 @@ function step(no, title, sub, ...body) {
 }
 
 // ---------------------------------------------------------------- 1. あなたのタイプ
+const SAMPLE_TYPES = { ishihara: true, bekku: true };   // サンプル：石原／別宮（開発・検証用）
+
 function selfStep() {
   const sum = h("span", { class: "cs-sum" });
   const radios = SELF_TYPES.map(([value, label]) => {
@@ -135,6 +139,7 @@ function selfStep() {
     const self = resolveSelf(state);
     for (const r of radios) {
       r.input.checked = r.value === self.type;
+      if (r.value in SAMPLE_TYPES) r.el.classList.toggle("dev-only", !r.input.checked);
       if (r.value === "three") {
         r.input.disabled = !dev;
         r.note.replaceChildren(dev ? `${dev.name}${dev.estimated ? "（推定）" : ""}` : "まだ三択の診断が終わっていません。", dev ? "" : h("a", { class: "cs-nowrap", href: "#three" }, "三択診断へ"));
@@ -274,16 +279,17 @@ function dangerBlock() {
 function buildPage() {
   const initial = endpoint() ? "ai" : "template";
   const lead = endpoint()
-    ? "AI につないで回答を作ります。うまくいかないときは、決まった文型に戻します。"
-    : "AI はまだつないでいません。いまは決まった文型で回答を作っています。";
+    ? h("p", { class: "cs-lead" }, "AI につないで回答を作ります。うまくいかないときは、決まった文型に戻します。")
+    : [h("p", { class: "cs-lead dev-only" }, "AI はまだつないでいません。いまは決まった文型で回答を作っています。"),
+      h("p", { class: "cs-lead user-only" }, "いまは決まった文型で答えます（AI は準備中）")];
   genBtn = h("button", { type: "button", class: "btn primary big cs-generate", id: "cs-generate", onclick: () => generate() }, "次の一手を出す");
   resultEl = h("section", { class: "cs-result", id: "cs-result", "aria-label": "回答", hidden: true });
   formTop = h("div", { class: "cs-form-top", id: "cs-form-top" });
   return h("div", { class: "cs" },
     h("p", { class: "cs-back" }, h("a", { href: "#three" }, "← 三択診断へ")),
     h("header", { class: "cs-head" },
-      h("div", { class: "cs-title-row" }, h("h1", { class: "cs-title" }, "相談（試作）"), statusChip(initial)),
-      h("p", { class: "cs-lead" }, lead)),
+      h("div", { class: "cs-title-row" }, h("h1", { class: "cs-title" }, "相談", h("span", { class: "dev-only" }, "（試作）")), statusChip(initial)),
+      lead),
     formTop,
     h("form", { class: "cs-form", novalidate: true, onsubmit: (e) => e.preventDefault(), autocomplete: "off" },
       selfStep(), partnerStep(), situationStep(), dangerBlock(),
@@ -293,7 +299,7 @@ function buildPage() {
 }
 
 function statusChip(source) {
-  return h("span", { class: "cs-status", "data-source": source, role: "status" }, `回答：${source === "ai" ? "AI" : "文型"}`);
+  return h("span", { class: "cs-status dev-only", "data-source": source, role: "status" }, `回答：${source === "ai" ? "AI" : "文型"}`);
 }
 function setSource(source) {
   for (const el of root.querySelectorAll(".cs-status")) {

@@ -1,0 +1,538 @@
+/* 新しい見た目（?ui=v2）。docs/ui-audit.md §3・§4 の段階0、トークンと部品の決まりは docs/design-tokens.md
+   - すべてのセレクタを :root[data-ui="v2"] の下に書く。<html data-ui="v1">（今の見た目・既定）には一切効かない（tests/ui_flags.test.mjs で確かめる）
+   - 色・文字・余白・形の値は css/tokens.css の役割の値だけを使う（ここに色の値を直接書かない）
+   - 今の CSS（style.css・consult.css）は古い変数名（--paper・--ink など）で書かれているので、まず §1 でそれを役割の値に結び付ける。
+     これだけで全画面の色・書体が新しくなる。§2 からは部品ごとの上書き（DOM の構造は変えない）
+   - 質問カード・結果画面の作り直し（段階2・3）はここではしない。トークンと部品の置き換えで自然に良くなる範囲にとどめる */
+
+/* ================================================================ §1 古い変数名 → 役割の値 */
+:root[data-ui="v2"] {
+  --paper: var(--color-bg);
+  --surface: var(--color-surface);
+  --surface-2: var(--color-surface-2);
+  --ink: var(--color-text);
+  --ink-2: var(--color-text-2);
+  --muted: var(--color-muted);
+  --line: var(--color-divider);                 /* 区切り（飾りの線）。押せる部品の枠に使っている箇所は §5 で個別に --color-control-border にする */
+  --line-strong: var(--color-control-border);   /* 今の CSS ではほとんどが選択肢・ボタン・入力欄の枠。飾りの破線などは §8 で区切りの色に戻す */
+  --a: var(--color-data-a);
+  --a-soft: var(--color-data-a-soft);
+  --b: var(--color-data-b);
+  --b-soft: var(--color-data-b-soft);
+  --ok: var(--color-success);
+  --ok-soft: var(--color-success-soft);
+  --warn: var(--color-warn);
+  --warn-soft: var(--color-warn-soft);
+  --ng: var(--color-error);
+  --ng-soft: var(--color-error-soft);
+  --focus: var(--color-focus);
+  --sans: var(--font-sans);
+  --serif: var(--font-sans);                    /* 明朝は使わない（ゴシック1つ） */
+  --mono: var(--font-mono);
+  --radius: var(--radius-md);
+  --gutter: var(--gutter-mobile);               /* --gutter だけは v1 と同じ名前。style.css の :root（16px 固定）より強く結び直す */
+}
+@media (min-width: 641px) {
+  :root[data-ui="v2"] { --gutter: var(--gutter-wide); }
+}
+
+/* ================================================================ §2 基本（本文・見出し・フォーカス） */
+:root[data-ui="v2"] body { line-height: var(--lh-body); background: var(--color-bg); color: var(--color-text); }
+:root[data-ui="v2"] :is(h1, h2, h3, h4) { line-height: var(--lh-head); }
+:root[data-ui="v2"] h1 { font-size: var(--fs-28); }
+:root[data-ui="v2"] h2 { font-size: var(--fs-22); }
+:root[data-ui="v2"] h3 { font-size: var(--fs-18); }
+:root[data-ui="v2"] h4 { font-size: var(--fs-16); }
+:root[data-ui="v2"] :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+:root[data-ui="v2"] th { font-size: var(--fs-14); }
+
+/* ================================================================ §3 文字の大きさと太さ（6段階・400/700）
+   style.css・consult.css の font-size（.78rem・.84rem などの細かい値）を、近い段階（12／14／16／18／22／28px）に置き換える。
+   600・800 の太さは 700 にする。元の並び・@media のまま書いているので、同じ詳細度どうしの勝ち負けは元の CSS と変わらない。
+   元の CSS で文字の大きさを足した・変えたときは、ここにも同じセレクタで段階を足す（code と 5択版の設問表の em 指定は相対のまま） */
+:root[data-ui="v2"] body { font-size: var(--fs-16); }
+:root[data-ui="v2"] small { font-size: var(--fs-14); }
+:root[data-ui="v2"] .lead { font-size: var(--fs-16); }
+:root[data-ui="v2"] .note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .btn { font-size: var(--fs-16); }
+:root[data-ui="v2"] .btn.small { font-size: var(--fs-14); }
+:root[data-ui="v2"] .btn.big { font-size: var(--fs-16); }
+:root[data-ui="v2"] .linkish { font-size: var(--fs-14); }
+:root[data-ui="v2"] .brand-name { font-size: var(--fs-18); font-weight: 700; }
+:root[data-ui="v2"] .brand-sub { font-size: var(--fs-14); }
+:root[data-ui="v2"] .tabs a { font-weight: 700; font-size: var(--fs-16); }
+:root[data-ui="v2"] .site-foot { font-size: var(--fs-14); }
+:root[data-ui="v2"] .intro-title { font-size: var(--fs-28); }
+:root[data-ui="v2"] .check small { font-size: var(--fs-14); }
+:root[data-ui="v2"] .samples h2 { font-size: var(--fs-18); }
+:root[data-ui="v2"] .stage { font-size: var(--fs-14); }
+:root[data-ui="v2"] .q-count { font-size: var(--fs-14); }
+:root[data-ui="v2"] .notice { font-size: var(--fs-14); }
+:root[data-ui="v2"] .q-text { font-size: var(--fs-22); font-weight: 700; }
+:root[data-ui="v2"] .choice .key { font-size: var(--fs-22); font-weight: 700; }
+:root[data-ui="v2"] .choice .label { font-size: var(--fs-14); }
+:root[data-ui="v2"] .duel-side { font-size: var(--fs-16); }
+:root[data-ui="v2"] .duel-or { font-size: var(--fs-14); }
+:root[data-ui="v2"] .duel-choice .key { font-size: var(--fs-16); }
+:root[data-ui="v2"] .duel-choice .label { font-size: var(--fs-16); }
+:root[data-ui="v2"] .duel-choice .label small { font-size: var(--fs-12); }
+:root[data-ui="v2"] .aim { font-size: var(--fs-14); }
+:root[data-ui="v2"] .q-foot { font-size: var(--fs-14); }
+:root[data-ui="v2"] .res-head h1,
+:root[data-ui="v2"] .page-head h1 { font-size: var(--fs-28); }
+:root[data-ui="v2"] .res-source { font-size: var(--fs-14); }
+:root[data-ui="v2"] .block > h2 { font-size: var(--fs-22); }
+:root[data-ui="v2"] .block > h2 small,
+:root[data-ui="v2"] .block h3 small { font-size: var(--fs-12); }
+:root[data-ui="v2"] .block h3 { font-size: var(--fs-16); }
+:root[data-ui="v2"] .pcard-top { font-size: var(--fs-12); }
+:root[data-ui="v2"] .role-badge { font-size: var(--fs-12); }
+:root[data-ui="v2"] .headline { font-size: var(--fs-22); }
+:root[data-ui="v2"] .role-main .headline { font-size: var(--fs-28); }
+:root[data-ui="v2"] .pdomains { font-size: var(--fs-12); }
+:root[data-ui="v2"] .aside h4 { font-size: var(--fs-12); }
+:root[data-ui="v2"] .aside p { font-size: var(--fs-16); }
+:root[data-ui="v2"] .why { font-size: var(--fs-12); }
+:root[data-ui="v2"] .legend { font-size: var(--fs-12); }
+:root[data-ui="v2"] .drow-head h3 { font-size: var(--fs-16); }
+:root[data-ui="v2"] .dnum { font-weight: 700; }
+:root[data-ui="v2"] .state { font-size: var(--fs-12); }
+:root[data-ui="v2"] .tline { font-size: var(--fs-14); }
+:root[data-ui="v2"] .tnum { font-weight: 700; font-size: var(--fs-16); }
+:root[data-ui="v2"] .drow-foot { font-size: var(--fs-12); }
+:root[data-ui="v2"] .qstat span { font-size: var(--fs-12); }
+:root[data-ui="v2"] .qstat b { font-size: var(--fs-22); }
+:root[data-ui="v2"] .ai-preview summary { font-size: var(--fs-14); }
+:root[data-ui="v2"] .ai-preview pre { font-size: var(--fs-14); }
+:root[data-ui="v2"] .empty-state h1 { font-size: var(--fs-22); }
+:root[data-ui="v2"] .toast { font-size: var(--fs-14); }
+:root[data-ui="v2"] table { font-size: var(--fs-14); }
+:root[data-ui="v2"] thead th { font-size: var(--fs-14); }
+:root[data-ui="v2"] .flag { font-size: var(--fs-12); }
+:root[data-ui="v2"] .picker label { font-size: var(--fs-14); }
+:root[data-ui="v2"] select { font-size: var(--fs-14); }
+:root[data-ui="v2"] .refcheck { font-size: var(--fs-14); }
+:root[data-ui="v2"] .mini-badge { font-size: var(--fs-12); }
+:root[data-ui="v2"] .contra-tag { font-size: var(--fs-12); }
+:root[data-ui="v2"] .tchosen { font-size: var(--fs-14); }
+:root[data-ui="v2"] .tnote { font-size: var(--fs-14); }
+:root[data-ui="v2"] .hist small { font-size: var(--fs-12); }
+:root[data-ui="v2"] .rnote { font-size: var(--fs-12); }
+:root[data-ui="v2"] .toc-box summary { font-size: var(--fs-14); }
+:root[data-ui="v2"] .toc-list { font-size: var(--fs-14); }
+:root[data-ui="v2"] .doc-meta { font-size: var(--fs-14); }
+:root[data-ui="v2"] .doc h1 { font-size: var(--fs-28); }
+:root[data-ui="v2"] .doc h2 { font-size: var(--fs-22); }
+:root[data-ui="v2"] .doc h3 { font-size: var(--fs-16); }
+:root[data-ui="v2"] .doc table { font-size: var(--fs-14); }
+:root[data-ui="v2"] .doc-pre { font-size: var(--fs-14); }
+@media (max-width: 640px) {
+  :root[data-ui="v2"] .brand-sub { font-size: var(--fs-12); }
+  :root[data-ui="v2"] .tabs a { font-size: var(--fs-14); }
+  :root[data-ui="v2"] .intro-title { font-size: var(--fs-22); }
+  :root[data-ui="v2"] .q-text { font-size: var(--fs-18); }
+  :root[data-ui="v2"] .likert .choice .key { font-size: var(--fs-18); }
+  :root[data-ui="v2"] .likert .choice .label { font-size: var(--fs-16); }
+  :root[data-ui="v2"] .headline { font-size: var(--fs-22); }
+  :root[data-ui="v2"] .role-main .headline { font-size: var(--fs-22); }
+  :root[data-ui="v2"] .tline { font-size: var(--fs-14); }
+  :root[data-ui="v2"] .qstat b { font-size: var(--fs-18); }
+}
+:root[data-ui="v2"] .t3-mode-badge { font-weight: 700; font-size: var(--fs-12); }
+:root[data-ui="v2"] .t3-subnav button { font-size: var(--fs-14); font-weight: 700; }
+:root[data-ui="v2"] .t3-kicker { font-size: var(--fs-12); }
+:root[data-ui="v2"] .t3-ask { font-size: var(--fs-14); }
+:root[data-ui="v2"] .t3-card .t3-key { font-size: var(--fs-12); }
+:root[data-ui="v2"] .t3-card .t3-text { font-size: var(--fs-18); font-weight: 700; }
+:root[data-ui="v2"] .t3-remain { font-size: var(--fs-12); }
+:root[data-ui="v2"] .t3-estimate { font-size: var(--fs-14); }
+:root[data-ui="v2"] .t3-cmp-mini { font-size: var(--fs-14); }
+:root[data-ui="v2"] .t3-cmp-col h3 { font-size: var(--fs-16); }
+:root[data-ui="v2"] .t3-cmp-head { font-size: var(--fs-14); }
+:root[data-ui="v2"] .t3-w { font-size: var(--fs-14); }
+:root[data-ui="v2"] .t3-wn b { font-size: var(--fs-16); }
+:root[data-ui="v2"] .t3-wsum { font-size: var(--fs-12); }
+:root[data-ui="v2"] .t3-states-table td.t3-best { font-weight: 700; }
+:root[data-ui="v2"] .t3-pairc { font-size: var(--fs-12); }
+@media (max-width: 640px) {
+  :root[data-ui="v2"] .t3-subnav button { font-size: var(--fs-14); }
+  :root[data-ui="v2"] .t3-card .t3-text { font-size: var(--fs-16); }
+  :root[data-ui="v2"] .t3-w { font-size: var(--fs-12); }
+}
+:root[data-ui="v2"] .t3-swipe-badge { font-weight: 700; font-size: var(--fs-16); }
+:root[data-ui="v2"] .t3-hint { font-size: var(--fs-14); }
+:root[data-ui="v2"] .t3-tip { font-size: var(--fs-14); }
+:root[data-ui="v2"] .t3-tip-close { font-size: var(--fs-14); }
+:root[data-ui="v2"] .t3-grip { font-size: var(--fs-12); }
+:root[data-ui="v2"] .t3-cue { font-size: var(--fs-12); }
+@media (min-width: 641px) {
+  :root[data-ui="v2"] .t3-cue { font-size: var(--fs-12); }
+}
+:root[data-ui="v2"] .fb-list { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-consent .note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-field-label { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-input { font-size: var(--fs-16); }
+:root[data-ui="v2"] .fb-err { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-steps-label { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-steps-label b { font-size: var(--fs-12); }
+:root[data-ui="v2"] .fb-h1 { font-size: var(--fs-22); }
+:root[data-ui="v2"] .fb-sec > h2 { font-size: var(--fs-18); }
+:root[data-ui="v2"] .fb-code { font-size: var(--fs-28); }
+:root[data-ui="v2"] .fb-hito-btn { font-size: var(--fs-14); font-weight: 700; }
+:root[data-ui="v2"] .fb-hito-count { font-size: var(--fs-12); }
+:root[data-ui="v2"] .fb-code-chip { font-size: var(--fs-12); }
+:root[data-ui="v2"] .fb-chip { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-hito-note { font-size: var(--fs-12); }
+:root[data-ui="v2"] .fb-q .dnum { font-size: var(--fs-12); }
+:root[data-ui="v2"] .fb-q.fb-missing > legend::after { font-size: var(--fs-12); }
+:root[data-ui="v2"] .fb-ab { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-pill span { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-recall { font-size: var(--fs-16); }
+:root[data-ui="v2"] .fb-skipped { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-blind-tag { font-size: var(--fs-16); }
+:root[data-ui="v2"] .fb-blind-one { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-ask { font-size: var(--fs-16); }
+:root[data-ui="v2"] .fb-banner { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-hint { font-size: var(--fs-12); }
+:root[data-ui="v2"] .fb-sent[aria-pressed="true"]::after { font-size: var(--fs-12); }
+:root[data-ui="v2"] .fb-yn-btn,
+:root[data-ui="v2"] .fb-main-btn { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-main-btn { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-cardfb-h { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-lbl { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-rate-btn { font-size: var(--fs-16); font-weight: 700; }
+:root[data-ui="v2"] .fb-rate-ends { font-size: var(--fs-12); }
+:root[data-ui="v2"] .fb-textarea { font-size: var(--fs-16); }
+:root[data-ui="v2"] .fb-why { font-size: var(--fs-12); font-weight: 700; }
+:root[data-ui="v2"] .fb-hard-stem.fb-x { font-size: var(--fs-14); font-weight: 700; }
+:root[data-ui="v2"] .fb-hard-opts { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-hard .fb-pill span { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-send-lead { font-weight: 700; font-size: var(--fs-18); }
+:root[data-ui="v2"] .fb-text { font-size: var(--fs-12); }
+:root[data-ui="v2"] .fb-count { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-codebox .fb-code-msg { font-size: var(--fs-14); }
+:root[data-ui="v2"] .fb-code-inline { font-size: var(--fs-22); }
+:root[data-ui="v2"] .foot-admin { font-size: var(--fs-12); }
+@media (max-width: 640px) {
+  :root[data-ui="v2"] .fb-h1 { font-size: var(--fs-22); }
+  :root[data-ui="v2"] .fb-code { font-size: var(--fs-28); }
+}
+:root[data-ui="v2"] .t3-ver { font-size: var(--fs-12); font-weight: 700; }
+:root[data-ui="v2"] .res-head h1 .t3-ver,
+:root[data-ui="v2"] .page-head h1 .t3-ver { font-size: var(--fs-12); }
+:root[data-ui="v2"] .t3-qv .t3-qv-date { font-size: var(--fs-12); }
+:root[data-ui="v2"] .t3-practice-tag { font-size: var(--fs-12); }
+:root[data-ui="v2"] .t3-practice-note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .t3-lowconf-why { font-weight: 700; font-size: var(--fs-12); }
+:root[data-ui="v2"] .t3-ver-table td.t3-ver-now { font-weight: 700; }
+:root[data-ui="v2"] .ti-eyebrow { font-size: var(--fs-12); }
+:root[data-ui="v2"] .ti-name { font-size: var(--fs-28); }
+:root[data-ui="v2"] .ti-motif { font-size: var(--fs-12); }
+:root[data-ui="v2"] .ti-caption { font-size: var(--fs-18); }
+:root[data-ui="v2"] .ti-sub-note { font-size: var(--fs-12); }
+:root[data-ui="v2"] .ti-ph-text { font-size: var(--fs-12); }
+:root[data-ui="v2"] .ti-dname { font-size: var(--fs-12); }
+:root[data-ui="v2"] .ti-tname { font-size: var(--fs-16); }
+:root[data-ui="v2"] .ti-weak { font-size: var(--fs-12); font-weight: 700; }
+@media (max-width: 640px) {
+  :root[data-ui="v2"] .ti-name { font-size: var(--fs-22); }
+}
+:root[data-ui="v2"] .head-link { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-back { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-title { font-size: var(--fs-28); }
+:root[data-ui="v2"] .cs-status { font-size: var(--fs-12); }
+:root[data-ui="v2"] .cs-lead { font-size: var(--fs-16); }
+:root[data-ui="v2"] .cs-step-no { font-size: var(--fs-14); font-weight: 700; }
+:root[data-ui="v2"] .cs-step-title { font-size: var(--fs-18); }
+:root[data-ui="v2"] .cs-sub { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-collapsible .cs-sum { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-radio-note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-domains-lead { font-size: var(--fs-16); }
+:root[data-ui="v2"] .cs-domain-name { font-size: var(--fs-12); }
+:root[data-ui="v2"] .cs-domain-text { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-tag { font-size: var(--fs-12); }
+:root[data-ui="v2"] .cs-flip { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-domains-note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-main-label { font-size: var(--fs-12); }
+:root[data-ui="v2"] .cs-main-headline { font-size: var(--fs-18); }
+:root[data-ui="v2"] .cs-main .note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-group > legend,
+:root[data-ui="v2"] .cs-pq-q { font-size: var(--fs-16); }
+:root[data-ui="v2"] .cs-group > legend small { font-size: var(--fs-12); }
+:root[data-ui="v2"] .cs-opt > span { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-toggle-text { font-size: var(--fs-16); }
+:root[data-ui="v2"] .cs-pq-no { font-size: var(--fs-12); font-weight: 700; }
+:root[data-ui="v2"] .cs-opt-ab > span { font-size: var(--fs-12); }
+:root[data-ui="v2"] .cs-opt-ab b { font-size: var(--fs-16); font-weight: 700; }
+:root[data-ui="v2"] .cs-opt-a input:checked + span { font-weight: 700; }
+:root[data-ui="v2"] .cs-opt-b input:checked + span { font-weight: 700; }
+:root[data-ui="v2"] .cs-opt-skip > span { font-size: var(--fs-12); }
+:root[data-ui="v2"] .cs-opt-skip input:checked + span { font-weight: 700; }
+:root[data-ui="v2"] .cs-field > label { font-size: var(--fs-16); }
+:root[data-ui="v2"] .cs-textarea,
+:root[data-ui="v2"] .cs-input { font-size: var(--fs-16); }
+:root[data-ui="v2"] .cs-text-foot .note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-text-count { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-harm-note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-more-sub { font-size: var(--fs-16); }
+:root[data-ui="v2"] .cs-danger > legend { font-weight: 700; font-size: var(--fs-16); }
+:root[data-ui="v2"] .cs-danger .note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-danger-item { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-submit .note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-result-time { font-size: var(--fs-12); }
+:root[data-ui="v2"] .cs-stale { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-eyebrow { font-size: var(--fs-12); font-weight: 700; }
+:root[data-ui="v2"] .cs-headline { font-size: var(--fs-22); }
+:root[data-ui="v2"] .cs-addons { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-addons li::before { font-weight: 700; }
+:root[data-ui="v2"] .cs-timing { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-sec-title { font-size: var(--fs-12); font-weight: 700; }
+:root[data-ui="v2"] .cs-reason-list li::before { font-size: var(--fs-12); font-weight: 700; }
+:root[data-ui="v2"] .cs-draft-label { font-size: var(--fs-14); font-weight: 700; }
+:root[data-ui="v2"] .cs-draft-text { font-size: var(--fs-16); }
+:root[data-ui="v2"] .cs-check-label { font-size: var(--fs-12); }
+:root[data-ui="v2"] .cs-badge { font-size: var(--fs-14); font-weight: 700; }
+:root[data-ui="v2"] .cs-check-note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-count { font-size: var(--fs-12); }
+:root[data-ui="v2"] .cs-reset { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-hits { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-cond { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-avoid-chip { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-confidence { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-safety-note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-resource-name { font-size: var(--fs-16); }
+:root[data-ui="v2"] .cs-resource-note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-tel-label { font-size: var(--fs-12); }
+:root[data-ui="v2"] .cs-tel-num { font-size: var(--fs-18); font-weight: 700; }
+:root[data-ui="v2"] .cs-tel-plain { font-weight: 700; }
+:root[data-ui="v2"] .cs-refine .note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-refine-notice { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-dev > summary { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-dev-body h4 { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-dl { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-dl dt { font-size: var(--fs-12); }
+:root[data-ui="v2"] .cs-id-chip { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-prompt-note { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-prompt-block > summary { font-size: var(--fs-14); }
+:root[data-ui="v2"] .cs-pre { font-size: var(--fs-12); }
+@media (min-width: 641px) {
+  :root[data-ui="v2"] .cs-title { font-size: var(--fs-28); }
+  :root[data-ui="v2"] .cs-opt-ab > span { font-size: var(--fs-14); }
+  :root[data-ui="v2"] .cs-headline { font-size: var(--fs-28); }
+  :root[data-ui="v2"] .cs-dl dt { font-size: var(--fs-14); }
+}
+@media (max-width: 400px) {
+  :root[data-ui="v2"] .cs-opt-ab > span { font-size: var(--fs-12); }
+}
+
+/* ================================================================ §4 レイアウト（本文とヘッダーを同じ最大幅 720px にそろえる） */
+:root[data-ui="v2"] .wrap { max-width: calc(var(--content-max) + 2 * var(--gutter)); }
+:root[data-ui="v2"] .view { max-width: calc(var(--content-max) + 2 * var(--gutter)); padding: var(--space-5) var(--gutter) var(--space-7); }
+:root[data-ui="v2"] .view.view-wide { max-width: 1180px; }   /* ロジック・設問の表（開発・検証用）は広いまま */
+:root[data-ui="v2"] #view-consult { max-width: calc(var(--content-max) + 2 * var(--gutter)); }
+:root[data-ui="v2"] .site-head { background: var(--color-surface); border-bottom: var(--border-w) solid var(--color-divider); }
+:root[data-ui="v2"] .head-inner { align-items: center; gap: var(--space-1) var(--space-4); padding-top: var(--space-2); padding-bottom: var(--space-2); }
+:root[data-ui="v2"] .brand { min-height: var(--tap); }
+:root[data-ui="v2"] .brand-sub { color: var(--color-muted); }
+:root[data-ui="v2"] .site-foot { border-top: var(--border-w) solid var(--color-divider); color: var(--color-muted); }
+:root[data-ui="v2"] .foot-inner { padding-top: var(--space-5); padding-bottom: var(--space-6); gap: var(--space-2) var(--space-5); }
+
+/* ================================================================ §5 部品 */
+
+/* ---------------------------------------------------------------- ボタン：主（塗り・52px・1画面に1つの想定）／副（枠1.5px・48px）／文字リンク（押せる範囲44px） */
+:root[data-ui="v2"] .btn {
+  min-height: var(--btn-h); padding: var(--space-2) var(--space-4); gap: var(--space-2);
+  font-size: var(--fs-16); line-height: var(--lh-head); font-weight: var(--fw-regular);
+  color: var(--color-text); background: var(--color-surface);
+  border: var(--border-w-strong) solid var(--color-control-border); border-radius: var(--radius-md);
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+:root[data-ui="v2"] .btn:hover { border-color: var(--color-text-2); }
+:root[data-ui="v2"] .btn.ghost { background: transparent; }
+:root[data-ui="v2"] .btn.small { min-height: var(--tap); padding: var(--space-1) var(--space-3); font-size: var(--fs-14); }
+:root[data-ui="v2"] .btn.primary {
+  min-height: var(--btn-h-primary); padding-inline: var(--space-5); font-weight: var(--fw-bold);
+  color: var(--color-on-primary); background: var(--color-primary); border-color: var(--color-primary);
+}
+:root[data-ui="v2"] .btn.primary:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+:root[data-ui="v2"] .btn.big { min-height: var(--btn-h-primary); padding: var(--space-3) var(--space-6); font-size: var(--fs-16); }
+:root[data-ui="v2"] .btn:disabled { opacity: .45; }
+:root[data-ui="v2"] .btn:disabled:hover { border-color: var(--color-control-border); }
+:root[data-ui="v2"] .btn.primary:disabled:hover { background: var(--color-primary); border-color: var(--color-primary); }
+:root[data-ui="v2"] .linkish {
+  display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--space-1);
+  font-size: var(--fs-14); color: var(--color-text-2);
+}
+:root[data-ui="v2"] .linkish:hover { color: var(--color-text); }
+:root[data-ui="v2"] .t3-tip-close { min-height: var(--tap); padding: 0 var(--space-2); color: var(--color-text-2); }
+:root[data-ui="v2"] .cs-back a { display: inline-flex; align-items: center; min-height: var(--tap); }
+:root[data-ui="v2"] .cs-tel { color: var(--color-on-primary); background: var(--color-primary); border-color: var(--color-primary); }
+:root[data-ui="v2"] .cs-tel:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+:root[data-ui="v2"] .cs-clear[data-armed] { color: var(--color-error); border-color: var(--color-error); }
+:root[data-ui="v2"] .toast { background: var(--color-text); color: var(--color-bg); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); box-shadow: var(--shadow-float); transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease); }
+
+/* ---------------------------------------------------------------- カード：面＋枠1px＋角丸16＋内側16px（PC 24px）。種類は「ふつう」「強調（主色の枠1.5px）」「安全（安全の面）」だけ */
+:root[data-ui="v2"] :is(.q-card, .pcard, .cs-step, .resume, .fb-q, .t3-cmp-col, .fb-blind-col, .cs-refine, .cs-dev, .toc-box, .fb-hito-panel) {
+  background: var(--color-surface); border: var(--border-w) solid var(--color-divider); border-radius: var(--radius-lg); padding: var(--space-4);
+}
+:root[data-ui="v2"] .qstat { background: var(--color-surface); border: var(--border-w) solid var(--color-divider); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); }
+:root[data-ui="v2"] .q-card.t3-practice { border-style: dashed; border-color: var(--color-control-border); }   /* 練習（採点しない）の印 */
+:root[data-ui="v2"] details.cs-collapsible { padding: 0; }
+:root[data-ui="v2"] details.cs-collapsible > summary { padding: var(--space-3) var(--space-4); }
+:root[data-ui="v2"] details.cs-collapsible > .cs-step-body { padding: 0 var(--space-4) var(--space-4); }
+:root[data-ui="v2"] details.cs-collapsible > summary .cs-step-title { flex: none; white-space: nowrap; }   /* 題は折り返さず、右の要約のほうを「…」で縮める */
+:root[data-ui="v2"] .cs-dev { padding: 0; }
+:root[data-ui="v2"] .cs-dev > summary { padding: var(--space-3) var(--space-4); }
+:root[data-ui="v2"] .cs-dev-body { padding: 0 var(--space-4) var(--space-4); }
+:root[data-ui="v2"] .toc-box { padding: var(--space-3) var(--space-4); }
+/* 解釈のカード：左の太線をやめ、主軸だけを「強調」にする */
+:root[data-ui="v2"] .pcard::before { content: none; display: none; }
+:root[data-ui="v2"] .pcard.role-main { border: var(--border-w-strong) solid var(--color-primary); }
+:root[data-ui="v2"] .pcard.role-shape { background: var(--color-surface); border-style: solid; border-color: var(--color-divider); }
+:root[data-ui="v2"] .role-badge { border-radius: var(--radius-pill); border-color: var(--color-divider); background: var(--color-surface-2); color: var(--color-text); }
+:root[data-ui="v2"] .role-main .role-badge { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
+:root[data-ui="v2"] .role-contra .role-badge, :root[data-ui="v2"] .contra-tag { background: var(--color-surface-2); border-color: var(--color-divider); }
+:root[data-ui="v2"] .role-shape .role-badge { border-style: solid; }
+:root[data-ui="v2"] .aside.caveat { background: var(--color-surface-2); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); }
+:root[data-ui="v2"] .role-shape .aside.caveat { background: var(--color-surface-2); }
+/* 相談の答えのカード（強調）：影とグラデーションをやめる */
+:root[data-ui="v2"] .cs-answer { background: var(--color-surface); border: var(--border-w-strong) solid var(--color-primary); border-radius: var(--radius-lg); box-shadow: none; }
+:root[data-ui="v2"] .cs-hero { background: var(--color-primary-soft); border-bottom: var(--border-w) solid var(--color-divider); padding: var(--space-5) var(--space-4) var(--space-4); }
+:root[data-ui="v2"] .cs-hero-safety { background: var(--color-safety-bg); }
+:root[data-ui="v2"] .cs-hero-safety .cs-eyebrow { color: var(--color-text-2); }
+:root[data-ui="v2"] .cs-eyebrow { color: var(--color-accent); letter-spacing: .08em; }   /* 差し色は「次の一手」の見出しの小さな印だけ */
+:root[data-ui="v2"] .cs-sec { padding: var(--space-4); border-top: var(--border-w) solid var(--color-divider); }
+:root[data-ui="v2"] .cs-confidence, :root[data-ui="v2"] .cs-safety-closing { padding: var(--space-3) var(--space-4) var(--space-4); border-top: var(--border-w) solid var(--color-divider); }
+:root[data-ui="v2"] .cs-donow { background: var(--color-surface-2); }
+:root[data-ui="v2"] .cs-resource { background: var(--color-surface); border: var(--border-w) solid var(--color-divider); border-radius: var(--radius-md); }
+/* 安全のカード（危ないサイン・窓口の案内） */
+:root[data-ui="v2"] .cs-danger { background: var(--color-safety-bg); border: var(--border-w) solid var(--color-divider); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4) var(--space-4); }
+:root[data-ui="v2"] .cs-harm-note { background: var(--color-safety-bg); border-left: 0; border-radius: var(--radius-sm); color: var(--color-text); }
+@media (min-width: 641px) {
+  :root[data-ui="v2"] :is(.q-card, .pcard, .cs-step, .resume, .fb-q, .cs-refine) { padding: var(--space-5); }
+  :root[data-ui="v2"] details.cs-collapsible { padding: 0; }
+  :root[data-ui="v2"] details.cs-collapsible > summary { padding: var(--space-3) var(--space-5); }
+  :root[data-ui="v2"] details.cs-collapsible > .cs-step-body { padding: 0 var(--space-5) var(--space-5); }
+  :root[data-ui="v2"] .cs-hero { padding: var(--space-6) var(--space-5) var(--space-5); }
+  :root[data-ui="v2"] .cs-sec { padding: var(--space-5); }
+  :root[data-ui="v2"] .cs-confidence, :root[data-ui="v2"] .cs-safety-closing { padding: var(--space-4) var(--space-5) var(--space-5); }
+  :root[data-ui="v2"] .cs-danger { padding: var(--space-4) var(--space-5) var(--space-5); }
+}
+
+/* ---------------------------------------------------------------- チップ・選択肢：高さ44px以上、枠は部品の枠の色、選ぶと主色の塗り＋チェックの印（色だけに頼らない） */
+:root[data-ui="v2"] .cs-opt > span {
+  min-height: var(--tap); padding: var(--space-2) var(--space-4); border: var(--border-w) solid var(--color-control-border); border-radius: var(--radius-pill);
+  color: var(--color-text); background: var(--color-surface);
+}
+:root[data-ui="v2"] .cs-opt input:checked + span { color: var(--color-on-primary); background: var(--color-primary); border-color: var(--color-primary); }
+:root[data-ui="v2"] .cs-opt input:focus-visible + span { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+:root[data-ui="v2"] :is(.fb-pill span, .fb-chip, .fb-yn-btn, .fb-main-btn, .fb-hito-btn) {
+  min-height: var(--tap); border: var(--border-w) solid var(--color-control-border); color: var(--color-text); background: var(--color-surface);
+}
+:root[data-ui="v2"] .fb-chip { border-radius: var(--radius-sm); }
+:root[data-ui="v2"] :is(.fb-pill input:checked + span, .fb-chip[aria-pressed="true"], .fb-yn-btn[aria-pressed="true"], .fb-main-btn[aria-pressed="true"], .fb-rate-btn[aria-pressed="true"], .fb-blind-pick[aria-pressed="true"]) {
+  color: var(--color-on-primary); background: var(--color-primary); border-color: var(--color-primary);
+}
+:root[data-ui="v2"] .fb-pill input:focus-visible + span { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+:root[data-ui="v2"] .fb-rate-btn { border: var(--border-w) solid var(--color-control-border); border-radius: var(--radius-sm); background: var(--color-surface); }
+/* チェックの印（線で描く。文字の色＝主色の上の文字色になる） */
+:root[data-ui="v2"] :is(.cs-opt:not(.cs-opt-ab) input:checked + span, .fb-pill input:checked + span, .fb-chip[aria-pressed="true"], .fb-yn-btn[aria-pressed="true"], .fb-main-btn[aria-pressed="true"])::before {
+  content: ""; flex: none; display: inline-block; width: 10px; height: 5px; margin: -3px var(--space-2) 0 0;
+  border: solid currentColor; border-width: 0 0 2px 2px; transform: rotate(-45deg);
+}
+:root[data-ui="v2"] :is(.fb-chip, .fb-yn-btn, .fb-main-btn) { display: inline-flex; align-items: center; justify-content: center; }
+/* 相手のタイプの A／B／分からない：A・B の色は文字の印だけに残し、選んだ印は主色の枠＋右上のチェック */
+:root[data-ui="v2"] .cs-opt-ab > span, :root[data-ui="v2"] .cs-opt-skip > span { position: relative; border-radius: var(--radius-md); }
+:root[data-ui="v2"] .cs-opt-a input:checked + span, :root[data-ui="v2"] .cs-opt-b input:checked + span, :root[data-ui="v2"] .cs-opt-skip input:checked + span {
+  color: var(--color-text); background: var(--color-primary-soft); border: 2px solid var(--color-primary);
+}
+:root[data-ui="v2"] :is(.cs-opt-a, .cs-opt-b) input:checked + span::after {
+  content: ""; position: absolute; top: 9px; right: 9px; width: 9px; height: 4.5px;
+  border: solid var(--color-primary); border-width: 0 0 2px 2px; transform: rotate(-45deg);
+}
+/* 行の選択肢（チェック・ラジオ・スイッチの行）：枠は部品の枠の色、選ぶと主色の枠 */
+:root[data-ui="v2"] :is(.check, .cs-radio, .cs-toggle) {
+  min-height: var(--btn-h); background: var(--color-surface); border: var(--border-w) solid var(--color-control-border); border-radius: var(--radius-md);
+}
+:root[data-ui="v2"] :is(.check, .cs-radio, .cs-toggle):has(input:checked) { border-color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary); }
+:root[data-ui="v2"] .cs-radio:has(input:checked) { background: var(--color-surface); }
+:root[data-ui="v2"] :is(.check, .cs-radio, .cs-danger-item) input { accent-color: var(--color-primary); }
+:root[data-ui="v2"] .cs-danger-item { min-height: var(--tap); align-items: center; }
+:root[data-ui="v2"] .cs-danger-item input { margin-top: 0; }
+:root[data-ui="v2"] .cs-switch { background: var(--color-control-border); }
+:root[data-ui="v2"] .cs-toggle input:checked ~ .cs-switch { background: var(--color-primary); }
+:root[data-ui="v2"] .cs-toggle input:checked ~ .cs-switch::after { background: var(--color-on-primary); }
+:root[data-ui="v2"] .cs-main .cs-toggle { background: var(--color-surface); }
+/* 質問の左右のカード（作り直しは段階2。ここでは枠の色と選んだ印だけ） */
+:root[data-ui="v2"] .t3-card { background: var(--color-bg); border: var(--border-w) solid var(--color-control-border); border-radius: var(--radius-md); }
+:root[data-ui="v2"] .t3-card.picked, :root[data-ui="v2"] .t3-card.t3-hot { border: 2px solid var(--color-primary); background: var(--color-primary-soft); box-shadow: none; }
+@media (hover: hover) { :root[data-ui="v2"] .t3-card:hover { border-color: var(--color-text-2); background: var(--color-surface); } }
+:root[data-ui="v2"] .t3-swipe-badge { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-surface); }
+:root[data-ui="v2"] .t3-qcard.t3-ready .t3-swipe-badge { color: var(--color-on-primary); background: var(--color-primary); border-color: var(--color-primary); }
+:root[data-ui="v2"] .t3-qcard.t3-ready[data-swipe="up"] .t3-swipe-badge { color: var(--color-surface); background: var(--color-warn); border-color: var(--color-warn); }
+:root[data-ui="v2"] .t3-qcard.t3-ready[data-swipe="down"] .t3-swipe-badge { color: var(--color-surface); background: var(--color-text-2); border-color: var(--color-text-2); }
+:root[data-ui="v2"] .t3-grip-bar { background: var(--color-control-border); }
+
+/* ---------------------------------------------------------------- 入力欄：高さ48px以上（文章は120px以上）、枠は部品の枠の色、フォーカス時は主色の2pxの輪 */
+:root[data-ui="v2"] :is(.cs-input, .fb-input, select) {
+  min-height: var(--btn-h); background: var(--color-surface); color: var(--color-text);
+  border: var(--border-w) solid var(--color-control-border); border-radius: var(--radius-md);
+}
+:root[data-ui="v2"] :is(.cs-textarea, .fb-textarea) {
+  min-height: var(--textarea-min-h); background: var(--color-surface); color: var(--color-text);
+  border: var(--border-w) solid var(--color-control-border); border-radius: var(--radius-md);
+}
+:root[data-ui="v2"] .fb-text { border: var(--border-w) solid var(--color-control-border); border-radius: var(--radius-md); background: var(--color-surface); }
+:root[data-ui="v2"] .cs-draft-text { background: var(--color-primary-soft); border: var(--border-w) solid var(--color-control-border); }
+:root[data-ui="v2"] :is(.cs-input, .fb-input, select, .cs-textarea, .fb-textarea, .fb-text, .cs-draft-text):focus-visible {
+  outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 1px var(--color-primary);
+}
+:root[data-ui="v2"] :is(.cs-textarea, .cs-input)::placeholder { color: var(--color-muted); opacity: 1; }
+
+/* ---------------------------------------------------------------- タブ・ヘッダーのリンク（高さ44px以上） */
+:root[data-ui="v2"] .head-link {
+  min-height: var(--tap); padding: 0 var(--space-4); color: var(--color-text); background: var(--color-surface);
+  border: var(--border-w-strong) solid var(--color-control-border); border-radius: var(--radius-pill);
+}
+:root[data-ui="v2"] .head-link:hover { border-color: var(--color-text-2); }
+:root[data-ui="v2"] .head-link[aria-current="page"] { color: var(--color-on-primary); background: var(--color-primary); border-color: var(--color-primary); }
+:root[data-ui="v2"] .t3-subnav { border-bottom: var(--border-w) solid var(--color-divider); }
+:root[data-ui="v2"] .t3-subnav button { min-height: var(--tap); color: var(--color-muted); padding-block: var(--space-2); }
+:root[data-ui="v2"] .t3-subnav button[aria-current="page"] { color: var(--color-text); border-bottom-color: var(--color-primary); }
+:root[data-ui="v2"] .tabs a { display: inline-flex; align-items: center; justify-content: center; min-height: var(--tap); }
+:root[data-ui="v2"] .tabs a[aria-current="page"] { border-bottom-color: var(--color-primary); }
+:root[data-ui="v2"] :is(.aim, .ai-preview, .toc-box) > summary { display: flex; align-items: center; min-height: var(--tap); }
+
+/* ---------------------------------------------------------------- 進み具合・小さな印 */
+:root[data-ui="v2"] .progress { height: 4px; border-radius: var(--radius-pill); background: var(--color-surface-2); }
+:root[data-ui="v2"] .progress i { background: var(--color-primary); border-radius: var(--radius-pill); transition: width var(--dur) var(--ease); }
+:root[data-ui="v2"] .stage.now, :root[data-ui="v2"] .t3-mode-badge, :root[data-ui="v2"] .mini-badge, :root[data-ui="v2"] .cs-step-no, :root[data-ui="v2"] .fb-blind-tag { color: var(--color-on-primary); background: var(--color-primary); }
+:root[data-ui="v2"] .t3-ver-v3 { color: var(--color-on-primary); background: var(--color-primary); border-color: var(--color-primary); }
+:root[data-ui="v2"] .fb-steps-bar i.now { background: var(--color-primary); }
+:root[data-ui="v2"] .notice, :root[data-ui="v2"] .t3-tip, :root[data-ui="v2"] .t3-estimate, :root[data-ui="v2"] .cs-stale, :root[data-ui="v2"] .cs-refine-notice, :root[data-ui="v2"] .fb-err, :root[data-ui="v2"] .ti-sub-note { border-radius: var(--radius-sm); }
+
+/* ================================================================ §6 左の太線・グラデーション・不要な影をやめる */
+:root[data-ui="v2"] .cs-main { border: var(--border-w) solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-surface-2); padding: var(--space-3) var(--space-4); }
+:root[data-ui="v2"] .cs-main-label { color: var(--color-text-2); }
+:root[data-ui="v2"] .cs-timing { border-left: 0; border-radius: var(--radius-sm); background: var(--color-warn-soft); }
+:root[data-ui="v2"] :is(.fb-recall, .fb-send-lead) { border-left: 0; border-radius: var(--radius-md); background: var(--color-surface-2); }
+:root[data-ui="v2"] :is(.cs-variant-list, .cs-after-list) li { border-left: 0; padding-left: 0; }
+:root[data-ui="v2"] :is(.cs-variant-list, .cs-after-list) li + li { padding-top: var(--space-3); border-top: var(--border-w) solid var(--color-divider); }
+:root[data-ui="v2"] .cs-reason-list li::before { color: var(--color-text); background: var(--color-surface-2); }
+:root[data-ui="v2"] .cs-addons li::before { color: var(--color-text-2); }
+:root[data-ui="v2"] .cs-avoid-chip { color: var(--color-text); background: var(--color-surface-2); border-color: var(--color-divider); }
+
+/* ================================================================ §7 安全・注意の面 */
+:root[data-ui="v2"] .fb-consent { background: var(--color-surface-2); border-radius: var(--radius-lg); }   /* 中の部品（.check・.fb-input）は面の色で塗るので、枠の 3:1 は面の上で測る */
+
+/* ================================================================ §8 飾りの線は区切りの色（--line-strong を部品の枠に結び付けたぶん、飾りに使っていた箇所を戻す） */
+:root[data-ui="v2"] :is(.why, .margins li, .grp-first td) { border-color: var(--color-divider); }
+:root[data-ui="v2"] :is(.cs-draft + .cs-draft, .cs-q + .cs-q) { border-top-color: var(--color-divider); }
+:root[data-ui="v2"] :is(.fb-codebox, .fb-cardfb) { border-color: var(--color-divider); border-radius: var(--radius-lg); }
+:root[data-ui="v2"] .doc blockquote { border-left-color: var(--color-divider); }
+:root[data-ui="v2"] .ti-weak, :root[data-ui="v2"] .t3-ver, :root[data-ui="v2"] .cs-status { border-color: var(--color-divider); }
+:root[data-ui="v2"] .cs-more { border: var(--border-w) solid var(--color-control-border); border-radius: var(--radius-md); }
+:root[data-ui="v2"] .cs-more[open] > summary { border-bottom: var(--border-w) solid var(--color-divider); }
+
+/* ================================================================ §9 アイコン（img/icons.svg。js/ui/dom.js の icon(name)） */
+:root[data-ui="v2"] .icon { display: inline-block; flex: none; vertical-align: -0.2em; }

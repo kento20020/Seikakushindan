@@ -1,15 +1,15 @@
-// 三択版（左／右／問題を変える）の可変質問票。DOM を触らない純粋ロジック（node でテストできる）。仕様：docs/three-choice-logic.md §4〜5 と「v2」
+// 三択版（左／右／問題を変える）の可変質問票。DOM を触らない純粋ロジック（node でテストできる）。仕様：docs/three-choice-logic.md §4〜5 と「v2」「v3」
 //
 //   段階1 W基本 : 32問。領域を順繰りに（W1-1, W2-1, …, W8-1, W1-2, …）。A行動とB行動の左右は枠ごとに入れ替える
 //   段階2 X基本 : xRounds のラウンド1〜4の32問（ラウンド順）
 //   段階3 W追加 : 左右が拮抗した領域（差<2 または 取り分<0.6）に alt → 対決設問の順で追加。1問ごとに再集計し、
 //                 優勢が決まった領域は打ち切る。領域あたり2・全体16まで
-//                 v2：拮抗 → W と X の向きが逆 → 優勢（弱）の順に、領域あたり2・全体8まで
+//                 v2（v3 も同じ）：拮抗 → W と X の向きが逆 → 優勢（弱）の順に、領域あたり2・全体8まで
 //   段階4 X追加 : level が 40〜60、または回答数 m<3 の傾向を含むラウンド5〜6の組。優勢が決まった領域の傾向を優先。
 //                 傾向あたり2・全体16まで（これも1問ごとに計画し直す）。v2：向きが逆の領域の両傾向も（最優先）、全体8まで
-//   最大 32＋32＋16＋16＝96問（v2 は 80問）。adaptive=false は段階1・2の64問だけ。
+//   最大 32＋32＋16＋16＝96問（v2・v3 は 80問）。adaptive=false は段階1・2の64問だけ。
 //
-// 設問の版（v1／v2）は Session3 の config.version。設問の索引は buildBank（版ごとに一度だけ作る）。名前つきの export（W_ITEMS・ITEM3 など）は
+// 設問の版（v1／v2／v3）は Session3 の config.version。設問の索引は buildBank（版ごとに一度だけ作る）。名前つきの export（W_ITEMS・ITEM3 など）は
 // 互換のため v1 のまま。版ごとの索引は bankFor(版) または session.bank。版の一覧と既定は js/three_version.js。
 //
 // 「問題を変える」：同じ枠の設問を別の設問に差し替える（1枠2回まで）。
@@ -27,7 +27,7 @@ import { THREE_VERSIONS, LIB_DEFAULT_VERSION, isVersion, versionOf } from "./thr
 // ---------------------------------------------------------------- 定数
 export const STAGES3 = ["W基本", "X基本", "W追加", "X追加"];
 export const MAX_SWAPS = 2;
-// 追加の上限（v1 の値。版ごとの値は THREE_VERSIONS[版].caps。v2 は W 8・X 8）
+// 追加の上限（v1 の値。版ごとの値は THREE_VERSIONS[版].caps。v2・v3 は W 8・X 8）
 export const W_EXTRA_PER_DOMAIN = 2, W_EXTRA_CAP = 16;
 export const X_EXTRA_PER_TRAIT = 2, X_EXTRA_CAP = 16;
 export const X_AMBIG_LOW = 40, X_AMBIG_HIGH = 60, X_MIN_M = 3;
@@ -105,7 +105,7 @@ export function buildBank(bank) {
   return built;
 }
 
-/** 版（"v1" | "v2"）の設問の索引。知らない版は v1 */
+/** 版（"v1" | "v2" | "v3"）の設問の索引。知らない版は v1 */
 export function bankFor(versionId) { return buildBank(versionOf(versionId).bank); }
 
 // 互換のため、名前つきの export は v1 の設問バンクのまま（admin・テスト・5択回答からの推定の既定）
@@ -184,7 +184,7 @@ function wExtraReason(d, wd, kind, profile3) {
  *   log   : 操作履歴（answer / swap / skip / back / plan）。追記のみ
  */
 export class Session3 {
-  /** version：設問の版（"v1" | "v2"）。省略時は互換のため v1（画面は常に解決した版を渡す。js/three_version.js） */
+  /** version：設問の版（"v1" | "v2" | "v3"）。省略時は互換のため v1（画面は常に解決した版を渡す。js/three_version.js） */
   constructor({ adaptive = true, origin = null, version = LIB_DEFAULT_VERSION } = {}) {
     const v = isVersion(version) ? version : LIB_DEFAULT_VERSION;
     this.config = { adaptive: adaptive !== false, version: v, ...(origin ? { origin } : {}) };
@@ -195,7 +195,7 @@ export class Session3 {
     this.log = [];
   }
 
-  /** 設問の版（"v1" | "v2"） */
+  /** 設問の版（"v1" | "v2" | "v3"） */
   get version() { return this.config.version; }
   /** 版の定義（THREE_VERSIONS[版]：bank・logic・caps・scenes・practice） */
   get V() { return THREE_VERSIONS[this.config.version]; }

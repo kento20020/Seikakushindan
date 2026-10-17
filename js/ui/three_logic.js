@@ -14,7 +14,8 @@ const HI = TH3.high, LO = TH3.low + 1;
 /** 設問の版のバッジ（質問・結果・ロジック・設問の画面） */
 export function verBadge(v) {
   const V = versionOf(v);
-  return h("span", { class: ["t3-ver", `t3-ver-${V.id}`], "data-qv": V.id, title: `設問の版 ${V.label}（${V.bankVersion}）` }, `設問 ${V.id}`);
+  // 設問の版の印は開発・検証用（?dev=1 のときだけ見える。css/style.css の末尾）
+  return h("span", { class: ["t3-ver", `t3-ver-${V.id}`, "dev-only"], "data-qv": V.id, title: `設問の版 ${V.label}（${V.bankVersion}）` }, `設問 ${V.id}`);
 }
 
 // ================================================================ ロジック
@@ -56,7 +57,7 @@ export function renderLogic3() {
       h("p", { class: "lead" }, "W（同じ場面の左右）で領域内の優勢を、X（別の領域の行動文どうしの比較）で傾向ごとの強さ（0〜100）を出し、172本のパターンの条件を三択用に読み替えて充足を判定します。選択のルールは5択版と同じです。仕様は docs/three-choice-logic.md。",
         `この画面は「${V.label}」のロジックです${r ? "（表示中の結果の版）" : "（開始画面で選んでいる版）"}。`),
       profilePicker3(r)),
-    h("section", { class: "block", id: "t3-logic-versions" }, h("h2", null, "設問の版（v1／v2）の違い"), versionTable(qv), V.logic.lowConf ? lowConfBlock(r) : null),
+    h("section", { class: "block", id: "t3-logic-versions" }, h("h2", null, "設問の版（v1／v2／v3）の違い"), versionTable(qv), V.logic.lowConf ? lowConfBlock(r) : null),
     h("section", { class: "block" }, h("h2", null, "集計"), aggregateBlock()),
     h("section", { class: "block" }, h("h2", null, "閾値（TH3）"),
       table(["名前", "値", "意味"], TH3_ROWS.map(([k, name, desc]) => h("tr", null,
@@ -72,42 +73,46 @@ export function renderLogic3() {
 }
 
 const CONSTRAINTS3_V2 = [
-  ["確度低 ×0.8（v2）", `確度低の領域（優勢（弱）か、W と X の向きが逆）を含むパターンはスコア ×${THREE_VERSIONS.v2.logic.lowConfFactor}。形状（S16〜S20）は対象外。選択の前に掛ける`],
-  ["矛盾枠の向き（v2）", `矛盾枠のクロス・特殊は、条件の「優勢:t」の領域で level(t) ＞ level(反対側) のときだけ成立（同じ値は不成立。余裕 −1「${CONTRA_ALIGN_REASON}」）。基本の状態5（両方強い）は対象外`],
+  ["確度低 ×0.8（v2・v3）", `確度低の領域（優勢（弱）か、W と X の向きが逆）を含むパターンはスコア ×${THREE_VERSIONS.v2.logic.lowConfFactor}。形状（S16〜S20）は対象外。選択の前に掛ける`],
+  ["矛盾枠の向き（v2・v3）", `矛盾枠のクロス・特殊は、条件の「優勢:t」の領域で level(t) ＞ level(反対側) のときだけ成立（同じ値は不成立。余裕 −1「${CONTRA_ALIGN_REASON}」）。基本の状態5（両方強い）は対象外`],
 ];
 
-/** v1／v2 の違いの表（docs/three-choice-logic.md の表と同じ内容） */
+/** v1／v2／v3 の違いの表（docs/three-choice-logic.md の表と同じ内容）。v3 は設問3問だけが v2 と違い、ロジックは v2 と同じ */
 function versionTable(qv) {
-  const V1 = THREE_VERSIONS.v1, V2 = THREE_VERSIONS.v2;
+  const V1 = THREE_VERSIONS.v1, V2 = THREE_VERSIONS.v2, V3 = THREE_VERSIONS.v3;
+  const same = "v2 と同じ";
   const rows = [
-    ["設問バンク", `questions3.js（${V1.bankVersion}）`, `questions3_v2.js（${V2.bankVersion}）。W 10問を書き換え、X の組を4か所入れ替え（「設問」の「v1 からの変更」）`],
-    ["W追加の条件", "左右が拮抗した領域だけ", "拮抗 ＞ W と X の向きが逆 ＞ 優勢（弱）の順。同じ種類の中は領域番号順"],
-    ["X追加の条件", `level ${X_AMBIG_LOW}〜${X_AMBIG_HIGH} か回答数${X_MIN_M}未満`, "同じ＋向きが逆の領域の両傾向（最優先）"],
-    ["追加の上限", `W ${V1.caps.wExtra}・X ${V1.caps.xExtra}（領域・傾向あたり${V1.caps.wPerDomain}）`, `W ${V2.caps.wExtra}・X ${V2.caps.xExtra}（同${V2.caps.wPerDomain}）`],
-    ["確度低の扱い", "なし", `確度低の領域を含むパターン（形状 S16〜S20 を除く）のスコア ×${V2.logic.lowConfFactor}`],
-    ["矛盾枠", "条件どおり", "関係する領域で「優勢側の level ＞ 反対側の level」のときだけ"],
-    ["場面例", "本文どおり", "js/data/scenes_v2.js の差し替え（極端な場面を日常的に）"],
-    ["練習カード", "なし", "1問目の前に採点しない練習カード"],
+    ["設問バンク", `questions3.js（${V1.bankVersion}）`, `questions3_v2.js（${V2.bankVersion}）。W 10問を書き換え、X の組を4か所入れ替え（「設問」の「v1 からの変更」）`,
+      `questions3_v3.js（${V3.bankVersion}）。v2 の W1-1・W3-3・W3-4 の3問だけを差し替え（「設問」の「v2 からの変更」）。X は v2 と同じ`],
+    ["W追加の条件", "左右が拮抗した領域だけ", "拮抗 ＞ W と X の向きが逆 ＞ 優勢（弱）の順。同じ種類の中は領域番号順", same],
+    ["X追加の条件", `level ${X_AMBIG_LOW}〜${X_AMBIG_HIGH} か回答数${X_MIN_M}未満`, "同じ＋向きが逆の領域の両傾向（最優先）", same],
+    ["追加の上限", `W ${V1.caps.wExtra}・X ${V1.caps.xExtra}（領域・傾向あたり${V1.caps.wPerDomain}）`, `W ${V2.caps.wExtra}・X ${V2.caps.xExtra}（同${V2.caps.wPerDomain}）`,
+      `W ${V3.caps.wExtra}・X ${V3.caps.xExtra}（同${V3.caps.wPerDomain}。v2 と同じ）`],
+    ["確度低の扱い", "なし", `確度低の領域を含むパターン（形状 S16〜S20 を除く）のスコア ×${V2.logic.lowConfFactor}`, `${same}（×${V3.logic.lowConfFactor}）`],
+    ["矛盾枠", "条件どおり", "関係する領域で「優勢側の level ＞ 反対側の level」のときだけ", same],
+    ["場面例", "本文どおり", "js/data/scenes_v2.js の差し替え（極端な場面を日常的に）", same],
+    ["練習カード", "なし", "1問目の前に採点しない練習カード", same],
   ];
+  const cols = ["v1", "v2", "v3"];
   return [
-    table(["項目", "v1", "v2"], rows.map(([k, a, b]) => h("tr", null, h("th", { scope: "row" }, k),
-      h("td", { class: qv === "v1" ? "t3-ver-now" : null }, a), h("td", { class: qv === "v2" ? "t3-ver-now" : null }, b))), { class: "wide t3-ver-table" }),
-    h("p", { class: "note" }, "既定の版は js/three_version.js の DEFAULT_THREE_VERSION。URL に ?qv=v1 か ?qv=v2 を付けると、その版で始められます（途中再開は始めた版のまま）。"),
+    table(["項目", ...cols], rows.map(([k, ...cells]) => h("tr", null, h("th", { scope: "row" }, k),
+      cells.map((c, i) => h("td", { class: qv === cols[i] ? "t3-ver-now" : null }, c)))), { class: "wide t3-ver-table" }),
+    h("p", { class: "note" }, "v3 は設問の文が3問違うだけで、追加の質問の出し方・判定・場面例・練習カードは v2 とまったく同じです。既定の版は js/three_version.js の DEFAULT_THREE_VERSION。URL に ?qv=v1・?qv=v2・?qv=v3 のどれかを付けると、その版で始められます（途中再開は始めた版のまま）。"),
   ];
 }
 
-/** 確度低（v2）の定義と、表示中のプロファイルでの該当（確度低の領域・向きの条件で外れた矛盾枠） */
+/** 確度低（v2・v3 のロジック）の定義と、表示中のプロファイルでの該当（確度低の領域・向きの条件で外れた矛盾枠） */
 function lowConfBlock(r) {
   const defs = h("dl", { class: "rules" },
     h("dt", null, "向きが逆（conflict）"), h("dd", null, `W で傾向 t が優勢（wMargin(t) ≥ 0）なのに、level(反対側) − level(t) ≥ ${CONFLICT_GAP}`),
     h("dt", null, "優勢（弱）（weak）"), h("dd", null, `W で t が優勢で、level(t) < ${HI}（状態 1w／3w）`),
     h("dt", null, "確度低（lowConf）"), h("dd", null, "最終結果で weak か conflict が残った領域。結果・ロジック・AI 用テキストに「確度低」と出し、その領域を含むパターン（形状を除く）のスコアを ×0.8"),
     h("dt", null, "矛盾枠の向き"), h("dd", null, `矛盾枠のクロス・特殊は、条件の各「優勢:t」の領域で level(t) ＞ level(反対側)。満たさなければ余裕 −1（${CONTRA_ALIGN_REASON}）`));
-  if (!r) return [h("h3", null, "確度低（v2）"), defs];
+  if (!r) return [h("h3", null, "確度低（v2・v3）"), defs];
   const lowDs = Object.keys(r.lowConf || {});
   const excluded = contraExcluded3(r.profile3);
   return [
-    h("h3", null, "確度低（v2）"), defs,
+    h("h3", null, "確度低（v2・v3）"), defs,
     h("h3", null, "このプロファイルの確度低", h("small", null, lowDs.length ? `　${lowDs.length}領域` : "　なし")),
     lowDs.length ? table(["領域", "理由", "内容"], lowDs.map(d => h("tr", { "data-domain": d },
       h("td", null, `${d} ${DOMAINS[d].name}`), h("td", null, r.lowConf[d].labels.join("・")), h("td", null, r.lowConf[d].text))), { class: "wide t3-lowconf-table" }) : null,
@@ -273,8 +278,10 @@ export function renderQuestions3() {
           ? `左右が拮抗した領域（差<${TH3.domDiff} または 取り分<${TH3.domShare}）→ W と X の向きが逆の領域（W で優勢なのに反対側の level が${CONFLICT_GAP}以上高い）→ 優勢（弱）の領域（優勢側の level が${HI}未満）の順に、予備 → 対決の順で。1問ごとに再集計し、どれにも当たらなくなった領域は打ち切る`
           : `左右が拮抗した領域（差<${TH3.domDiff} または 取り分<${TH3.domShare}）に、予備 → 対決の順。1問ごとに再集計し、優勢が決まった領域は打ち切る`),
         h("dt", null, "X追加"), h("dd", null, `level が ${X_AMBIG_LOW}〜${X_AMBIG_HIGH}、または比較の回答数が${X_MIN_M}未満の傾向を含む、ラウンド5〜6の組。左右の優勢が決まった領域の傾向を優先` +
-          (V.logic.xExtraConflict ? "。v2 は W と X の向きが逆の領域の両傾向も足し、それを最優先にする" : "")))),
-    QUESTIONS3.changesFromV1 ? changesBlock(QUESTIONS3.changesFromV1, B) : null,
+          (V.logic.xExtraConflict ? "。v2・v3 は W と X の向きが逆の領域の両傾向も足し、それを最優先にする" : "")))),
+    // v3 は「v2 からの変更」（3問）を先に、「v1 からの変更」（v1 → v3 の全体）をその下に
+    QUESTIONS3.changesFromV2 ? changesBlock(QUESTIONS3.changesFromV2, B, { from: "v2", to: V.id, id: "t3-changes-v2" }) : null,
+    QUESTIONS3.changesFromV1 ? changesBlock(QUESTIONS3.changesFromV1, B, { from: "v1", to: V.id, id: "t3-changes" }) : null,
     h("section", { class: "block" },
       h("h2", null, "設問一覧"),
       h("div", { class: "picker" }, h("label", { for: "t3-q-filter" }, "絞り込み"), filter,
@@ -304,9 +311,12 @@ export function renderQuestions3() {
   return nodes;
 }
 
-/** v2 の設問バンクの「v1 からの変更」（changesFromV1）。W は書き換え前 → 後、X は組の入れ替え（前の組は v1 の xRounds から） */
-function changesBlock(ch, B) {
-  const B1 = bankFor("v1");
+/**
+ * 設問バンクの「v1 からの変更」（changesFromV1）・「v2 からの変更」（changesFromV2、v3）。W は書き換え前 → 後、X は組の入れ替え（前の組は from の版の xRounds から）。
+ * from／to は比べる版（列の見出し）、id は section の id（v1 からの変更は従来どおり t3-changes）
+ */
+function changesBlock(ch, B, { from = "v1", to = "v2", id = "t3-changes" } = {}) {
+  const B1 = bankFor(from);
   const wSide = (x, D) => [h("div", { class: "t3-chg-stem" }, x.stem), h("div", null, h("span", { class: "dv-a" }, `${D.a}：`), x.a), h("div", null, h("span", { class: "dv-b" }, `${D.b}：`), x.b)];
   const wRows = (ch.w || []).map(c => {
     const D = DOMAINS[B.W_ITEMS[c.id]?.domain ?? +c.id.slice(1, 2)];
@@ -322,12 +332,13 @@ function changesBlock(ch, B) {
     h("td", { class: "wtext t3-chg-before" }, pairs(B1.X_ITEMS, c.ids)),
     h("td", { class: "wtext t3-chg-after" }, pairs(B.X_ITEMS, c.ids)),
     h("td", { class: "wtext" }, c.why)));
-  return h("section", { class: "block", id: "t3-changes" }, h("h2", null, "v1 からの変更", h("small", null, `　W ${wRows.length}問・X ${xRows.length}か所`)),
+  return h("section", { class: "block", id }, h("h2", null, `${from} からの変更`, h("small", null, `　W ${wRows.length}問・X ${xRows.length}か所`)),
     h("p", { class: "note" }, ch.note || ""),
     h("h3", null, "W（場面・A行動・B行動の書き換え）"),
-    table(["設問", "v1（前）", "v2（後）", "理由"], wRows, { class: "wide t3-qtable-plain t3-changes-w" }),
+    table(["設問", `${from}（前）`, `${to}（後）`, "理由"], wRows, { class: "wide t3-qtable-plain t3-changes-w" }),
     h("h3", null, "X（組の入れ替え）"),
-    table(["設問", "v1 の組", "v2 の組", "理由"], xRows, { class: "wide t3-qtable-plain t3-changes-x" }));
+    xRows.length ? table(["設問", `${from} の組`, `${to} の組`, "理由"], xRows, { class: "wide t3-qtable-plain t3-changes-x" })
+      : h("p", { class: "note" }, `X の組は ${from} と同じです。`));
 }
 
 function applyFilter(el) {

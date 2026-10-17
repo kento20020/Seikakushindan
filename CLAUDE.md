@@ -1,6 +1,7 @@
 # CLAUDE.md — 16次元診断（引き継ぎメモ）
 
-このリポジトリで作業する Claude Code 向けの引き継ぎです。最終更新 2026-10-16。
+このリポジトリで作業する Claude Code 向けの引き継ぎです。最終更新 2026-10-17（相談の入力 U14「書いて、足りない分だけ聞く」、Figma は使わない U15）。
+**新しいセッションでは、まず `docs/session-log-2026-10-16.md` の §4（返事待ち）と §9（2026-10-17 の続き）を読んでから始める。**
 詳しい仕様は README.md と docs/ にある。ここは「全体像・決まりごと・今どこまで進んでいて次に何をするか」をまとめる。
 
 ---
@@ -36,13 +37,16 @@
 
 | URL | 中身 |
 | --- | --- |
-| `/`（`#three`） | **既定**。三択診断（左／右／問題を変える、スワイプ可）。設問は v2 が既定 |
-| `?qv=v1#three` | 三択の設問 v1 で開く（`js/three_version.js` の `DEFAULT_THREE_VERSION` で既定を切り替え） |
+| `/`（`#three`） | **既定**。三択診断（左／右／問題を変える、スワイプ可）。設問は v3 が既定（2026-10-16） |
+| `?qv=v2#three`、`?qv=v1#three` | 三択の古い設問（v2・v1）で開く。`?qv=v3` で v3（`js/three_version.js` の `DEFAULT_THREE_VERSION` で既定を切り替え） |
 | `?fb=1#three` | テスト協力モード（回答ログと感想をテキストで送ってもらう）。集計は `admin.html` |
+| `?ui=v2` | **新しい見た目**（トークンと部品。`css/tokens.css`・`css/ui2.css`）。既定は今の見た目 v1 で、`?ui=v1` で戻せる。既定の切り替えは `index.html` の `data-ui-default` と `js/ui_flags.js` の `DEFAULT_UI`（決定 U9） |
+| `?dev=1` | **開発・検証用の表示**（設問の版、サンプル、内部の段階名、点数の内訳、5択版との比較、相談の判定・プロンプトなど）。利用者向けの既定では隠す（クラス `dev-only`。機能は消していない。決定 U10）。`?ui=` `?qv=` `?fb=` と組み合わせられる |
 | `#consult` | 相談（試作）。状況のタップ入力 → 次の一手カード。AI は未接続で、決まった文型で答える |
 | `?five=1#diagnose` ほか `#result` `#logic` `#questions` `#design` | 旧版（5択）。コードは残してあるが、表には出していない |
 
 結果画面（三択）には傾向の絵が出る（主軸の傾向の絵＋「8つの軸の絵」）。
+サンプル（石原など）は `?dev=1` の開始画面にある。検証で結果画面を見るときは `?dev=1#three` でサンプルを流す（利用者向けの見た目は、そのあと `?dev=` を外して「結果」タブで見られる）。
 
 ---
 
@@ -64,7 +68,7 @@
 ### 3.2 進め方（持ち主の希望）
 
 - **実装作業は Opus や Sonnet のサブエージェントに振り分けて任せる**（何度も明示的に依頼されている）。設計・レビュー・確認はメイン、実装はサブエージェント、が基本
-- **既存のものは壊さず残す**。新しい版は別ファイル・別タブ・別バージョンで足し、戻せるようにする（例：5択を残したまま三択を足した、三択 v1 を残したまま v2 を足した）
+- **既存のものは壊さず残す**。新しい版は別ファイル・別タブ・別バージョンで足し、戻せるようにする（例：5択を残したまま三択を足した、三択 v1 を残したまま v2 を足し、v1・v2 を残したまま v3 を足した）
 - **決めたこと・変えたことは記録する**
   - 方針は `docs/decisions.md`（日付・理由・反映先）
   - 判定表の点数の変更は `docs/consult-scoring.md` §12
@@ -77,23 +81,29 @@
 | 何 | ファイル |
 | --- | --- |
 | 解釈パターン本文 | `docs/design.md`。`python3 tools/build_patterns.py` で `js/data/patterns_text_*.js` を生成するので、生成物を直接直さない |
-| 三択の設問 | `js/data/questions3.js`（v1）、`js/data/questions3_v2.js`（v2）。場面例は `js/data/scenes_v2.js` |
+| 三択の設問 | `js/data/questions3.js`（v1）、`js/data/questions3_v2.js`（v2）、`js/data/questions3_v3.js`（v3。v2 を元に W1-1・W3-3・W3-4 の3問を差し替え。変更点は `changesFromV2`）。場面例は `js/data/scenes_v2.js`（v2・v3 共通） |
 | 傾向の絵と一言 | `js/data/type_images.js`。絵は `img/types/<1A〜8B>.jpg`（960×960） |
 | 相談の判定表 | `js/consult/rules.js`（点数）、`js/consult/judge.js`（判定）。仕様は `docs/consult-scoring.md` |
 | 相談の文言 | `js/consult/texts.js`。カードの文型、理由の文型、相手の2択の質問 |
 | AI の設定 | `js/consult/config.js`。`aiEndpoint` と `aiEndpointHosts` の許可リスト（既定は空） |
+| デザイントークン | `css/tokens.css`（色・文字・余白・形・影・動き・レイアウト。ライト／ダークは役割の値だけを切り替える）。一覧とコントラストは `docs/design-tokens.md` |
+| 新しい見た目（v2） | `css/ui2.css`（すべて `:root[data-ui="v2"]` の下。古い変数名を役割の値に結び直し、部品を上書きする）。アイコンは `img/icons.svg`（名前は `js/ui/dom.js` の `ICON_NAMES`） |
 
 ---
 
 ## 4. 構成（主なもの）
 
 ```
-index.html, js/app.js            ハッシュルーター
+index.html, js/app.js            ハッシュルーター。index.html の先頭のスクリプトが <html data-ui data-dev> を付ける
+js/ui_flags.js                   見た目の版（?ui=v1|v2）・開発用の表示（?dev=1）の判定（resolveUiFlags・isDev）
+css/tokens.css, css/ui2.css      デザイントークン、新しい見た目 v2（style.css・consult.css は今の見た目 v1）
+img/icons.svg                    線のアイコン（<symbol>。js/ui/dom.js の icon(name)）
 js/engine.js, adaptive.js        5択版の判定・可変質問（旧版）
 js/engine3.js, adaptive3.js      三択版の判定・出題の流れ（domainStates3 / domainFlags3 / lowConfDomains3）
-js/three_version.js              三択の設問の版（v1/v2）の切り替え
+js/three_version.js              三択の設問の版（v1/v2/v3）の切り替え。v3 のロジックは v2 と同じ（logic.id も "v2"）
+js/data/questions3*.js           三択の設問（questions3.js＝v1、_v2.js＝v2、_v3.js＝v3）
 js/ui/three*.js, swipe.js        三択の画面（結果画面に type_images の部品）
-js/ui/feedback.js, feedback_*.js テスト協力モード（送信テキスト 16DFB1 形式）、admin.html と js/admin/ が集計
+js/ui/feedback.js, feedback_*.js テスト協力モード（送信テキスト 16DFB1 形式）、admin.html と js/admin/ が集計（同じ文の設問は版をまたいで1行）
 js/consult/                      相談モードの中身（下の表）
 js/ui/consult*.js, css/consult.css  相談画面（#consult）
 js/data/type_images.js, js/ui/type_images.js, img/types/  傾向の絵
@@ -124,7 +134,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 
 | 文書 | 中身 |
 | --- | --- |
-| `three-choice-logic.md` | 三択の判定ロジック（v1 と v2 の違い） |
+| `three-choice-logic.md` | 三択の判定ロジック（v1 と v2 の違い、v3 で差し替えた3問と理由） |
 | `feedback-spec.md` | テスト協力モードの送信形式・集計 |
 | `design.md` | 診断の設計とパターン本文の原典（古い書き出し。最新の設計書は下の Claude Docs） |
 | `consult-mode.md` | 相談モードの構想。局面9つ＋安全ゲート、行動16個、共通ルール R1〜R8、避ける言葉 |
@@ -134,16 +144,22 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 | `type-images.md` | 傾向の絵の16枠と差し替え手順 |
 | `marketing-plan.md` | 集客計画（広がる仕組み → SNS → 検索） |
 | `test-results.md` | テスト結果のまとめ（6人）。一致率、問題のある設問、ロジック変更の影響、次にやること |
-| `decisions.md` | **決定記録**。K1〜K4、D1〜D7、A1〜A7 |
+| `decisions.md` | **決定記録**。K1〜K5、D1〜D7、A1〜A7、U1〜U18 |
+| `ui-ux.md` | UI/UX 設計（進行中）。戦略・体験・世界観の決定（U1〜U8）、次に決める構造、検証の方法 |
+| `ui-audit.md` | UI の現状分析（撮影・評価・重要度順の改善点）、デザイン方針とトークン案、改善計画（段階0〜3 承認済み。段階0・1 実装済み）。改善前の画面は `ui-audit/before/` |
+| `ui-design-thinking.md` | 相談の体験のデザイン思考。ペルソナ6人、課題と問い、入力・タップの問・カードの順番・待つ間・診断とのつなぎの案をペルソナごとに比較、組み合わせ3案（案A「場面から」を推奨）と試し方。§6 に**採用した案D「書いて、足りない分だけ聞く」**（流れ、要る項目の決め方、試作10件の結果、弱いところ、作るときの形） |
+| `session-log-2026-10-16.md` | **2026-10-16 のセッションの作業記録（引き継ぎ用）**。最初にやること、やったことの順番、決定、持ち主の回答、返事待ち、次にやること、優先順の提案、外部の物（キャンバス・Figma・プラグイン）、作業の注意 |
+| `design-tokens.md` | トークンの一覧（役割・値・ライト／ダーク・コントラストの実測）、部品のルール、`?ui=v2` の仕組みと既定の切り替え方、古い変数名との対応、`?dev=1` の表示の分け方 |
 
 ---
 
 ## 6. 今どこまで進んでいるか
 
 - **診断**
-  - 三択 v2 が既定（2026-10-10）
+  - 三択 v3 が既定（2026-10-16）。v2（2026-10-10）の W1-1・W3-3・W3-4 だけを差し替えた版で、ロジックは v2 と同じ（決定 K5）
   - 5人テスト（v1）のあと、v2 を1人で確認した。逆側に外した判定は0件。数字のまとめは `docs/test-results.md`、原文は `data/testers/`
-  - 未解決：W1-1 が答えにくい、W3-3・W3-4 は全員 B、追加質問で上限の80問に届きやすい、全員が「長い」と回答
+  - W1-1 が答えにくい・W3-3・W3-4 は全員 B だった問題は、v3 で差し替え済み（**未検証**。v3 で受けた人はまだいない）
+  - 未解決：追加質問で上限の80問に届きやすい、全員が「長い」と回答
 - **相談モード**
   - 判定表（点数つき・実装・検証ケース）ができている
   - Fable の改善案（D1〜D5）も採用済み
@@ -151,8 +167,18 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 - **傾向の絵（D6）**
   - 16傾向のうち8つに絵がある（1A 向き合う、2B 熟考、3A 追う、4B 内に置く、5A 理由・具体、6B 調整する、7A 広げる、8B 関係を戻す）
   - 残り8つは「準備中」の枠。たたき台で、今後変える前提
+- **UI の改善**（`docs/ui-audit.md` の改善計画。決定 U9〜U11）
+  - 段階0（トークン・部品・`?ui=v2` の切り替え）と段階1（開発・検証用の表示を `?dev=1` に移す）が実装済み。既定の見た目は v1 のまま
+  - 段階1 は v1 にも効く：利用者向けの既定では、設問の版・サンプル・内部の段階名・点数の内訳・5択版との比較・相談の「（試作）」などが隠れる（`?dev=1` で今までどおり見える）
+  - 次は段階2（質問画面）・段階3（結果画面）。どちらも `?ui=v2` の中で、`docs/design-tokens.md` の部品を使って作る（承認済み。プラグイン frontend-design は使えることを確認済み）
+- **UI/UX の設計**（`docs/ui-ux.md`・`docs/ui-design-thinking.md`）
+  - 決定：U1〜U8（戦略・体験・世界観）、U12（トップは案B＋「送ったけど返事が来ない」）、U13（安全の確認は相談のタップの1問目）、**U14（相談の入力は案D「書いて、足りない分だけ聞く」：書く → 安全（毎回）→ 書いた文から項目を機械的に埋めて見せる（直せる）→ 足りない項目のうち一手に要るものだけ、合計3問まで）**、U15（Figma は使わない）、U16（次の一手カードは C6：結論 → 理由の1行目 → 文面 → 理由の続き → 避けたい言葉 → その後 → 確かさ）
+  - **U17（読み取りは規則＋Clef。Clef は日本語をテストで確かめてから）**、**U18（進め方は案ウ。公開は Clef が通れば規則＋Clef、通らなければ規則だけ。カードの文章の AI は公開のあと）**
+  - Website（`kento20020/Website`）は Seikakushindan の内容を固めたもの。違いを調べている（Seikakushindan が優先）
+  - 骨組みはデザインキャンバス（§8）
 - **戻せる地点**
   - 三択 v1 だけの状態：コミット `2fc9f11`
+  - 設問 v2 だけ：`?qv=v2`、または `DEFAULT_THREE_VERSION` を `"v2"`
   - 設問の版：`?qv=v1`、または `DEFAULT_THREE_VERSION`
 
 ---
@@ -160,7 +186,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 ## 7. 次にやること（候補。持ち主に優先順を確認して進める）
 
 ### 診断
-1. **W1-1・W3-3・W3-4 を差し替える**。領域1・3は相談でいちばん使う（決定 K1）。8分類そのものは変えない
+1. **W1-1・W3-3・W3-4 は v3 で差し替え済み。次のテストで確認**（W1-1 の迷いと回答時間、W3-3・W3-4 の左右の割れ方、領域3の追加質問の数。`docs/three-choice-logic.md` の v3 の節）。領域1・3は相談でいちばん使う（決定 K1・K5）。8分類そのものは変えない
 2. **短い版（クイック版）を検討する**（W 問題だけで16〜24問・2〜3分）。精度は `data/testers/` の回答を W だけで採点し直して確かめる
 3. 元の5人に v2 を同じ参加者コードで受け直してもらい、`admin.html` で集計する
 4. 主軸の名前付け・一言ラベル（シェア用）
@@ -178,6 +204,17 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 10. 残り8傾向の絵（`type_images.js` に1行足すだけで出る）
 11. 結果カード画像とシェアボタン、結果ごとの静的ページ（リンクプレビュー用）、「相手に送る」リンクとふたり診断、独自ドメイン、計測（回答の中身は送らずイベントだけ）
 
+### UI/UX（2026-10-16 から持ち主と対話で設計中。`docs/ui-ux.md`）
+12. 戦略・体験・世界観は決定済み（U1〜U8：主役は相談、入口を2つ、まず書いてタップで補う、世界観「味方・落ち着き・確か」）。構造はトップ（U12）・安全の確認（U13）・**相談の入力（U14 案D「書いて、足りない分だけ聞く」）**・**カードの順番（U16 C6）**が決定。キャンバスに案D の流れを描き、相談画面を新しい流れで作る（`js/consult/extract.js`＝書いた文の読み取り、`needed.js`＝足りない項目の問、確認の画面。今の画面は残し、別の版で足す。形は `docs/ui-design-thinking.md` §6.5）
+13. **UI の改善計画の段階2・3**（`docs/ui-audit.md` §4）：質問画面（カード・進み具合・説明の整理）と結果画面（最初の画面に主軸の要点と合う絵、「詳しく」で開く）を `?ui=v2` の中で作り直す。確かめてから既定を v2 にする（段階0・1 は済み）
+
+### 進め方（決定 U18：案ウ）
+- 線1（Claude とサブエージェント）：読み取り（規則＋Clef の差し替え口）と足りない問の中身 → 案D の流れをキャンバスに → 相談画面の新しい版（今の画面は残す）→ お手本の相談30〜50件 → 16傾向の対応ガイド
+- 線2（持ち主）：v3 の再テストをテスターに頼む
+- 線3（線1の合間）：UI の段階2・3
+- 合流：公開前の安全 → 公開（Clef がテストを通れば規則＋Clef、通らなければ規則だけ）→ AI（カードの文章）→ 広げる
+- Clef のテストは、持ち主が Cloudflare の鍵（`CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`）を環境の設定に入れてから
+
 ### 将来の構成（構想・未着手）
 - 段階拡張：Phase 1 診断 → **Phase 2 AI相談（最初に出す、ログインなし）** → Phase 3 会員・保存 → Phase 4 スクショ解析 → Phase 5 音声
 - 実行基盤は Cloudflare（Pages / Workers / R2）に決定。アプリの枠組み（Next.js＋OpenNext ほか）と DB（Supabase 案）は未決
@@ -193,4 +230,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
   - 「16次元診断 まとめ（2026-10-10時点）」
   - サブフォルダ「キャラクター作成」（https://drive.google.com/drive/folders/19rWQMhzLFw-VeYKsx2ZsRTkz98zGqS9O）：キャラクター案まとめ・描き方の切り口と絵柄
   - 50.市場戦略 ほか
+- **デザインキャンバス「彼氏診断 画面構造の案」**：https://claude.ai/artifact/Ms4NvmoBVorYa17DHvXn4q （白黒の骨組み7枚：トップ案 A・B・C、相談の流れ4画面。持ち主だけが見られる設定）
+- **Figma**：使わない（2026-10-17 持ち主が決定）。画面の案はデザインキャンバスと実際のコード（`?ui=v2`）で作る。参考：アカウント「けんと」、Starter・View 席
+- **プラグイン**：frontend-design・Design（どちらも Anthropic）・Playwright（Microsoft）が入っていて、使える（2026-10-16 に確認。`docs/session-log-2026-10-16.md` §0）。スキル名は `frontend-design:frontend-design`、`design:design-critique`・`design:accessibility-review`・`design:ux-copy`・`design:design-system`・`design:user-research`・`design:research-synthesis`・`design:design-handoff`
 - **テスターの回答テキスト**：リポジトリの `data/testers/` にある（決定 D7）。`admin.html` に貼れば集計と採点し直しができる

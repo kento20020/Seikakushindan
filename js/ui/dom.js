@@ -31,6 +31,30 @@ function append(el, children) {
   }
 }
 
+/** 線のアイコンの名前（img/icons.svg の <symbol id> と同じ。tests/ui_flags.test.mjs で突き合わせる） */
+export const ICON_NAMES = Object.freeze(["arrow-left", "arrow-right", "arrow-up", "chevron-down", "check", "close", "info", "alert", "copy", "redo"]);
+const SVG_NS = "http://www.w3.org/2000/svg";
+const ICON_SPRITE = "img/icons.svg";   // 相対パス（GitHub Pages のサブパスでも動く）
+
+/**
+ * 線のアイコン。<svg aria-hidden="true"><use href="img/icons.svg#name"></use></svg> を返す。
+ * 飾りなので読み上げない（意味はボタンの文字で伝える）。色は文字色（currentColor）、大きさは size（px。既定 20、ほかに 24）
+ */
+export function icon(name, { size = 20, cls = null } = {}) {
+  if (!ICON_NAMES.includes(name)) throw new Error(`知らないアイコンです：${name}`);
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("class", ["icon", `icon-${name}`, cls].filter(Boolean).join(" "));
+  svg.setAttribute("width", String(size));
+  svg.setAttribute("height", String(size));
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  const use = document.createElementNS(SVG_NS, "use");
+  use.setAttribute("href", `${ICON_SPRITE}#${name}`);
+  svg.append(use);
+  return svg;
+}
+
 /** 中身を入れ替える */
 export function mount(el, ...children) { el.replaceChildren(); append(el, children); return el; }
 

@@ -3,6 +3,8 @@
 // 5択版（#diagnose #result #logic #questions #design）はコードを残してあり、ハッシュで直接開くか ?five=1 を付けると上部ナビも出る。
 // 相談（試作）#consult は、ヘッダーの「相談（試作）」リンクからどの画面でも開ける（js/ui/consult.js）。
 // ビルドなし・ES モジュールのみ。パスはすべて相対（GitHub Pages のサブパスで動かすため）。
+// 見た目の版（?ui=v1|v2）と開発・検証用の表示（?dev=1）は index.html の先頭のスクリプトが <html> に付ける（js/ui_flags.js）。
+// ハッシュだけを変えるので、?ui= ?dev= ?qv= ?fb= などのクエリはタブを移っても残る。
 import { onChange, restore } from "./ui/store.js";
 import { renderDiagnose } from "./ui/diagnose.js";
 import { renderResult } from "./ui/result.js";
@@ -11,6 +13,7 @@ import { renderQuestions } from "./ui/questions.js";
 import { renderDesign } from "./ui/design.js";
 import { renderThree } from "./ui/three.js";
 import { renderConsult } from "./ui/consult.js";
+import { isDev, keepUiParams } from "./ui_flags.js";
 
 const VIEWS = {
   diagnose: renderDiagnose,
@@ -21,7 +24,7 @@ const VIEWS = {
   three: renderThree,
   consult: renderConsult,
 };
-const TITLES = { diagnose: "診断", result: "結果", logic: "ロジック", questions: "設問", design: "設計", three: "三択診断", consult: "相談（試作）" };
+const TITLES = { diagnose: "診断", result: "結果", logic: "ロジック", questions: "設問", design: "設計", three: "三択診断", consult: isDev() ? "相談（試作）" : "相談" };
 const DEFAULT_TAB = "three";
 const FIVE_TABS = new Set(["diagnose", "result", "logic", "questions", "design"]);   // 5択版のタブ
 let currentTab = null;
@@ -66,6 +69,11 @@ function route() {
   document.title = tab === "diagnose" ? "16次元診断" : `${TITLES[tab]}｜16次元診断`;
   render();
   if (changed) window.scrollTo(0, 0);
+}
+
+// 足元の「旧版（5択）」は別の URL（?five=1）なので、いまの ?ui= ?dev= を引き継ぐ（ハッシュだけのリンクはそのままで残る）
+for (const a of document.querySelectorAll("a.foot-old")) {
+  try { a.setAttribute("href", `./?${keepUiParams({ five: "1" }, location.search)}#diagnose`); } catch { /* 無視（元の href のまま） */ }
 }
 
 // 「本文へ」のスキップリンクは #main をハッシュにせず、本文へフォーカスだけ移す（知らないハッシュ扱いで #three に飛ばないように）
