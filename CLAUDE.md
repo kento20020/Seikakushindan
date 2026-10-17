@@ -173,7 +173,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
   - 次は段階2（質問画面）・段階3（結果画面）。どちらも `?ui=v2` の中で、`docs/design-tokens.md` の部品を使って作る（承認済み。プラグイン frontend-design は使えることを確認済み）
 - **UI/UX の設計**（`docs/ui-ux.md`・`docs/ui-design-thinking.md`）
   - 決定：U1〜U8（戦略・体験・世界観）、U12（トップは案B＋「送ったけど返事が来ない」）、U13（安全の確認は相談のタップの1問目）
-  - 返事待ち：相談の流れを案A「場面から」にするか、タップで聞く問（T3）、次の一手カードの順番（C4）、Figma の下書きで試すか（`docs/session-log-2026-10-16.md` §4）
+  - 返事待ち：相談の流れ（案A「場面から」か、持ち主の新しい案「書いて、足りない分だけ聞く」か）、タップで聞く問（T3）、次の一手カードの順番（C4）（`docs/session-log-2026-10-16.md` §4）。Figma は使わないと決定（2026-10-17）
   - 骨組みはデザインキャンバス（§8）
 - **戻せる地点**
   - 三択 v1 だけの状態：コミット `2fc9f11`
@@ -223,6 +223,6 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
   - サブフォルダ「キャラクター作成」（https://drive.google.com/drive/folders/19rWQMhzLFw-VeYKsx2ZsRTkz98zGqS9O）：キャラクター案まとめ・描き方の切り口と絵柄
   - 50.市場戦略 ほか
 - **デザインキャンバス「彼氏診断 画面構造の案」**：https://claude.ai/artifact/Ms4NvmoBVorYa17DHvXn4q （白黒の骨組み7枚：トップ案 A・B・C、相談の流れ4画面。持ち主だけが見られる設定）
-- **Figma**：Claude のセッションからつながる（アカウント「けんと」、Starter・View 席）。Figma から読む操作は月20回まで、書き込みは上限の対象外。View 席で編集できるかは未確認
+- **Figma**：使わない（2026-10-17 持ち主が決定）。画面の案はデザインキャンバスと実際のコード（`?ui=v2`）で作る。参考：アカウント「けんと」、Starter・View 席
 - **プラグイン**：frontend-design・Design（どちらも Anthropic）・Playwright（Microsoft）が入っていて、使える（2026-10-16 に確認。`docs/session-log-2026-10-16.md` §0）。スキル名は `frontend-design:frontend-design`、`design:design-critique`・`design:accessibility-review`・`design:ux-copy`・`design:design-system`・`design:user-research`・`design:research-synthesis`・`design:design-handoff`
 - **テスターの回答テキスト**：リポジトリの `data/testers/` にある（決定 D7）。`admin.html` に貼れば集計と採点し直しができる
