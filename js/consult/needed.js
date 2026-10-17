@@ -135,6 +135,7 @@ const CONSTANT = Object.fromEntries(PHASE_LIST.map(p => {
   const acts = Object.keys(BASE[p]);
   return [p, acts.length === 1 && !EXCLUDABLE.has(acts[0]) && acts[0] !== "self_calm" ? acts[0] : null];
 }));
+const CONSTANT_IDX = PHASE_LIST.map(p => (CONSTANT[p] ? ACT_INDEX[CONSTANT[p]] : -1));
 
 /**
  * 1つの入力（文脈 x と局面）での補正の準備。補正の when・w を、点数に効く項目を読んだかどうかを見張りながら1回だけ呼び、
@@ -227,7 +228,7 @@ function compilePhase(ctx, phase) {
   }
   /** vals：点数に効く項目の値 { elapsed, selfLast, selfTemp, cause, goal } → 一手 */
   return function actionOf(vals) {
-    for (const V of all) for (const f of SCORE_FIELDS) V.x[f] = vals[f];
+    for (const V of all) { const x = V.x; x.elapsed = vals.elapsed; x.selfLast = vals.selfLast; x.selfTemp = vals.selfTemp; x.cause = vals.cause; x.goal = vals.goal; }
     let mask;
     if (!twoSided) { mask = score(variants[0]); out.set(variants[0].sc); }
     else {
@@ -253,12 +254,15 @@ function evaluatorFor(ctx) {
   const sig = JSON.stringify(Object.entries(ctx).filter(([k]) => !(k in ASKABLE)).sort(([a], [b]) => (a < b ? -1 : 1)));
   let ev = EVALUATORS.get(sig);
   if (!ev) {
-    const compiled = {}, memo = {};
-    /** 局面・覚えの番号・値 → 一手の番号（ACTIONS の並び） */
-    ev = (phase, k, valsOf) => {
-      if (CONSTANT[phase]) return ACT_INDEX[CONSTANT[phase]];
-      const m = memo[phase] ??= new Int8Array(MEMO_SIZE);
-      if (!m[k]) m[k] = ACT_INDEX[(compiled[phase] ??= compilePhase(ctx, phase))(valsOf())] + 1;
+    const compiled = [], memo = [];
+    /** 局面の番号・行（点数に効く項目の値。s は SHARED、c は SCORE_ONLY）→ 一手の番号（ACTIONS の並び） */
+    ev = (pi, s, c) => {
+      if (CONSTANT_IDX[pi] >= 0) return CONSTANT_IDX[pi];
+      const m = memo[pi] ??= new Int8Array(MEMO_SIZE), k = s.k + c.k;
+      if (!m[k]) {
+        const phase = PHASE_LIST[pi];
+        m[k] = ACT_INDEX[(compiled[pi] ??= compilePhase(ctx, phase))({ ...s.v, ...c.v })] + 1;
+      }
       return m[k] - 1;
     };
     EVALUATORS.set(sig, ev);
@@ -343,12 +347,11 @@ export function analyzeKnown(known = {}) {
     for (let pi = 0; pi < NP; pi++) {
       const wph = W[pi];
       if (!wph) continue;
-      const ph = PHASE_LIST[pi];
       // 点数だけに効く項目（原因・ゴール）の組み合わせごとの一手
       hist.fill(0);
       for (const h of histC) h.fill(0);
       for (const c of cRows) {
-        const a = ev(ph, s.k + c.k, () => ({ ...s.v, ...c.v }));
+        const a = ev(pi, s, c);
         hist[a] += c.w;
         for (let q = 0; q < uC.length; q++) histC[q][c.vi[q] * NA + a] += c.w;
       }
