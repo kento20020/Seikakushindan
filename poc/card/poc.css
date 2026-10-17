@@ -1,6 +1,7 @@
 /* 次の一手カードの試作（統合1・統合3）。色・文字・余白・形は css/tokens.css の役割の値だけを使う。
    紅梅（--color-accent）は「止める」意味だけ：足さない方がいい一言・避けたい言葉・危ないとき。
-   大胆なのは1か所：送る一手は「送る吹き出し」、待つ一手は「送らない吹き出し（預ける箱）」と大きな戻る時刻。ほかは静かに。 */
+   大胆なのは1か所：送る一手は「送る吹き出し」（コピーは右上の小さなボタン）、待つ一手は大きな戻る時刻とタイマー。ほかは静かに。
+   受け止めの画面は、事実と気持ちをひと続きにした1つの文が主役（見出し・区切りで分けない）。 */
 
 /* ---------------------------------------------------------------- 表示の切り替え（試作の設定。tokens.css はライト／ダークを端末の設定でしか切り替えないため） */
 :root { color-scheme: light; }
@@ -131,6 +132,23 @@ a { color: var(--color-primary); }
 .note { color: var(--color-muted); font-size: var(--fs-14); }
 .step { color: var(--color-muted); font-size: var(--fs-14); }
 
+/* 受け止め：事実と気持ちをひと続きにした文（画面の先頭。太字にせず、話しかける声の大きさで） */
+.accept {
+  font-size: var(--fs-22); line-height: 1.6; font-weight: var(--fw-regular);
+  color: var(--color-text);
+  word-break: auto-phrase; text-wrap: pretty;
+  padding-top: var(--space-2);
+}
+.accept:focus { outline: none; }
+.fix { display: grid; gap: var(--space-2); }
+.fix > .linkbtn { justify-self: start; }
+.fix-panel { display: grid; gap: var(--space-3); padding-bottom: var(--space-2); }
+/* カードの上の「読み取った内容」（閉じると1行） */
+.read-line { display: grid; gap: var(--space-1); margin: calc(-1 * var(--space-2)) 0 calc(-1 * var(--space-2)); }
+.read-line-btn { justify-self: start; color: var(--color-text-2); }
+.read-line-panel { display: grid; gap: var(--space-1); color: var(--color-text-2); font-size: var(--fs-14); }
+.read-line-panel .linkbtn { justify-self: start; }
+
 /* 書く */
 .write {
   width: 100%; min-height: 220px; resize: vertical;
@@ -140,7 +158,7 @@ a { color: var(--color-primary); }
   background: var(--color-surface);
   font-size: var(--fs-18); line-height: 1.6;
 }
-.write::placeholder, .keep-input::placeholder, .urge-input::placeholder { color: var(--color-muted); opacity: 1; }
+.write::placeholder, .urge-input::placeholder { color: var(--color-muted); opacity: 1; }
 .write-tools { display: flex; margin-top: calc(-1 * var(--space-2)); }
 .examples { list-style: none; padding: 0; display: grid; gap: var(--space-2); }
 .example { font-size: var(--fs-14); line-height: 1.5; }
@@ -294,7 +312,7 @@ a { color: var(--color-primary); }
 
 /* 文面：送る吹き出し（相手の画面にこう届く） */
 .c-send { display: flex; flex-direction: column; gap: var(--space-2); }
-.c-send-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.c-send-top { display: flex; justify-content: space-between; gap: var(--space-2); }
 .bubble {
   position: relative; align-self: flex-end;
   max-width: 92%;
@@ -308,34 +326,35 @@ a { color: var(--color-primary); }
 .bubble::before, .bubble::after { content: ""; position: absolute; bottom: 0; height: 20px; }
 .bubble::before { right: -7px; width: 20px; background: var(--color-primary-soft); border-bottom-left-radius: 16px 14px; }
 .bubble::after { right: -10px; width: 10px; background: var(--color-surface); border-bottom-left-radius: 10px; }
-.c-send .btn-primary { margin-top: var(--space-1); }
+/* コピー：吹き出しの右上の小さなボタン（見た目は 32px の丸い札、押せる範囲は 44px） */
+.c-send-top { align-items: center; padding-right: 10px; }
+.c-send-foot { display: flex; justify-content: flex-end; padding-right: 10px; margin-top: calc(-1 * var(--space-1)); }
+.copy-mini {
+  display: inline-flex; align-items: center; justify-content: flex-end;
+  min-height: var(--tap); min-width: var(--tap); margin: calc(-1 * var(--space-2)) 0;
+  padding: 0; border: 0; background: none; color: var(--color-primary);
+}
+.copy-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 32px; padding: 0 var(--space-3) 0 10px;
+  border: var(--border-w) solid var(--color-control-border); border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-size: var(--fs-14); white-space: nowrap;
+}
+.copy-pill .icon { width: 16px; height: 16px; }
+.copy-mini:hover .copy-pill { background: var(--color-surface-2); }
+.copy-mini.is-done .copy-pill { background: var(--color-primary-soft); border-color: var(--color-primary); font-weight: var(--fw-bold); }
+.copy-mini:focus-visible { outline: none; }
+.copy-mini:focus-visible .copy-pill { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 .c-dont { font-size: var(--fs-14); color: var(--color-text-2); }
 .stop { color: var(--color-accent); font-weight: var(--fw-bold); }
 
-/* 送らない吹き出し（預ける箱）。破線と鍵：送らずに、ここで止めておく */
-.keep {
-  position: relative; align-self: flex-end;
-  width: 92%;
-  border: var(--border-w-strong) dashed var(--color-control-border);
-  border-radius: 20px 20px 4px 20px;
-  background: var(--color-surface);
-}
-.keep:focus-within { border-style: solid; border-color: var(--color-primary); }
-.keep-input {
-  display: block; width: 100%; min-height: 92px; resize: vertical;
-  padding: var(--space-3) 44px var(--space-3) var(--space-4);
-  border: 0; border-radius: 20px 20px 4px 20px; background: transparent;
-  font-size: var(--fs-18); line-height: 1.6;
-}
-.keep-input:focus-visible { outline: none; }
-.keep-lock { position: absolute; top: 12px; right: 14px; color: var(--color-muted); }
+/* 待つ一手の「待つ間に」（ラベルは同じ行の頭に小さく） */
 .c-donow { color: var(--color-text); }
-.c-hint { font-size: var(--fs-14); color: var(--color-text-2); }
+.c-donow .c-label { display: block; }
 .c-links { display: flex; flex-direction: column; gap: 0; }
 .c-links > .c-urge, .c-links > .c-later-draft { margin: var(--space-1) 0 var(--space-3); }
-.c-later-draft, .c-urge, .c-keep-panel { display: flex; flex-direction: column; gap: var(--space-2); }
-.c-keep-row { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-2); }
-.c-keep-line { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.c-later-draft, .c-urge { display: flex; flex-direction: column; gap: var(--space-2); }
 .urge-input {
   width: 100%; min-height: 92px; resize: vertical;
   padding: var(--space-3) var(--space-4);

@@ -5,12 +5,15 @@
 //  - 道のり：全部の局面に段がある
 //  - 戻る時刻：点検時刻の種類ごとの時刻（日本時間で固定。実行環境の時差に左右されない）
 //  - 読み取りのチップ、案D の10件でカードの中身が作れること
+//  - 受け止めの文（事実と気持ちをひと続きに1〜2文。見出し・箇条書きなし、使わない言葉なし、分からない項目を書かない）
+//  - 預けるを外した言い方（待つ間に・見出し・送る時の行に「預け」「ここに」が残らない）
 import assert from "node:assert/strict";
 import * as M from "../poc/card/model.js";
 import { readText } from "../js/consult/extract.js";
 import { nextQuestion, applyAnswer } from "../js/consult/needed.js";
 import { ACTIONS, PHASES } from "../js/consult/rules.js";
 import { FORBIDDEN_WORDS } from "../js/consult/card.js";
+import { DO_NOW, HEADLINES, TIMING_LINE_MORNING, REASON_TEMPLATES, VARIANT_ACTION_TEXT } from "../js/consult/texts.js";
 import { READ_CASES, answerFromTruth } from "./fixtures/consult_read_cases.mjs";
 
 let fail = 0, pass = 0;
@@ -215,6 +218,119 @@ test("安全の確認のあと続けるとき：窓口の1行を出し、伝え�
   assert.equal(m.want, null);
   assert.equal(m.road, null);
   assert.equal(m.safetyLine[0].name, "よりそいホットライン");
+});
+
+// ---------------------------------------------------------------- 受け止めの文
+/** 評価・説教・決めつけの言い方（受け止めの文に入れない） */
+const PREACH_RE = /すべき|べきです|大事な一歩|えらい|頑張|正しい|間違|しましょう|しなさい|落ち着いて(?:ください|ね)|気にしない|考えすぎ|な人|性格/;
+/** 見出し・箇条書き・区切りの記号 */
+const LAYOUT_RE = /[\n•・■□◆▶►→:：#＃|｜]|^[-－*]/;
+function checkAccept(t, label) {
+  assert.ok(t && typeof t === "string", label);
+  const sentences = t.split("。").filter(Boolean);
+  assert.ok(sentences.length >= 1 && sentences.length <= 2, `${label}: 1〜2文 ${t}`);
+  assert.ok(t.endsWith("。"), `${label}: 文で終わる ${t}`);
+  assert.ok([...t].length <= 90, `${label}: 長すぎる ${t}`);
+  assert.doesNotMatch(t, LAYOUT_RE, `${label}: 見出し・箇条書きの記号 ${t}`);
+  assert.doesNotMatch(t, PREACH_RE, `${label}: 評価・説教 ${t}`);
+  for (const w of FORBIDDEN_WORDS) assert.ok(!t.includes(w), `${label}: 使わない語「${w}」 ${t}`);
+}
+
+test("受け止め：案D の10件は1〜2文の、事実と気持ちがひと続きの文", () => {
+  for (const c of READ_CASES) {
+    const r = readText(c.text);
+    checkAccept(M.acceptText({ known: r.fields, text: c.text, evidence: r.evidence }), c.id);
+  }
+});
+
+test("受け止め：例の形（事実＋気持ち）", () => {
+  const p2 = READ_CASES.find(c => c.id === "P2"), r2 = readText(p2.text);
+  assert.equal(M.acceptText({ known: r2.fields, text: p2.text, evidence: r2.evidence }),
+    "相手から「もういい」と来て、まだ返せていないんですね。腹が立つのも無理はないです。");
+  assert.equal(M.acceptText({ known: { ...r2.fields, goal: "understood" }, text: p2.text, evidence: r2.evidence }),
+    "相手から「もういい」と来て、まだ返せていないんですね。分かってほしいのに届かないと、腹が立つのも無理はないです。");
+  assert.equal(M.acceptText({ known: { lastSender: "self", selfLast: "reconcile", elapsed: "12h_2d", ongoing: false }, text: "仲直りしようって送った" }),
+    "仲直りの連絡を送って、もう半日以上返事がないんですね。待つ時間が長く感じるのは、自然なことです。");
+  assert.equal(M.acceptText({ known: {} }), M.ACCEPT_DEFAULT);
+  assert.equal(M.acceptText({ known: { lastSender: "partner" }, safetyContinue: true }), M.ACCEPT_SAFETY);
+});
+
+test("受け止め：分からない事実・気持ちは書かない（推測で埋めない）", () => {
+  // 経過が分からなければ時間の言葉なし
+  const a = M.acceptText({ known: { lastSender: "partner", partnerLast: "apology" } });
+  assert.doesNotMatch(a, /時間|半日|何日|日以上/);
+  // 気持ちが分からなければ、本人の気持ちに名前を付けない
+  assert.doesNotMatch(a, /腹が立|おさまらない|落ち着いて/);
+  // どうしたいかが分からなければ、どうしたいかを書かない
+  assert.doesNotMatch(a, /謝りたい|分かってほしい|終わりにしたくない|決めたい|離れたい|話したい/);
+  // 相手の言葉の「」は、相手の言葉だと読めたときだけ（自分が送った「」を相手の言葉にしない）
+  const t = "最後に私が「もういいよ」って送ったら既読ついたまま返ってこない";
+  const r = readText(t);
+  const s = M.acceptText({ known: r.fields, text: t, evidence: r.evidence });
+  assert.doesNotMatch(s, /相手から「/);
+  assert.equal(M.quoteOf("partner", r.fields, t, r.evidence), null);
+  assert.equal(M.quoteOf("self", r.fields, t, r.evidence), "もういいよ");
+  // 「腹が立つ」は、怒りの言葉で読めたときだけ。選び直した「まだ熱い」は「気持ちがおさまらない」
+  assert.match(M.acceptText({ known: { lastSender: "partner", partnerLast: "explain", selfTemp: "high" } }), /おさまらない/);
+  assert.doesNotMatch(M.acceptText({ known: { lastSender: "partner", partnerLast: "explain", selfTemp: "high" } }), /腹が立/);
+});
+
+test("受け止め：項目の組み合わせを総当たりしても、1〜2文・記号なし・使わない言葉なし", () => {
+  const V = {
+    lastSender: [undefined, "self", "partner", "none"], partnerLast: [undefined, "attack", "casual", "explain", "apology", "talk_proposal", "space", "breakup"],
+    selfLast: [undefined, "attack", "reconcile", "hold"], elapsed: [undefined, "lt3h", "12h_2d", "ge3d"], ongoing: [undefined, true, false],
+    selfTemp: [undefined, "high", "cooling", "calm"], intent: [undefined, "none", "apologize", "tell", "request_space"], goal: [undefined, "understood", "settle", "reconcile"],
+    afterMakeup: [undefined, true], repeat: [undefined, true], cause: [undefined, "self"],
+  };
+  const keys = Object.keys(V);
+  let n = 0;
+  // 全部の組み合わせは多いので、決まった並びで抜き取る
+  let seed = 7;
+  const rand = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  for (let i = 0; i < 4000; i++) {
+    const k = {};
+    for (const f of keys) { const v = V[f][Math.floor(rand() * V[f].length)]; if (v !== undefined) k[f] = v; }
+    const ev = k.selfTemp === "high" && rand() < 0.5 ? { selfTemp: "腹立" } : {};
+    const t = M.acceptText({ known: k, text: rand() < 0.3 ? "既読無視されてる" : "", evidence: ev });
+    checkAccept(t, JSON.stringify(k));
+    if (!("elapsed" in k)) assert.doesNotMatch(t, /半日|何日|数時間/, JSON.stringify(k));
+    if (!("selfTemp" in k)) assert.doesNotMatch(t, /腹が立つ|おさまらない|落ち着いてきても|落ち着いていても/, JSON.stringify(k));
+    n++;
+  }
+  assert.equal(n, 4000);
+});
+
+// ---------------------------------------------------------------- 預けるを外した言い方
+test("預ける：待つ間に・見出し・送る時の行・理由・2通りの行に「預け」「ここに」が残らない", () => {
+  for (const k of Object.keys(DO_NOW)) assert.ok(Object.hasOwn(M.DO_NOW_POC, k), `DO_NOW_POC に ${k} がない`);
+  for (const v of Object.values(M.DO_NOW_POC)) if (v) assert.doesNotMatch(v, /預け|ここに|ここで/);
+  for (const t of Object.values(HEADLINES)) assert.doesNotMatch(M.cleanKeep(t), /預け/, t);
+  assert.equal(M.cleanKeep(TIMING_LINE_MORNING), "送るのは朝になってから");
+  for (const t of Object.values(REASON_TEMPLATES)) assert.doesNotMatch(M.cleanKeep(t), /預け/, t);
+  for (const t of Object.values(VARIANT_ACTION_TEXT)) assert.doesNotMatch(M.cleanKeep(t), /預け/, t);
+  assert.equal(M.cleanKeep("今は相手に出さず、モヤモヤを書き出して預ける。10月24日に読み返す"), "今は相手に出さず、モヤモヤを書き出しておく。10月24日に読み返す");
+});
+
+test("預ける：カードの中身（待つ一手の待つ間に）は、預けるを外した自然な文", () => {
+  const now = at("2026-10-17T14:10:00+09:00");
+  const cases = [
+    { lastSender: "self", selfLast: "reconcile", elapsed: "12h_2d", ongoing: false, intent: "none", partnerLast: "none" },   // wait_until
+    { afterMakeup: true, lastSender: "none", partnerLast: "none", ongoing: false, intent: "none" },                          // self_calm
+    { intent: "tell", ongoing: false, repeat: true, partnerLast: "none", selfTemp: "calm" },                                 // prepare_points
+    { lastSender: "partner", partnerLast: "attack", selfTemp: "high", ongoing: false, intent: "none", selfLast: "none" },    // pause_with_time + self_calm
+  ];
+  const seen = new Set();
+  for (const known of cases) {
+    const m = M.buildPoc({ known: { ...known, lateNight: false }, now, tzOffset: JST });
+    seen.add(m.result.action);
+    const texts = [m.headline, m.timingLine, m.doNow, ...m.reasons, ...m.variantLines].filter(Boolean);
+    for (const t of texts) assert.doesNotMatch(t, /預け|ここに書|ここで1つ/, `${m.result.action}: ${t}`);
+    if (m.mode === "wait") assert.ok(m.doNow, `${m.result.action}: 待つ間に`);
+    else assert.equal(m.doNow, null, `${m.result.action}: 送る一手には待つ間にを出さない`);
+  }
+  assert.ok(seen.has("wait_until") && seen.has("self_calm") && seen.has("prepare_points") && seen.has("pause_with_time"), [...seen].join(","));
+  const w = M.buildPoc({ known: { ...cases[0], lateNight: false }, now, tzOffset: JST });
+  assert.equal(w.doNow, "明日の同じ時間ごろまでは何も送らない");
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

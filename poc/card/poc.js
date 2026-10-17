@@ -1,7 +1,7 @@
-// 次の一手カードの試作（統合1・統合3）。案D の流れ：書く → （安全の兆しがあれば確認）→ こう読み取りました → 足りない問（3つまで）→ カード。
+// 次の一手カードの試作（統合1・統合3）。案D の流れ：書く → （安全の兆しがあれば確認）→ 受け止め（事実と気持ちをひと続きの文で。直せる）→ 足りない問（3つまで）→ カード。
 // 設計：docs/ui-design-thinking.md §6・§7、決定 U14・U16・U22・U23。DOM を使わない部分は model.js。
 // 読み取り・足りない問・一手・文面は本物（js/consult/）。伝えたいこと・相手はたぶん・道のりは試作の決まった文（model.js）。
-// 端末の外には何も送らない。保存は localStorage（キーは poc-card-。使えなくても動く）。
+// 端末の外には何も送らない。保存は localStorage（キーは poc-card-。タイマーと表示だけ。使えなくても動く）。預ける機能は持ち主の判断で外した。
 // URL：?v=1|3（並び。既定 3）、?compare=1（幅 900px 以上で統合1と統合3を左右に）、?theme=light|dark、?ex=P2 など（例の文を入れておく。tests/fixtures/consult_read_cases.mjs の id）
 import { readText } from "../../js/consult/extract.js";
 import { nextQuestion } from "../../js/consult/needed.js";
@@ -45,9 +45,8 @@ function icon(name, cls = "") {
   svg.append(use);
   return svg;
 }
-/** icons.svg に無い線のアイコン（鍵・時計）。同じ線の太さ・viewBox */
+/** icons.svg に無い線のアイコン（時計）。同じ線の太さ・viewBox */
 const EXTRA_ICONS = {
-  lock: '<rect x="5.75" y="10.75" width="12.5" height="9.5" rx="2"/><path d="M8.75 10.75V8a3.25 3.25 0 0 1 6.5 0v2.75"/><path d="M12 14.5v2"/>',
   clock: '<circle cx="12" cy="13" r="7.75"/><path d="M12 9.25V13l2.5 1.75"/><path d="M9.5 2.75h5"/>',
 };
 function icon2(name, cls = "") {
@@ -89,6 +88,7 @@ const S = {
   lateNight: false,
   edits: {},           // 「こう読み取りました」で直した項目（null は「分からない」＝外す）
   editing: null,       // 直している項目
+  fixOpen: false,      // 「ちがうところを直す」を開いているか
   answers: [],         // 足りない問の答え [{ q, patch, label }]
   extra: {},           // カードで足した差分（［ちがう］［もっと合わせる］）
   safetyShown: false,  // 安全の確認を出したか
@@ -146,7 +146,11 @@ function initBar() {
 }
 
 // ---------------------------------------------------------------- 流れ
-function known() { return M.knownFrom(S.read?.fields, S.edits, S.answers.map(a => a.patch), { lateNight: S.lateNight }); }
+function known() {
+  const k = M.knownFrom(S.read?.fields, S.edits, S.answers.map(a => a.patch), { lateNight: S.lateNight });
+  delete k.want;   // 「どうしたい」のチップの印（判定の入力ではない）
+  return k;
+}
 function currentQuestion() { return nextQuestion(known(), S.answers.map(a => a.q)); }
 
 function go(screen) {
@@ -176,6 +180,8 @@ function startRead(text) {
   S.read = readText(text);
   S.lateNight = isLateNight(new Date());
   S.edits = {}; S.editing = null; S.answers = []; S.extra = {}; S.safetyContinue = false;
+  // 食い違い・確率が低い項目があれば、直す欄を開いておく
+  S.fixOpen = M.readChips(S.read, S.read.fields).some(c => c.weak);
   S.safetyShown = M.hasSafetySign(S.read);
   go(S.safetyShown ? "safety" : "read");
 }
@@ -250,41 +256,83 @@ function viewSafetyCheck() {
   ];
 }
 
-// 3. こう読み取りました
+// 3. 受け止め（事実と気持ちをひと続きの文で）→ ちがうところを直す → 次へ
+function readKnown() { return M.knownFrom(S.read?.fields, S.edits); }
 function viewRead() {
-  const k = M.knownFrom(S.read?.fields, S.edits);
-  const chips = M.readChips(S.read, k, S.edits);
+  const k = readKnown();
+  const text = M.acceptText({ known: k, text: S.text, evidence: editedEvidence(), safetyContinue: S.safetyContinue });
+  const chips = fixChips(k);
+  const weak = chips.some(c => c.weak);
+  const panel = h("div", { class: "fix-panel", id: "fix-panel", hidden: !S.fixOpen },
+    h("p", { class: "note" }, weak ? "点線のところは、読み取りが確かではありません。押して確かめてください。" : "押すと、選び直せます。"),
+    chipList(chips));
+  const fixBtn = h("button", { type: "button", class: "linkbtn", "aria-expanded": String(S.fixOpen), "aria-controls": "fix-panel", onclick: () => {
+    S.fixOpen = !S.fixOpen; S.editing = null; render(); main.querySelector("[aria-controls='fix-panel']")?.focus();
+  } }, "ちがうところを直す", icon("chevron-down", "chev"));
+  S.answers = []; S.extra = {};
+  const next = currentQuestion();
+  return [
+    h("h1", { class: "accept", tabindex: "-1", "data-focus": true }, text),
+    h("div", { class: "fix" }, fixBtn, panel),
+    h("button", { type: "button", class: "btn-primary", onclick: proceed }, next ? "次へ" : "次の一手を見る"),
+    next ? h("p", { class: "note" }, "足りないところを、このあと少しだけ聞きます（多くて3つ）。") : null,
+  ];
+}
+/** 直した項目の根拠の言葉は使わない（直した値と書いた文の「」が食い違うため） */
+function editedEvidence() {
+  const ev = { ...(S.read?.evidence || {}) };
+  for (const f of Object.keys(S.edits)) delete ev[f];
+  if ("want" in S.edits) { delete ev.intent; delete ev.goal; }
+  return ev;
+}
+/** 直すチップ：事実（読めたものだけ）＋気持ち・どうしたいか（読めていなくても選べる） */
+function fixChips(k) {
+  const facts = M.readChips(S.read, k, S.edits).filter(c => M.FACT_KEYS.includes(c.key));
+  const low = new Set([...(S.read?.lowConfidence || []), ...(S.read?.conflicts || [])]);
+  const feel = [];
+  const temp = M.readChips(S.read, k, S.edits).find(c => c.key === "selfTemp");
+  feel.push(temp || { key: "selfTemp", value: undefined, text: "いまの気持ちを選ぶ", evidence: null, weak: false, empty: true });
+  const wt = M.wantChipText(k);
+  feel.push({ key: "want", value: M.knownWantKey(k), text: wt || "どうしたいかを選ぶ", evidence: S.read?.evidence?.intent ?? S.read?.evidence?.goal ?? null,
+    weak: !("intent" in S.edits || "goal" in S.edits) && (low.has("intent") || low.has("goal")), empty: !wt });
+  const cause = M.readChips(S.read, k, S.edits).find(c => c.key === "cause");
+  if (cause) feel.push(cause);
+  return [...facts, ...feel];
+}
+function chipList(chips) {
   const wrap = h("div", { class: "chips", role: "list" });
   for (const c of chips) {
     const open = S.editing === c.key;
     const panelId = `edit-${c.key}`;
     wrap.append(h("div", { role: "listitem", class: "chip-item" },
-      h("button", { type: "button", class: `chip${c.weak ? " is-weak" : ""}`, "aria-expanded": String(open), "aria-controls": open ? panelId : null,
+      h("button", { type: "button", class: `chip${c.weak ? " is-weak" : ""}${c.empty ? " is-quiet" : ""}`, "aria-expanded": String(open), "aria-controls": open ? panelId : null,
         onclick: () => { S.editing = open ? null : c.key; render(); main.querySelector(`[data-chip="${c.key}"]`)?.focus(); }, "data-chip": c.key },
         h("span", {}, c.text), c.weak ? h("span", { class: "chip-flag" }, "たしかめて") : null, icon("chevron-down", "chev"))));
     if (open) wrap.append(editPanel(c, panelId));
   }
-  // 直して外した項目・読めなかった項目は、このあと必要なら聞く
-  return [
-    h("h1", { class: "title", tabindex: "-1", "data-focus": true }, "こう読み取りました"),
-    chips.length ? h("p", { class: "lead" }, "ちがうところは、押すと直せます。") : h("p", { class: "lead" }, "読み取れたことはありませんでした。"),
-    chips.length ? wrap : null,
-    h("p", { class: "note" }, "足りないところは、このあと少しだけ聞きます（多くて3つ）。"),
-    h("button", { type: "button", class: "btn-primary", onclick: proceed }, "この内容で進む"),
-  ];
+  return wrap;
 }
 function editPanel(c, id) {
-  const pick = (v) => { S.edits = { ...S.edits, [c.key]: v }; S.editing = null; render(); main.querySelector(`[data-chip="${c.key}"]`)?.focus(); };
-  const opts = M.fieldOptions(c.key);
-  return h("div", { class: "edit-panel", id, role: "group", "aria-label": `${M.FIELD_NAMES[c.key]}を直す` },
+  const done = () => { S.editing = null; S.answers = []; render(); main.querySelector(`[data-chip="${c.key}"]`)?.focus(); };
+  const pick = (v) => { S.edits = { ...S.edits, [c.key]: v }; done(); };
+  const isWant = c.key === "want";
+  const opts = isWant ? M.WANTS.map(w => [w.key, w.label]) : M.fieldOptions(c.key);
+  const choose = isWant
+    ? (v) => { S.edits = { ...S.edits, ...M.wantPatch(v, {}, { full: true }), want: v }; done(); }
+    : pick;
+  const forget = isWant
+    ? () => { S.edits = { ...S.edits, intent: null, goal: null, want: null }; done(); }
+    : () => pick(null);
+  const name = isWant ? "どうしたい？" : M.FIELD_NAMES[c.key];
+  return h("div", { class: "edit-panel", id, role: "group", "aria-label": `${name}を直す` },
     c.evidence ? h("p", { class: "note" }, `「${c.evidence}」から読み取りました`) : null,
-    h("p", { class: "edit-q" }, M.FIELD_NAMES[c.key]),
+    h("p", { class: "edit-q" }, name),
     h("div", { class: "chip-row" },
       opts.map(([v, label]) => {
         const on = c.value === v;
-        return h("button", { type: "button", class: "chip", "aria-pressed": String(on), onclick: () => pick(v) }, on ? icon("check") : null, label);
+        return h("button", { type: "button", class: "chip", "aria-pressed": String(on), onclick: () => choose(v) }, on ? icon("check") : null, label);
       }),
-      h("button", { type: "button", class: "chip is-quiet", onclick: () => pick(null) }, "分からない（あとで聞く）")));
+      h("button", { type: "button", class: "chip is-quiet", onclick: forget }, "分からない（あとで聞く）")));
 }
 
 // 4. 足りない問（1画面に1問）
@@ -321,8 +369,23 @@ function viewCard() {
       cardView(S.model, l))));
   S.fresh = false;
   if (timeBlocks.size) timerTick = setInterval(() => { for (const f of timeBlocks) f(); }, 30000);
-  return [cards,
+  return [S.answers.length ? readLine() : null, cards,
     h("p", { class: "card-foot" }, h("button", { type: "button", class: "linkbtn", onclick: () => go("write") }, "最初から書き直す"))];
+}
+
+/**
+ * カードの上の小さな1行「読み取った内容」（足りない問に答えたときだけ。押すと、答えも入れた受け止めの文と「ちがうところを直す」が開く）。
+ * 最初の画面を押し下げないよう、閉じた状態は1行（44px）だけ
+ */
+function readLine() {
+  const k = known();
+  delete k.lateNight;
+  const panel = h("div", { class: "read-line-panel", id: "read-line-panel", hidden: true },
+    h("p", {}, M.acceptText({ known: k, text: S.text, evidence: editedEvidence() })),
+    h("button", { type: "button", class: "linkbtn", onclick: () => { S.fixOpen = true; go("read"); } }, "ちがうところを直す"));
+  const b = toggler("読み取った内容", panel, "linkbtn read-line-btn");
+  b.append(icon("chevron-down", "chev"));
+  return h("div", { class: "read-line" }, b, panel);
 }
 
 function cardView(m, layout) {
@@ -335,7 +398,7 @@ function cardView(m, layout) {
   if (m.safetyLine) add(decide, safetyLine(m.safetyLine));
   const action = m.mode === "send" ? sendBlock(m, layout) : waitBlock(m, layout);
   if (layout === "3") {
-    // 統合3：伝えたいのは（小さな1行）→ 結論（＋時刻）→ 理由の1行目［なぜ？］→ 文面［コピー］・足さない方がいい一言／待つ間［預ける］
+    // 統合3：伝えたいのは（小さな1行）→ 結論（＋時刻）→ 理由の1行目［なぜ？］→ 文面（右上に小さな［コピー］）・足さない方がいい一言／待つ間に
     add(decide, m.want ? wantLine(m) : null, headline(m, ids.head), timingNote(m), timeBlock(m), reasonFirst(m, true), action);
     add(later, afterBlock3(m), m.road != null ? roadView(m.road, false) : null, confBlock(m, layout));
   } else {
@@ -348,9 +411,9 @@ function cardView(m, layout) {
 
 // ---- 部品（統合1・3 で共通のもの）
 function headline(m, id) {
-  return h("h2", { class: "c-head", id, tabindex: "-1", "data-focus": true }, m.card.headline);
+  return h("h2", { class: "c-head", id, tabindex: "-1", "data-focus": true }, m.headline);
 }
-function timingNote(m) { return m.card.timingLine ? h("p", { class: "c-note" }, m.card.timingLine) : null; }
+function timingNote(m) { return m.timingLine ? h("p", { class: "c-note" }, m.timingLine) : null; }
 
 /** 伝えたいことの選び直し（［ちがう］）。選ぶとカードを作り直す */
 function wantChooser(m, id) {
@@ -428,7 +491,7 @@ function timeBlock(m) {
 
 /** 理由の1行目（無料で全員に。U23）。統合3 は直後に［なぜ？］で2行目から */
 function reasonFirst(m, withWhy) {
-  const rs = m.card.reasons;
+  const rs = m.reasons;
   const p = h("p", { class: "c-reason" }, rs[0] ?? "");
   if (!withWhy || rs.length < 2) return p;
   const panel = whyPanel(m);
@@ -436,15 +499,36 @@ function reasonFirst(m, withWhy) {
   return [p, panel];
 }
 function whyPanel(m) {
-  return h("ul", { class: "c-why", id: uid("why"), hidden: true }, m.card.reasons.slice(1).map(t => h("li", {}, t)));
+  return h("ul", { class: "c-why", id: uid("why"), hidden: true }, m.reasons.slice(1).map(t => h("li", {}, t)));
 }
 
-/** 送る吹き出し（相手の画面にこう届く）＋［コピー］ */
-function bubbleUnit(drafts, { primary = true } = {}) {
-  let i = 0;
+/**
+ * 送る吹き出し（相手の画面にこう届く）。［コピー］は吹き出しの右上の小さなボタン（見た目は小さく、押せる範囲は 44px）。
+ * 押すと「コピーしました」と、ボタンの文字を少しの間「コピー済み」に。「別の言い方」に切り替えても、表示中の文をコピーする
+ */
+function draftUnit(drafts, label) {
+  let i = 0, resetT = null;
   const bubble = h("p", { class: "bubble" }, drafts[0].text);
-  const copy = h("button", { type: "button", class: primary ? "btn-primary" : "btn-secondary", onclick: () => copyText(bubble.textContent, bubble) },
-    icon("copy"), "コピー");
+  const use = document.createElementNS(SVG, "use");
+  use.setAttribute("href", `${ICONS}#copy`);
+  const ic = document.createElementNS(SVG, "svg");
+  ic.setAttribute("class", "icon");
+  ic.setAttribute("aria-hidden", "true");
+  ic.append(use);
+  const word = h("span", {}, "コピー");
+  const copy = h("button", { type: "button", class: "copy-mini" }, h("span", { class: "copy-pill" }, ic, word));
+  const setDone = (on) => {
+    word.textContent = on ? "コピー済み" : "コピー";
+    use.setAttribute("href", `${ICONS}#${on ? "check" : "copy"}`);
+    copy.classList.toggle("is-done", on);
+  };
+  copy.addEventListener("click", async () => {
+    if (await copyText(bubble.textContent, bubble)) {
+      setDone(true);
+      clearTimeout(resetT);
+      resetT = setTimeout(() => setDone(false), 2000);
+    }
+  });
   let alt = null;
   if (drafts[1]) {
     alt = h("button", { type: "button", class: "inline-link", "aria-pressed": "false" }, "別の言い方");
@@ -453,68 +537,38 @@ function bubbleUnit(drafts, { primary = true } = {}) {
       bubble.textContent = drafts[i].text;
       alt.textContent = i ? "最初の言い方" : "別の言い方";
       alt.setAttribute("aria-pressed", String(!!i));
+      clearTimeout(resetT);
+      setDone(false);
     });
   }
-  return { bubble, copy, alt };
+  return [
+    h("div", { class: "c-send-top" }, label ? h("span", { class: "c-label" }, label) : h("span", {}), copy),
+    bubble,
+    alt ? h("div", { class: "c-send-foot" }, alt) : null,
+  ];
 }
 function sendBlock(m, layout) {
   const d = m.card.drafts;
-  const { bubble, copy, alt } = bubbleUnit(d);
-  const out = h("div", { class: "c-send" },
-    h("div", { class: "c-send-top" }, h("span", { class: "c-label" }, d[0].label), alt),
-    bubble, copy);
-  return add(out, layout === "3" ? avoidLine(m) : null, m.card.doNow ? keepRow(m) : null);
+  return h("div", { class: "c-send" }, draftUnit(d, d[0].label), layout === "3" ? avoidLine(m) : null);
 }
-/** 送る一手の「送りたくなった文は、ここに預けて」（書く欄は押すと開く） */
-function keepRow(m) {
-  const box = keepBox(m, uid("keep"), "送りたくなった文を、ここに書いて預けられます");
-  const panel = h("div", { class: "c-keep-panel", id: uid("keeppanel"), hidden: true }, box.box, box.button, box.hint);
-  return h("div", { class: "c-keep-row" },
-    h("div", { class: "c-keep-line" }, h("p", { class: "c-small" }, m.card.doNow), toggler("書いて預ける", panel, "btn-secondary is-small")),
-    panel);
-}
-/** 送らない吹き出し（預ける箱）。鍵の印。［預ける］で端末に保存 */
-function keepBox(m, id, placeholder) {
-  const saved = store.get("kept");
-  const ta = h("textarea", { id, class: "keep-input", rows: "3", placeholder, "aria-label": "預ける文（送りません）" });
-  if (saved?.consult === S.text) ta.value = saved.text;
-  const hint = h("p", { class: "c-hint", hidden: true }, "預けたい文を書いてから押してください。");
-  const button = h("button", { type: "button", class: "btn-primary", onclick: () => {
-    const v = ta.value.trim();
-    if (!v) { hint.hidden = false; ta.focus(); return; }
-    hint.hidden = true;
-    store.set("kept", { text: v, savedAt: new Date().toISOString(), returnAt: m.ret?.at?.toISOString?.() ?? null, consult: S.text });
-    toast("預けました。戻る時刻に読み直せます");
-  } }, icon2("lock"), "預ける");
-  const box = h("div", { class: "keep" }, ta, icon2("lock", "keep-lock"));
-  return { box, button, hint, ta };
-}
-const KEEP_PLACEHOLDER = {
-  wait_until: "送りたくなった文を、ここに書いて預けられます",
-  self_calm: "何が引っかかっているか、1つだけ",
-  prepare_points: "出来事：\n気持ち：\nお願い：",
-};
+/** 待つ一手：待つ間に（預けるは無し）→［それでも今送りたい］と「期限が来たら、この1通」（押すと、そのすぐ下に開く） */
 function waitBlock(m, layout) {
   const a = m.result.action;
-  const kb = keepBox(m, uid("keep"), KEEP_PLACEHOLDER[a] || KEEP_PLACEHOLDER.wait_until);
-  const out = h("div", { class: "c-send is-wait" },
-    h("div", { class: "c-send-top" }, h("span", { class: "c-label" }, doNowLabel(a))),
-    m.card.doNow ? h("p", { class: "c-donow" }, m.card.doNow) : null,
-    kb.box, kb.button, kb.hint);
-  // ［それでも今送りたい］と「期限が来たら、この1通」（どちらも押すと、そのすぐ下に開く）
-  const urge = urgePanel(m, kb.ta);
+  const urge = urgePanel(m);
   const links = h("div", { class: "c-links" }, h("div", {}, toggler("それでも今送りたい", urge)), urge);
   if (m.card.drafts.length) {
-    const u = bubbleUnit(m.card.drafts, { primary: false });
-    const later = h("div", { class: "c-later-draft", id: uid("laterdraft"), hidden: true }, u.alt ? h("div", { class: "c-send-top" }, u.alt) : null, u.bubble, u.copy);
+    const later = h("div", { class: "c-later-draft", id: uid("laterdraft"), hidden: true }, draftUnit(m.card.drafts, null));
     const t = toggler(m.card.drafts[0].label, later);
     t.append(icon("chevron-down", "chev"));
     add(links, h("div", {}, t), later);
   }
-  return add(out, links, layout === "3" ? avoidLine(m) : null);
+  return h("div", { class: "c-send is-wait" },
+    m.doNow ? h("p", { class: "c-donow" }, h("span", { class: "c-label" }, doNowLabel(a)), m.doNow) : null,
+    links,
+    layout === "3" ? avoidLine(m) : null);
 }
 /** それでも今送りたい：送りたい文の欄 → 送る前チェック（届きやすさ3段階・数字なし）と避けたい言葉の印 */
-function urgePanel(m, keepTa) {
+function urgePanel(m) {
   const id = uid("urge");
   const ta = h("textarea", { class: "urge-input", rows: "3", "aria-label": "送りたい文", placeholder: "送りたい文を書いてください" });
   const level = h("p", { class: "c-level" });
@@ -533,11 +587,7 @@ function urgePanel(m, keepTa) {
   ta.addEventListener("input", run);
   const panel = h("div", { class: "c-urge", id, hidden: true },
     ta, result,
-    h("button", { type: "button", class: "btn-secondary", onclick: () => copyText(ta.value, ta) }, icon("copy"), "この文をコピー"),
-    h("p", { class: "c-small" }, "送る前に、上の箱に預けて、戻る時刻に読み直すこともできます。"));
-  // 開いたとき、預ける箱に書いた文があれば写す
-  const obs = new MutationObserver(() => { if (!panel.hidden && !ta.value && keepTa.value) { ta.value = keepTa.value; } run(); });
-  obs.observe(panel, { attributes: true, attributeFilter: ["hidden"] });
+    h("button", { type: "button", class: "btn-secondary", onclick: () => copyText(ta.value, ta) }, icon("copy"), "この文をコピー"));
   run();
   return panel;
 }
@@ -594,13 +644,13 @@ function roadView(step, withLabel) {
 /** 確かさ＋相手のタイプで変わるところ＋［もっと合わせる］。統合1 は［なぜ？］もここ */
 function confBlock(m, layout) {
   const out = h("section", { class: "c-sec c-conf" });
-  if (layout === "1" && m.card.reasons.length > 1) {
+  if (layout === "1" && m.reasons.length > 1) {
     const panel = whyPanel(m);
     out.append(h("div", { class: "c-why-wrap" }, toggler("なぜ？", panel, "btn-secondary is-small")), panel);
   }
   const line = h("div", { class: "c-conf-line" }, h("p", { class: "c-small" }, `確かさ：${m.card.confidenceLine ?? ""}`));
   out.append(line);
-  if (m.card.variantLines.length) out.append(h("ul", { class: "c-variants" }, m.card.variantLines.map(t => h("li", {}, t.replace(" → ", "、")))));
+  if (m.variantLines.length) out.append(h("ul", { class: "c-variants" }, m.variantLines.map(t => h("li", {}, t.replace(" → ", "、")))));
   if (m.refine.length) {
     const panel = h("div", { class: "c-refine", id: uid("refine"), hidden: true },
       m.refine.map(q => h("div", { class: "c-refine-q", role: "group", "aria-label": q.text },
@@ -646,14 +696,16 @@ function selectText(el) {
 }
 async function copyText(text, el) {
   const v = String(text || "").trim();
-  if (!v) return;
+  if (!v) return false;
   try {
     if (!navigator.clipboard?.writeText) throw new Error("no clipboard");
     await navigator.clipboard.writeText(v);
     toast("コピーしました");
+    return true;
   } catch {
     selectText(el);
     toast("文を選びました。そのままコピーできます");
+    return false;
   }
 }
 
