@@ -44,6 +44,7 @@
 | `?ui=v2` | **新しい見た目**（トークンと部品。`css/tokens.css`・`css/ui2.css`）。既定は今の見た目 v1 で、`?ui=v1` で戻せる。既定の切り替えは `index.html` の `data-ui-default` と `js/ui_flags.js` の `DEFAULT_UI`（決定 U9） |
 | `?dev=1` | **開発・検証用の表示**（設問の版、サンプル、内部の段階名、点数の内訳、5択版との比較、相談の判定・プロンプトなど）。利用者向けの既定では隠す（クラス `dev-only`。機能は消していない。決定 U10）。`?ui=` `?qv=` `?fb=` と組み合わせられる |
 | `#consult` | 相談（試作）。状況のタップ入力 → 次の一手カード。AI は未接続で、決まった文型で答える |
+| `poc/card/` | **案D の流れと次の一手カード（統合1・統合3）の動く試作**。書く → （兆しがあるときだけ）安全の確認 → こう読み取りました → 足りない問 → カード。`?v=1|3` で並び、`?compare=1` で左右に見比べ（900px 以上）。今の画面には入れていない（別のページ） |
 | `?five=1#diagnose` ほか `#result` `#logic` `#questions` `#design` | 旧版（5択）。コードは残してあるが、表には出していない |
 
 結果画面（三択）には傾向の絵が出る（主軸の傾向の絵＋「8つの軸の絵」）。
@@ -110,6 +111,7 @@ js/consult/                      相談モードの中身（下の表）
 js/ui/consult*.js, css/consult.css  相談画面（#consult）
 js/data/type_images.js, js/ui/type_images.js, img/types/  傾向の絵
 workers/consult-proxy.js         AI 中継の見本（Cloudflare Worker。未デプロイ）
+poc/card/                        案D と次の一手カード（統合1・3）の動く試作（model.js＝DOM なしの部分、poc.js＝画面）
 tools/clef_eval.mjs              Clef の読み取りを試す道具（CLOUDFLARE_API_TOKEN・CLOUDFLARE_ACCOUNT_ID が要る。CI では動かさない）
 tests/                           Node テスト。fixtures/consult_cases.mjs が相談の検証ケース
 data/testers/                    テスター6人の回答原文（v1 5人・v2 1人）と自動集計 summary-*.md

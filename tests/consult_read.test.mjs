@@ -128,6 +128,10 @@ test("言い合いの最中／止まっている／仲直り／温度／くり�
   assert.equal(R("会って喧嘩したあと、帰ってから彼から来た").ongoing, false);
   assert.equal(R("仲直りしたけど、またモヤモヤしてる").afterMakeup, true);
   assert.equal(R("仲直りしたい").afterMakeup, undefined);
+  assert.equal(R("仲直りしたくて昨日LINE送ったけど返事がない").afterMakeup, undefined);
+  assert.equal(R("仲直りしたかったのに、また言い返しちゃった").afterMakeup, undefined);
+  assert.equal(R("仲直りしたら、ちゃんと話したい").afterMakeup, undefined);
+  assert.equal(R("仲直りしたから安心してたのに、またモヤモヤ").afterMakeup, true);
   assert.equal(R("仲直りしたい").goal, "reconcile");
   assert.equal(R("彼が怒ってるけど私は冷静").selfTemp, "calm");
   assert.equal(R("怒ってたけど少し落ち着いてきた").selfTemp, "cooling");

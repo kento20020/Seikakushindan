@@ -2,6 +2,7 @@
 // 設計：docs/ui-design-thinking.md §6・§7、決定 U14・U16・U22・U23。DOM を使わない部分は model.js。
 // 読み取り・足りない問・一手・文面は本物（js/consult/）。伝えたいこと・相手はたぶん・道のりは試作の決まった文（model.js）。
 // 端末の外には何も送らない。保存は localStorage（キーは poc-card-。使えなくても動く）。
+// URL：?v=1|3（並び。既定 3）、?compare=1（幅 900px 以上で統合1と統合3を左右に）、?theme=light|dark、?ex=P2 など（例の文を入れておく。tests/fixtures/consult_read_cases.mjs の id）
 import { readText } from "../../js/consult/extract.js";
 import { nextQuestion } from "../../js/consult/needed.js";
 import { applyPatch } from "../../js/consult/context.js";
@@ -94,6 +95,7 @@ const S = {
   safetyContinue: false,
   returnTo: "write",   // 安全のカードから戻る先
   model: null,
+  fresh: false,        // 作ったばかりのカード（出るときだけ短くフェードする）
   now: null,
   layout: M.layoutOf(location.search),
   compare: M.compareOf(location.search),
@@ -137,7 +139,8 @@ function initBar() {
   });
   document.getElementById("back").addEventListener("click", back);
   document.getElementById("danger").addEventListener("click", (e) => { e.preventDefault(); openSafetyCard(); });
-  wideMQ.addEventListener?.("change", () => { if (S.screen === "card") render(); });
+  // 幅が変わって「左右に並べるか」が変わったときだけ描き直す（書きかけの文や開いた欄を消さないため）
+  wideMQ.addEventListener?.("change", () => { if (S.screen === "card" && S.compare && showBoth() !== shownBoth) render(); });
   syncBar();
   applyTheme();
 }
@@ -181,6 +184,7 @@ function proceed() {
   else { buildCard(); go("card"); }
 }
 function buildCard() {
+  S.fresh = true;
   S.now = new Date();
   S.model = M.buildPoc({ known: known(), extra: S.extra, text: S.text, now: S.now, safetyContinue: S.safetyContinue, safety: S.read?.safety });
 }
@@ -200,7 +204,7 @@ function render() {
   timerTick = null;
   timeBlocks.clear();
   main.replaceChildren();
-  main.classList.toggle("is-wide", S.screen === "card" && S.compare && wideMQ.matches);
+  main.classList.toggle("is-wide", S.screen === "card" && showBoth());
   const view = { write: viewWrite, safety: viewSafetyCheck, read: viewRead, ask: viewAsk, card: viewCard, safetycard: viewSafetyCard }[S.screen] || viewWrite;
   add(main, view());
 }
@@ -305,14 +309,17 @@ function viewAsk() {
 }
 
 // 5. カード
+const showBoth = () => S.compare && wideMQ.matches;
+let shownBoth = false;
 function viewCard() {
   if (!S.model) buildCard();
-  const showBoth = S.compare && wideMQ.matches;
-  const layouts = showBoth ? ["1", "3"] : [S.layout];
-  const cards = h("div", { class: `cards${showBoth ? " is-two" : ""}` },
+  shownBoth = showBoth();
+  const layouts = shownBoth ? ["1", "3"] : [S.layout];
+  const cards = h("div", { class: `cards${shownBoth ? " is-two" : ""}` },
     layouts.map(l => h("section", { class: "card-col", "aria-label": `統合${l}` },
       S.compare ? h("p", { class: "poc-col" }, `統合${l}`) : null,
       cardView(S.model, l))));
+  S.fresh = false;
   if (timeBlocks.size) timerTick = setInterval(() => { for (const f of timeBlocks) f(); }, 30000);
   return [cards,
     h("p", { class: "card-foot" }, h("button", { type: "button", class: "linkbtn", onclick: () => go("write") }, "最初から書き直す"))];
@@ -320,7 +327,7 @@ function viewCard() {
 
 function cardView(m, layout) {
   if (m.mode === "safety") return safetyCardView(m.card);
-  const art = h("article", { class: `card enter layout-${layout}` });
+  const art = h("article", { class: `card${S.fresh ? " enter" : ""} layout-${layout}` });
   const ids = { head: uid("head") };
   art.setAttribute("aria-labelledby", ids.head);
   const decide = h("div", { class: "c-decide" });
@@ -494,18 +501,17 @@ function waitBlock(m, layout) {
     h("div", { class: "c-send-top" }, h("span", { class: "c-label" }, doNowLabel(a))),
     m.card.doNow ? h("p", { class: "c-donow" }, m.card.doNow) : null,
     kb.box, kb.button, kb.hint);
-  // ［それでも今送りたい］と「期限が来たら、この1通」
+  // ［それでも今送りたい］と「期限が来たら、この1通」（どちらも押すと、そのすぐ下に開く）
   const urge = urgePanel(m, kb.ta);
-  const links = h("div", { class: "c-links" }, toggler("それでも今送りたい", urge));
-  let later = null;
+  const links = h("div", { class: "c-links" }, h("div", {}, toggler("それでも今送りたい", urge)), urge);
   if (m.card.drafts.length) {
     const u = bubbleUnit(m.card.drafts, { primary: false });
-    later = h("div", { class: "c-later-draft", id: uid("laterdraft"), hidden: true }, u.alt ? h("div", { class: "c-send-top" }, u.alt) : null, u.bubble, u.copy);
+    const later = h("div", { class: "c-later-draft", id: uid("laterdraft"), hidden: true }, u.alt ? h("div", { class: "c-send-top" }, u.alt) : null, u.bubble, u.copy);
     const t = toggler(m.card.drafts[0].label, later);
     t.append(icon("chevron-down", "chev"));
-    links.append(t);
+    add(links, h("div", {}, t), later);
   }
-  return add(out, links, urge, later, layout === "3" ? avoidLine(m) : null);
+  return add(out, links, layout === "3" ? avoidLine(m) : null);
 }
 /** それでも今送りたい：送りたい文の欄 → 送る前チェック（届きやすさ3段階・数字なし）と避けたい言葉の印 */
 function urgePanel(m, keepTa) {
@@ -518,7 +524,8 @@ function urgePanel(m, keepTa) {
     const v = ta.value.trim();
     hits.replaceChildren();
     if (!v) { level.replaceChildren("書くと、相手に届きやすいかをここに出します。"); level.className = "c-level is-empty"; return; }
-    const r = checkDraft(v, { action: null, avoid: m.result.avoid });
+    // 一手に逆らって送る文なので、局面の避ける言葉に限らず全部を見る
+    const r = checkDraft(v, { action: null, avoid: null });
     level.className = `c-level${r.level === LEVELS[2] ? " is-stop" : ""}`;
     level.replaceChildren("届きやすさ：", h("b", {}, r.level));
     for (const x of r.hits) hits.append(h("li", {}, x.id === "long" || x.id === "missing_time" ? M.HIT_LABELS[x.id] : h("span", {}, h("mark", {}, `「${x.text}」`), M.HIT_LABELS[x.id] ?? "")));

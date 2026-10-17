@@ -96,7 +96,7 @@ export const GUESS = {
   apology_partial: "すぐには許せなくても、謝ってくれたことは受け取る",
   apology_full: "返事に時間がかかっても、謝ってくれたことにほっとする",
   accept_apology: "受け取ってもらえて、ほっとする",
-  restore_routine: "いつもの調子で返してきて、そのまま普段に戻る",
+  restore_routine: "普段の調子で返してきて、そのまま元のやりとりに戻る",
   propose_call: "電話か文字か、話しやすいほうを選んで返してくる",
   propose_talk_plan: "話す日が決まると、それまでは落ち着いて待てる",
   prepare_points: "1つに絞った話なら、構えずに聞いてくれる",

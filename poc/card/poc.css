@@ -125,6 +125,8 @@ a { color: var(--color-primary); }
 .title-xl { font-size: var(--fs-28); line-height: var(--lh-head); font-weight: var(--fw-bold); }
 .title { font-size: var(--fs-22); line-height: var(--lh-head); font-weight: var(--fw-bold); }
 .title-xl:focus, .title:focus, .c-head:focus { outline: none; }
+/* 日本語の見出し・吹き出しは文節で折り返す（「待\nつ」のような1字だけの行を避ける。対応していない端末ではふつうに折り返す） */
+.title-xl, .title, .c-head, .c-want-big, .c-big { word-break: auto-phrase; text-wrap: pretty; }
 .lead { color: var(--color-text-2); }
 .note { color: var(--color-muted); font-size: var(--fs-14); }
 .step { color: var(--color-muted); font-size: var(--fs-14); }
@@ -300,12 +302,12 @@ a { color: var(--color-primary); }
   padding: var(--space-3) var(--space-4);
   background: var(--color-primary-soft); color: var(--color-text);
   font-size: var(--fs-18); line-height: 1.6;
-  border-radius: 20px 20px 4px 20px;
+  border-radius: 20px;
 }
-/* 吹き出しのしっぽ（右下） */
-.bubble::before, .bubble::after { content: ""; position: absolute; bottom: 0; height: 16px; }
-.bubble::before { right: -8px; width: 16px; background: var(--color-primary-soft); border-bottom-left-radius: 14px 12px; }
-.bubble::after { right: -12px; width: 12px; background: var(--color-surface); border-bottom-left-radius: 10px; }
+/* 吹き出しのしっぽ（右下。送ったメッセージの形） */
+.bubble::before, .bubble::after { content: ""; position: absolute; bottom: 0; height: 20px; }
+.bubble::before { right: -7px; width: 20px; background: var(--color-primary-soft); border-bottom-left-radius: 16px 14px; }
+.bubble::after { right: -10px; width: 10px; background: var(--color-surface); border-bottom-left-radius: 10px; }
 .c-send .btn-primary { margin-top: var(--space-1); }
 .c-dont { font-size: var(--fs-14); color: var(--color-text-2); }
 .stop { color: var(--color-accent); font-weight: var(--fw-bold); }
@@ -313,7 +315,7 @@ a { color: var(--color-primary); }
 /* 送らない吹き出し（預ける箱）。破線と鍵：送らずに、ここで止めておく */
 .keep {
   position: relative; align-self: flex-end;
-  width: 92%; margin-right: 10px;
+  width: 92%;
   border: var(--border-w-strong) dashed var(--color-control-border);
   border-radius: 20px 20px 4px 20px;
   background: var(--color-surface);
@@ -329,7 +331,8 @@ a { color: var(--color-primary); }
 .keep-lock { position: absolute; top: 12px; right: 14px; color: var(--color-muted); }
 .c-donow { color: var(--color-text); }
 .c-hint { font-size: var(--fs-14); color: var(--color-text-2); }
-.c-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--space-3); }
+.c-links { display: flex; flex-direction: column; gap: 0; }
+.c-links > .c-urge, .c-links > .c-later-draft { margin: var(--space-1) 0 var(--space-3); }
 .c-later-draft, .c-urge, .c-keep-panel { display: flex; flex-direction: column; gap: var(--space-2); }
 .c-keep-row { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-2); }
 .c-keep-line { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
