@@ -57,7 +57,7 @@
    印・お知らせ
      .a-badge          … 印（丸い小さな地）。色：既定＝主の色の薄い地、.a-badge-quiet（灰）、.a-badge-ink（墨）、.a-badge-slate（灰青）、.a-badge-line（枠だけ）
                          ui.js の badge(text, { tone, ic })
-     .a-dot            … 点（.a-dot-a＝A 側・くすんだ赤、.a-dot-b＝B 側・灰青）
+     .a-dot            … 点（.a-dot-a＝A 側、.a-dot-b＝B 側。ホームの「主な傾向」は home.js がその軸の色・紺を直に入れる）
      .a-toast          … 下に一時的に出るお知らせ。ui.js の toast(text)
      .a-note           … 小さな灰色の補足  .a-box … 薄い地の箱（「違うと思う文があればタップ」など。中に icon("hand") を入れる）
      .a-nowrap         … そこで折り返さない
