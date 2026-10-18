@@ -8,7 +8,10 @@
 //   safetyCardView(card)     安全のカード（窓口の番号・すること）
 //   safetyLine(resources)    窓口の1行（安全の確認の画面と、続けるときのカードの一番上）
 //   snapshotOf(m)            履歴に残す形（JSON。カードを描き直すのに要るものだけ）
-//   savedView(record)        履歴の詳細で「そのときのカード」を読むだけの形で出す
+//   savedView(record)        履歴の詳細で「そのときのカード」と、そのあとのやりとり（続き）を読むだけの形で出す
+//   bubbleView(item)         続き（往復）の吹き出し（自分＝右、アプリ＝左）。docs/app-screens.md §11
+//   pastCardView(c, at)      たたんだ前のカード（押すと読むだけのカード）
+//   threadReadView(items)    やりとりを読むだけの形で（履歴の詳細）
 import { h, icon, toast, fmtDate } from "./ui.js";
 import { checkDraft, LEVELS } from "../../js/consult/draft_check.js";
 import { doNowLabel } from "../../js/consult/texts.js";
@@ -365,11 +368,14 @@ function validSnap(c) {
 
 /**
  * 履歴の詳細（#history/<id>）で出す「そのときのカード」。読むだけ（選び直し・タイマー・送る前チェックは無し。［コピー］だけ残す）
+ * 続き（往復）のある記録（data.v 2）は、最初のカードのあとに「そのあとのやりとり」を吹き出しで（読むだけ。docs/app-screens.md §11.5）
  * 記録の形が違えば null（履歴の画面が、書いた文の冒頭と一手だけを出す）
  */
 export function savedView(record) {
   const d = record?.data;
-  const c = d?.card;
+  const thread = d?.v === 2 && Array.isArray(d?.fu?.thread) ? d.fu.thread.filter(x => x && typeof x === "object") : null;
+  const first = thread?.[0]?.who === "card" && validSnap(thread[0].card) ? thread[0] : null;
+  const c = first ? first.card : d?.card;
   if (!validSnap(c)) return null;
   const blocks = [];
   if (typeof d.text === "string" && d.text) {
@@ -378,8 +384,62 @@ export function savedView(record) {
   if (typeof d.accept === "string" && d.accept) {
     blocks.push(h("section", { class: "a-detail-block" }, h("h2", null, "受け止めと状況の整理"), h("p", { class: "a-cs-saved-accept" }, d.accept)));
   }
-  blocks.push(h("section", { class: "a-detail-block" }, h("h2", null, "次の一手"), savedCard(c, record.at)));
+  blocks.push(h("section", { class: "a-detail-block" }, h("h2", null, "次の一手"), savedCard(c, first?.at ?? record.at)));
+  const rest = first ? thread.slice(1) : [];
+  if (rest.length) {
+    blocks.push(h("section", { class: "a-detail-block" }, h("h2", null, "そのあとのやりとり"), threadReadView(rest)));
+  }
+  const out = OUTCOME_LABEL[d?.fu?.outcome];
+  if (out) blocks.push(h("section", { class: "a-detail-block" }, h("h2", null, "どうなった"), h("p", { class: "a-cs-saved-accept" }, out)));
   return h("div", { class: "a-cs a-cs-saved" }, blocks);
+}
+const OUTCOME_LABEL = { made_up: "仲直りできた", not_yet: "まだ", worse: "こじれた" };
+
+// ---------------------------------------------------------------- 続き（往復）の部品（docs/app-screens.md §11.2）
+/**
+ * 吹き出し1つ（自分＝右、アプリ＝左）。item：{ who: "me" | "app", text, label?, quote?, check? }
+ *   label：小さな見出し（「相手から来た返事」「答え合わせ」）。quote：文を「」で囲む（貼った相手の返事）。check："near" | "different"
+ */
+export function bubbleView(item) {
+  const me = item?.who === "me";
+  const text = String(item?.text ?? "");
+  return h("div", { class: ["a-cs-msg-bubble", item?.check && "is-check"] },
+    h("span", { class: "a-sr" }, me ? "あなた：" : "アプリ："),
+    item?.label ? h("span", { class: "a-cs-msg-label" }, String(item.label)) : null,
+    h("span", { class: "a-cs-msg-text" }, item?.quote ? `「${text}」` : text));
+}
+
+/**
+ * たたんだカード（見出しだけ。押すと読むだけのカードが開く）。一手が変わって新しいカードが出たら、前のカードはこの形にする
+ * @param {object} c  snapshotOf の写し
+ */
+export function pastCardView(c, at, { open = false, label = "前の一手" } = {}) {
+  if (!validSnap(c)) return null;
+  const id = uid("past");
+  const panel = h("div", { class: "a-cs-past-body", id, hidden: !open }, savedCard(c, at));
+  const more = h("span", { class: "a-cs-past-more" }, open ? "閉じる" : "開く");
+  const btn = h("button", { type: "button", class: "a-cs-past-btn", "aria-expanded": String(open), "aria-controls": id },
+    h("span", { class: "a-cs-past-text" }, h("span", { class: "a-cs-label" }, label), h("span", { class: "a-cs-past-title" }, c.headline)),
+    h("span", { class: "a-cs-past-side" }, more, icon("chevron-down", { size: 16 })));
+  btn.addEventListener("click", () => {
+    panel.hidden = !panel.hidden;
+    btn.setAttribute("aria-expanded", String(!panel.hidden));
+    more.textContent = panel.hidden ? "開く" : "閉じる";
+  });
+  return h("div", { class: "a-cs-past" }, btn, panel);
+}
+
+/** やりとりを読むだけの形で（履歴の詳細）。カードはたたみ、いちばん新しいカードだけ開いておく */
+export function threadReadView(items) {
+  const lastCard = items.map(x => x.who).lastIndexOf("card");
+  return h("ol", { class: "a-cs-thread is-read", "aria-label": "やりとり" }, items.map((x, i) => {
+    if (x.who === "card") {
+      const v = pastCardView(x.card, x.at, { open: i === lastCard, label: "新しい一手" });
+      return v ? h("li", { class: "a-cs-thread-card" }, v) : null;
+    }
+    if (x.who !== "me" && x.who !== "app") return null;
+    return h("li", { class: ["a-cs-msg", x.who === "me" ? "is-me" : "is-app"] }, bubbleView(x));
+  }));
 }
 
 function savedCard(c, at) {

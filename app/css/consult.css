@@ -493,6 +493,143 @@
 }
 .a-cs-steps { padding-left: 1.2em; display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-md); line-height: 1.85; }
 
+/* ---------------------------------------------------------------- 6. 続き（往復）。仕様 §11（決定 U30）
+   上に「いまの状況」の帯、中にやりとり（自分＝右の吹き出し・灰青の地／アプリ＝左の吹き出し・明るい面と細い線）、下に続きの操作。
+   吹き出しは「送る文面の吹き出し」（くすんだ赤の薄い地・しっぽつき）と見分けがつくよう、地の色と角の形を変える */
+
+/* いまの状況（たたむと1行） */
+.a-cs-status { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+.a-cs-status-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 12px 6px 16px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+.a-cs-status-label { flex: none; font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0.1em; color: var(--rose-ink); }
+.a-cs-status-one {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+.a-cs-status-head > .a-ic { flex: none; margin-left: auto; color: var(--ink-2); transition: rotate var(--dur) var(--ease); }
+.a-cs-status-head[aria-expanded="true"] > .a-ic { rotate: 180deg; }
+.a-cs-status-panel { display: flex; flex-direction: column; gap: var(--sp-3); padding: 0 16px 14px; }
+.a-cs-status-lines { list-style: none; display: flex; flex-direction: column; gap: 2px; font-family: var(--sans); font-weight: 400; font-size: var(--fs-md); line-height: 1.8; letter-spacing: 0.02em; color: var(--ink); }
+.a-cs-status-lines li { position: relative; padding-left: 14px; }
+.a-cs-status-lines li::before { content: ""; position: absolute; left: 0; top: 0.9em; width: 6px; height: 1.5px; background: var(--line-strong); }
+.a-cs-status-fix { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-3); }
+.a-cs-status-edit { display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; }
+
+/* やりとり */
+.a-cs-thread { list-style: none; display: flex; flex-direction: column; gap: var(--sp-3); }
+.a-cs-thread-card + .a-cs-msg, .a-cs-msg + .a-cs-thread-card { margin-top: var(--sp-3); }
+.a-cs-msg { display: flex; flex-direction: column; gap: var(--sp-2); }
+.a-cs-msg.is-me { align-items: flex-end; }
+.a-cs-msg.is-app { align-items: flex-start; }
+.a-cs-msg-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 86%;
+  padding: 10px 16px 11px;
+  border-radius: 18px;
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: var(--fs-md);
+  line-height: 1.85;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+.is-me > .a-cs-msg-bubble { background: var(--slate-soft); color: var(--ink); border-bottom-right-radius: 6px; }
+.is-app > .a-cs-msg-bubble { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+.a-cs-msg-text { white-space: pre-wrap; }
+.a-cs-msg-label { font-family: var(--serif); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.1em; line-height: 1.6; color: var(--muted); }
+.is-me .a-cs-msg-label { color: var(--slate-ink); }
+.a-cs-msg-bubble.is-check .a-cs-msg-label { color: var(--rose-ink); }
+/* 吹き出しの下の選択肢（待っている問だけ） */
+.a-cs-msg-opts { display: flex; flex-wrap: wrap; gap: var(--sp-2); max-width: 100%; padding-left: 2px; }
+.a-cs-msg-opts.is-group { flex-direction: column; align-items: flex-start; }
+.a-cs-msg-opts .a-note { margin-bottom: calc(-1 * var(--sp-1)); }
+.a-cs-skip { font-size: var(--fs-sm); }
+
+/* たたんだ前のカード（見出しだけ） */
+.a-cs-past { border: 1px solid var(--line); border-radius: var(--r-card); background: rgb(252 250 247 / 0.55); }
+.a-cs-past-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 14px 12px 20px;
+  border: 0;
+  border-radius: var(--r-card);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+.a-cs-past-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.a-cs-past-title { font-size: var(--fs-md); line-height: 1.6; letter-spacing: 0.04em; color: var(--ink-2); word-break: auto-phrase; }
+.a-cs-past-side { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-sm); letter-spacing: 0.06em; color: var(--rose-ink); }
+.a-cs-past-side .a-ic { transition: rotate var(--dur) var(--ease); }
+.a-cs-past-btn[aria-expanded="true"] .a-ic { rotate: 180deg; }
+.a-cs-past-body { padding: 0 6px 6px; }
+.a-cs-past-body .a-cs-card { box-shadow: none; border-color: var(--line); }
+
+/* 続きの操作（3つのボタン・あと n 回・相談を終える／貼る欄・書く欄／終える／上限） */
+.a-cs-fu { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-2); padding: var(--sp-2) var(--sp-5) var(--sp-4); }
+.a-cs-acts .a-row { min-height: 56px; }
+.a-cs-fu-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.a-cs-acts + .a-cs-fu-foot { margin-top: calc(-1 * var(--sp-2)); }
+.a-cs-left { font-size: var(--fs-sm); letter-spacing: 0.08em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.a-cs-fu-foot .a-link { font-size: var(--fs-sm); }
+.a-cs-fu-q { display: block; padding-top: var(--sp-3); font-size: var(--fs-lg); font-weight: 500; line-height: 1.6; letter-spacing: 0.08em; color: var(--ink); }
+.a-cs-fu-input { min-height: 120px; }
+.a-cs-fu-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.a-cs-fu-row .a-link { font-size: var(--fs-sm); }
+.a-cs-fu-meta { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); padding-top: var(--sp-1); text-align: center; }
+.a-cs-fu-wait { padding-top: var(--sp-3); }
+.a-cs-fu-home { align-self: center; font-size: var(--fs-sm); }
+.a-cs-fu .a-cs-safety-line { margin-top: var(--sp-3); }
+
+/* 入力の画面の上：前の続き */
+.a-cs-resume {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-card);
+  background: var(--rose-soft);
+}
+.a-cs-resume-h { display: flex; flex-direction: column; gap: 2px; }
+.a-cs-resume-h .a-cs-label { color: var(--rose-ink); }
+.a-cs-resume-text { font-size: var(--fs-lg); line-height: 1.6; letter-spacing: 0.04em; color: var(--ink); word-break: auto-phrase; overflow-wrap: anywhere; }
+.a-cs-resume .a-note { color: var(--ink-2); }
+.a-cs-resume-btns { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding-top: var(--sp-1); }
+
 /* ---------------------------------------------------------------- 履歴の詳細（読むだけのカード） */
 .a-cs-saved { margin-top: var(--sp-2); }
 .a-cs-saved-accept { font-size: var(--fs-lg); line-height: 1.95; letter-spacing: 0.06em; color: var(--ink); word-break: auto-phrase; }
@@ -503,4 +640,5 @@
 @media (prefers-reduced-motion: reduce) {
   .a-cs-card.is-enter { animation: none; }
   .a-cs-option:active { transform: none; }
+  .a-cs-status-head > .a-ic, .a-cs-past-side .a-ic { transition: none; }
 }
