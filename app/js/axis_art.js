@@ -14,9 +14,11 @@
 //   heroArt(r)           … 結果の一番上・ホームの一番上（診断後）の絵。主軸に合う傾向の軸の、●で選んだパターン
 //                          その軸がまんなか（絵がまだ無い）・答えなしなら、主軸に合う傾向の側（A なら a、B なら b）
 //                          { ...artOf の形, key: "2B", tendency: "熟考", reason, bySide }。出せなければ null
+//   axisArtSlots()       … 絵の一覧の画面（#images。§14）の24枠。軸の順・各軸は a → mid → b の順。絵が無い枠は ready: false
+//   slotMarks(r)         … 結果 r で選ばれる枠の id（8つの軸の行 picked・一番上の絵 hero）。一覧の画面の印に使う
 //
 // まんなかの絵が届いたら：下の AXIS_ART のその軸の mid: null を mid: { file: "img/axes/<軸>-mid.jpg", alt: "…" } にするだけで、
-//   8つの軸の行・結果の一番上・ホームの一番上に出る（ほかは直さなくてよい）
+//   8つの軸の行・結果の一番上・ホームの一番上・絵の一覧（#images）に出る（ほかは直さなくてよい）
 import { DOMAINS } from "../../js/engine3.js";
 import { heroTendency, TYPE_IMAGES } from "../../js/data/type_images.js";
 import { axisView } from "./summary.js";
@@ -120,4 +122,49 @@ export function heroArt(r) {
   const bySide = !art?.file;
   if (bySide) art = artOf(d, lead === "A" ? "a" : "b");
   return { ...art, key: pick.key, tendency: lead === "A" ? D.a : D.b, reason: pick.reason, bySide };
+}
+
+// ---------------------------------------------------------------- 絵の一覧の画面（#images。§14）
+const SLOT_SIDES = ["a", "mid", "b"];
+const RATIO = Object.freeze({ a: "75:25", mid: "50:50", b: "25:75" });
+
+/**
+ * 24枠（8軸 × 3パターン）。軸の順（1〜8）、各軸は a（A寄り）→ mid（まんなか）→ b（B寄り）の順
+ *   { id: "1-a", domain, side, ratio: "75:25", label: "向き合う寄り" | "まんなか", file, alt, ready, path, color, deep }
+ *   ready … 絵がある（AXIS_ART に file がある）。無ければ file・alt は null
+ *   path  … 絵の場所（app/ からの相対パス）。絵が無ければ、置く場所（img/axes/<軸>-<パターン>.jpg）
+ *   まんなかの絵が届いて AXIS_ART の mid を書けば、ここも ready になる（ほかは直さなくてよい）
+ */
+export function axisArtSlots() {
+  return Object.values(AXIS_ART).flatMap(t => SLOT_SIDES.map(side => {
+    const art = artOf(t.domain, side);
+    const D = DOMAINS[t.domain];
+    return {
+      ...art,
+      ratio: RATIO[side],
+      label: side === "a" ? `${D.a}寄り` : side === "b" ? `${D.b}寄り` : "まんなか",
+      ready: !!art.file,
+      path: art.file ?? `img/axes/${t.domain}-${side}.jpg`,
+    };
+  }));
+}
+
+/**
+ * 結果 r で選ばれる枠（一覧の画面の印）
+ *   picked … 8つの軸の行に選ばれる枠の id（artSide(axisView(r, d))。軸の順。答えの無い軸は入れない）。
+ *            まんなかの絵がまだ無い枠（例 "1-mid"）も入る（そのとき行には番号の丸が出る）
+ *   hero   … 結果の一番上・ホームの一番上（診断後）の絵の枠の id（heroArt。代わりの側の絵ならその枠）。出せなければ null
+ *   art    … heroArt(r) の結果そのもの（bySide などを見るため）か null
+ */
+export function slotMarks(r) {
+  if (!r) return { picked: [], hero: null, art: null };
+  const picked = [];
+  for (const t of Object.values(AXIS_ART)) {
+    let side = null;
+    try { side = artSide(axisView(r, t.domain)); } catch { side = null; }
+    if (side) picked.push(`${t.domain}-${side}`);
+  }
+  let art = null;
+  try { art = heroArt(r); } catch { art = null; }
+  return { picked, hero: art?.id ?? null, art };
 }

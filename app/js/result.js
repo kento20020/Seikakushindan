@@ -10,6 +10,7 @@
 //   「8つの軸」（§12 の2）：領域ごとに1本の横軸。●＝同じ場面の問で B を選んだ割合、下に「熟考寄り 75%」、右上に強さ「即応 40 ・ 熟考 72」
 //     値は summary.js の axisView（r.states を読むだけ）。左に、その軸の●で選んだ軸の絵（axis_art.js の axisArt。まんなか・答えなしは番号の丸）
 //     色（§13）：A 側の●と帯はその軸の色、B 側は紺、まんなかの●は墨。文字は墨のまま（「〜寄り」の前に色の点を添える）。「弱め」「両方とも強い」の印
+//   下：「もう一度診断する」「診断結果の絵の一覧」（→ #images。§14）「ホームへ戻る」
 //   結果を開いたら、履歴に1件足す（recordDiagnosis。同じ結果は2回足さない）
 //   値は今の画面 js/ui/three.js の patternCard と同じ（js/ の中身は直さない）。見た目は app/css/diagnose.css（a-dg-）
 import { h, icon, topBar, toast, badge, sectionHead, rowLink, artPic } from "./ui.js";
@@ -49,6 +50,7 @@ export function render(root) {
       h("p", { class: "a-note" }, "「違う」の印と「ありそう／なさそう」は、この端末の中だけに残ります。どこにも送りません。"),
       h("div", { class: "a-card a-rows a-dg-res-rows" },
         rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" }),
+        rowLink({ href: "#images", ic: "sparkle", text: "診断結果の絵の一覧" }),
         rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" })))));
 }
 

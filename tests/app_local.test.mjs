@@ -4,6 +4,7 @@
 //  - app/js/summary.js：主軸の見出し・主な傾向・結果の key・履歴に足す形（サンプルの結果で）、8つの軸の1本（axisView。§12 の2）、
 //    見出しの半角の引用符を「」にする（jpQuotes）
 //  - app/js/axis_art.js：軸の絵（8軸×3パターン。§13）。axisArt の a・b・mid・答えなし、heroArt が軸の絵を返すこと、ホームの絵（home.js の homePics）
+//  - 診断結果の絵の一覧（#images。§14）：axis_art.js の axisArtSlots・slotMarks、images.js の typeImageSlots（今の画面の傾向の絵）
 // Node には localStorage が無いので、useStorage で入れ物を差し替える。時刻は ISO（UTC）で渡すので時差に依存しない
 import assert from "node:assert/strict";
 import { STORAGE_KEY, useStorage, loadRecords, getRecord, addRecord, removeRecord, clearRecords, clearAll, getMarks, setMarks, MAX_ITEMS } from "../app/js/local.js";
@@ -11,8 +12,9 @@ import { mainPattern, topTendencies, resultKey, diagnosisRecord, recordDiagnosis
 import { fromLikertAnswers, fromScores } from "../js/adaptive3.js";
 import { SAMPLES3, PROFILE_SAMPLES3 } from "../js/data/samples3.js";
 import { TYPE_IMAGES, isReady, heroTendency } from "../js/data/type_images.js";
-import { AXIS_ART, NAVY, artOf, artSide, axisArt, heroArt } from "../app/js/axis_art.js";
+import { AXIS_ART, NAVY, artOf, artSide, axisArt, heroArt, axisArtSlots, slotMarks } from "../app/js/axis_art.js";
 import { homePics } from "../app/js/home.js";
+import { typeImageSlots } from "../app/js/images.js";
 import { DOMAINS } from "../js/engine3.js";
 import { existsSync } from "node:fs";
 
@@ -375,6 +377,84 @@ test("ホームの絵：診断前・途中は 4-b と 5-a（同じ絵にしな�
   assert.equal(done.hero, art);
   assert.equal(done.diagnose, null);
   assert.equal(homePics("done", null).hero.id, "4-b", "heroArt が無ければ診断前と同じ絵");
+});
+
+// ---------------------------------------------------------------- 診断結果の絵の一覧（#images。§14）
+// 数（24・16 など）は書かない。AXIS_ART の mid が null かどうかから導く（まんなかの絵が届いて埋まっても壊れないように）
+test("絵の一覧の24枠：軸の順・各軸は a → mid → b、ready の枠の絵はある、ready でない枠は file が null", () => {
+  const slots = axisArtSlots();
+  const domains = Object.keys(AXIS_ART).map(Number);
+  assert.equal(slots.length, domains.length * 3);
+  assert.deepEqual(slots.map(s => s.id), domains.flatMap(d => [`${d}-a`, `${d}-mid`, `${d}-b`]));
+  const ratio = { a: "75:25", mid: "50:50", b: "25:75" };
+  for (const s of slots) {
+    const D = DOMAINS[s.domain];
+    assert.equal(s.ratio, ratio[s.side], `${s.id} の比率`);
+    assert.equal(s.label, s.side === "a" ? `${D.a}寄り` : s.side === "b" ? `${D.b}寄り` : "まんなか", `${s.id} の名前`);
+    assert.equal(s.color, AXIS_ART[s.domain].color);
+    const def = AXIS_ART[s.domain][s.side];
+    assert.equal(s.ready, !!def, `${s.id}：AXIS_ART にあれば ready`);
+    if (s.ready) {
+      assert.equal(s.file, def.file);
+      assert.equal(s.path, s.file);
+      assert.ok(s.alt, `${s.id} の alt`);
+      assert.ok(existsSync(appFile(s.file)), `${s.file} がある`);
+    } else {
+      assert.equal(s.file, null, `${s.id}：絵が無ければ file は null`);
+      assert.equal(s.alt, null);
+      assert.equal(s.path, `img/axes/${s.id}.jpg`, `${s.id}：置く場所`);
+    }
+  }
+  // 準備中の数は、mid が null の軸の数と同じ（a・b はどの軸にもある）
+  const midMissing = domains.filter(d => AXIS_ART[d].mid == null).length;
+  assert.equal(slots.filter(s => !s.ready).length, midMissing);
+  assert.ok(slots.filter(s => !s.ready).every(s => s.side === "mid"));
+});
+
+test("絵の一覧の印：8つの軸の行に選ばれる枠（artSide）と、いちばん上の絵の枠（heroArt）", () => {
+  assert.deepEqual(slotMarks(null), { picked: [], hero: null, art: null });
+  const ids = new Set(axisArtSlots().map(s => s.id));
+  for (const { name, r } of results) {
+    const m = slotMarks(r);
+    const want = Object.keys(AXIS_ART).map(Number).map(d => [d, artSide(axisView(r, d))]).filter(([, side]) => side).map(([d, side]) => `${d}-${side}`);
+    assert.deepEqual(m.picked, want, `${name}：選ばれる枠`);
+    assert.ok(m.picked.every(id => ids.has(id)), `${name}：一覧にある枠`);
+    const art = heroArt(r);
+    assert.equal(m.hero, art?.id ?? null, `${name}：いちばん上の絵の枠`);
+    if (m.hero) {
+      const slot = axisArtSlots().find(s => s.id === m.hero);
+      assert.ok(slot?.ready, `${name}：いちばん上の絵の枠には絵がある`);
+      if (art.bySide) assert.equal(m.hero, `${art.domain}-${art.key.endsWith("A") ? "a" : "b"}`, `${name}：代わりの側の枠`);
+    }
+  }
+  // まんなかの軸は "<軸>-mid" に印が付き、いちばん上は代わりの側
+  const { r } = results[0];
+  const d = heroArt(r).domain;
+  const tie = { ...r, states: { ...r.states, [d]: { ...r.states[d], a: 2, b: 2 } } };
+  const m = slotMarks(tie);
+  assert.ok(m.picked.includes(`${d}-mid`));
+  if (AXIS_ART[d].mid == null) assert.notEqual(m.hero, `${d}-mid`, "まんなかの絵が無いあいだは、いちばん上は代わりの側");
+});
+
+test("今の画面の傾向の絵の16枠：軸の順・A → B、ready の枠の絵はある、ready でない枠は file が null", () => {
+  const slots = typeImageSlots();
+  assert.equal(slots.length, Object.keys(TYPE_IMAGES).length);
+  assert.deepEqual(slots.map(s => s.key), Object.keys(DOMAINS).flatMap(d => [`${d}A`, `${d}B`]));
+  for (const s of slots) {
+    const e = TYPE_IMAGES[s.key];
+    assert.equal(s.label, e.tendency);
+    assert.equal(s.ready, isReady(e), `${s.key}：isReady と同じ`);
+    if (s.ready) {
+      assert.equal(s.file, e.file);
+      assert.ok(existsSync(new URL(`../${s.file}`, import.meta.url)), `${s.file} がある`);
+    } else {
+      assert.equal(s.file, null);
+      assert.equal(s.path, `img/types/${s.key}.jpg`);
+    }
+  }
+  assert.equal(slots.filter(s => s.ready).length, Object.values(TYPE_IMAGES).filter(isReady).length);
+  // TYPE_IMAGES の ready の絵はすべてある（今の画面の結果に出る絵）
+  for (const e of Object.values(TYPE_IMAGES).filter(isReady)) assert.ok(existsSync(new URL(`../${e.file}`, import.meta.url)), e.file);
 });
 
 useStorage(null);

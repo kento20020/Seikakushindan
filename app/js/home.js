@@ -8,7 +8,7 @@
 import { h, eyebrow, sectionHead, badge, roundArrow, rowLink, artPic, icon, go } from "./ui.js";
 import { store3, restore3, discard3 } from "../../js/ui/three_store.js";
 import { mainPattern, topTendencies, recordDiagnosis } from "./summary.js";
-import { heroArt, artOf, ART_SIZE } from "./axis_art.js";
+import { heroArt, artOf, ART_SIZE, AXIS_ART, NAVY } from "./axis_art.js";
 
 // 診断前・途中の絵（軸の絵から2枚。同じ絵にしない。§13.3）
 //   上＝4-b（感情表出の B寄り。胸もとに小さなピンクがのぞく、静かな絵。前の仮の絵 4B と同じ見え方）。候補の先頭が基本で、診断のカードの絵と重なるときだけ次
@@ -149,11 +149,16 @@ function doneSection(r) {
           h("p", { class: "a-trends-label" }, "主な傾向"),
           top.length
             ? h("ul", { class: "a-trends-list" }, top.map(t => h("li", { "data-key": t.key },
-              h("span", { class: ["a-dot", t.side === "A" ? "a-dot-a" : "a-dot-b"], "aria-hidden": "true" }),
+              h("span", { class: ["a-dot", t.side === "A" ? "a-dot-a" : "a-dot-b"], "aria-hidden": "true", style: { background: dotColor(t) } }),
               h("span", { class: "a-trend-name" }, t.name),
               h("span", { class: "a-trend-domain" }, t.domainName))))
             : h("p", { class: "a-note" }, "はっきり片方に寄った軸はありませんでした"),
           roundArrow())),
       h("div", { class: "a-rows" },
         rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" }))));
+}
+
+// 「主な傾向」の点の色（決定 U33 の続き）：A 側はその軸の点の色、B 側は紺（8つの軸の表示と同じ）
+function dotColor(t) {
+  return t.side === "A" ? (AXIS_ART[t.domain]?.deep || NAVY) : NAVY;
 }

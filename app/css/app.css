@@ -1,4 +1,4 @@
-/* app/css/app.css — 新しい画面（app/）の色・文字・形・部品と、ホーム・アカウント・履歴・マイページの画面。
+/* app/css/app.css — 新しい画面（app/）の色・文字・形・部品と、ホーム・アカウント・履歴・マイページ・診断結果の絵の一覧の画面。
    仕様：docs/app-screens.md §5（色・文字・形）。今の画面の css/ は読まない。ダークモードは作らない。
    診断の画面は app/css/diagnose.css、相談の画面は app/css/consult.css に足す（このファイルの変数と部品を使う）。
 
@@ -57,7 +57,7 @@
    印・お知らせ
      .a-badge          … 印（丸い小さな地）。色：既定＝主の色の薄い地、.a-badge-quiet（灰）、.a-badge-ink（墨）、.a-badge-slate（灰青）、.a-badge-line（枠だけ）
                          ui.js の badge(text, { tone, ic })
-     .a-dot            … 点（.a-dot-a＝A 側・くすんだ赤、.a-dot-b＝B 側・灰青）
+     .a-dot            … 点（.a-dot-a＝A 側、.a-dot-b＝B 側。ホームの「主な傾向」は home.js がその軸の色・紺を直に入れる）
      .a-toast          … 下に一時的に出るお知らせ。ui.js の toast(text)
      .a-note           … 小さな灰色の補足  .a-box … 薄い地の箱（「違うと思う文があればタップ」など。中に icon("hand") を入れる）
      .a-nowrap         … そこで折り返さない
@@ -940,6 +940,99 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 .a-data-row p { font-size: var(--fs-md); letter-spacing: 0.06em; color: var(--ink-2); }
 .a-foot { margin-top: var(--sp-10); text-align: center; }
 .a-foot .a-note + .a-note { margin-top: var(--sp-1); }
+
+/* ======================================================================
+   画面：診断結果の絵の一覧（#images。docs/app-screens.md §14。app/js/images.js）
+     軸の色は、軸のブロック（.a-im-axis）に --axis（絵の色）・--axis-deep（点の色）をインラインで渡す。無ければ墨系の中立色
+     枠は3列（今の画面の傾向の絵は2列）。スマホ 390px でも3列のまま（横スクロールを出さない）
+   ====================================================================== */
+.a-im-intro { margin-top: var(--sp-2); }
+.a-im-count { margin-top: var(--sp-3); font-size: var(--fs-md); line-height: 1.8; letter-spacing: 0.06em; color: var(--ink); word-break: auto-phrase; }
+.a-im-rules { margin-top: var(--sp-5); }
+.a-im-rules-h { font-size: var(--fs-md); font-weight: 700; letter-spacing: 0.1em; }
+.a-im-points { list-style: none; display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); }
+.a-im-points li {
+  position: relative;
+  padding-left: 1.1em;
+  font-size: var(--fs-md);
+  line-height: 1.8;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+.a-im-points li::before {
+  content: "";
+  position: absolute;
+  left: 0.15em;
+  top: 0.78em;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--rose);
+}
+.a-im-marknote { margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: 1px solid var(--line); }
+.a-im-legend { list-style: none; display: flex; flex-direction: column; gap: var(--sp-2); }
+.a-im-legend li { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); font-size: var(--fs-sm); line-height: 1.7; color: var(--ink-2); }
+.a-im-legend + .a-note { margin-top: var(--sp-3); }
+.a-im .a-section-h h2 { font-size: var(--fs-xl); word-break: auto-phrase; }
+.a-im-keep { display: inline-block; }
+.a-im-sec-note { margin-bottom: var(--sp-1); word-break: normal; }
+.a-im-sec .a-im-count { margin-top: var(--sp-2); }
+.a-im-list { list-style: none; display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-3); }
+.a-im-axis { --axis: var(--muted); --axis-deep: var(--muted); padding: var(--sp-4) var(--sp-3); }
+.a-im-axis-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: var(--sp-3);
+  padding: 0 var(--sp-1) var(--sp-3);
+}
+.a-im-axis-name { font-size: var(--fs-base); line-height: 1.6; letter-spacing: 0.06em; word-break: auto-phrase; }
+.a-im-axis-count { font-size: var(--fs-sm); letter-spacing: 0.04em; color: var(--muted); white-space: nowrap; }
+.a-im-axis-color {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+}
+.a-im-dot { flex: none; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--axis-deep); }
+.a-im-grid { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); }
+.a-im-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.a-im-slot { min-width: 0; display: flex; flex-direction: column; }
+.a-im-frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.a-im-frame img { width: 100%; height: 100%; object-fit: cover; }
+/* 軸の絵は、新しい画面と同じ明るさで見せる（.a-pic と同じ。背景の灰色を地に寄せる） */
+.a-im-frame-axis img { filter: brightness(1.2); }
+/* 準備中の枠：点線の縁を軸の色で、地は軸の色をごく薄く */
+.a-im-pending {
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--axis);
+  background: var(--surface-2);
+  background: color-mix(in srgb, var(--axis) 8%, var(--surface-2));
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.12em;
+}
+.a-im-pending > span { margin-right: -0.12em; }
+/* あなたの結果で選ばれる枠は、輪でも分かるように（印の文字と両方） */
+.a-im-slot.is-yours .a-im-frame { outline: 2px solid var(--rose-ink); outline-offset: 2px; }
+.a-im-marks { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-top: var(--sp-2); }
+.a-im-marks .a-badge { padding: 1px 7px; font-size: var(--fs-xs); letter-spacing: 0.02em; }
+.a-im-name { margin-top: 6px; font-size: var(--fs-sm); line-height: 1.5; letter-spacing: 0.02em; color: var(--ink); word-break: auto-phrase; }
+.a-im-ratio { font-size: var(--fs-xs); line-height: 1.6; letter-spacing: 0.04em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.a-im-state { font-size: var(--fs-xs); line-height: 1.6; letter-spacing: 0.04em; }
+.a-im-state.is-ready { color: var(--ink-2); }
+.a-im-state.is-pending { color: var(--rose-ink); }
+.a-im-file { margin-top: 2px; font-family: var(--sans); font-weight: 400; font-size: var(--fs-xs); line-height: 1.5; letter-spacing: 0; color: var(--muted); }
+.a-im-foot { margin-top: var(--sp-8); }
 
 /* 仮の画面（準備中） */
 .a-pending { padding: var(--sp-8) 0; text-align: center; }
