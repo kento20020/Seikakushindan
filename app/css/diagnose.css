@@ -11,10 +11,12 @@
                   .a-dg-badge（上・下のときの「問題を変える」「戻る」）
                 .a-dg-hint（手のアイコンと案内）／.a-dg-swap（問題を変える｜残り n 回）／.a-dg-foot（戻る・中断）
                 入る動き：.a-dg-enter-left|right（左右で答えた直後）／-bottom（問題を変えた直後）／-top（戻った直後）
-   結果       .a-dg-res > .a-dg-cards > .a-dg-pc.a-dg-pc-main|support|contra|shape（左の帯）
+   結果       .a-dg-res > .a-dg-hero（主軸の絵と傾向の名前）
+              .a-dg-cards > .a-dg-pc.a-dg-pc-main|support|contra|shape（左の帯）
                 .a-dg-sent[aria-pressed]（文ごとの「違う」）／.a-dg-scene ＋ .a-dg-yn[aria-pressed]（ありそう／なさそう）
                 .a-dg-pc-toggle（主軸以外の「詳しく」）／.a-dg-extra（補足）
-              .a-dg-axes > .a-dg-axis-list > .a-dg-axis（8つの軸）
+              .a-dg-axes > .a-dg-axis-list > .a-dg-axis.is-a|is-b|is-mid|is-none（8つの軸。--x ●の位置）
+                .a-dg-axis-head（絵か番号・題・右上の強さ）／.a-dg-axis-ends（両はしの傾向名）／.a-dg-track（横軸と●）／.a-dg-axis-share（「〜寄り 75%」）
    決まり：押せる部品は 44px 以上、焦点は app.css の輪、動きを減らす設定では動かさない、横スクロールを出さない */
 
 /* ======================================================================
@@ -360,6 +362,44 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
 .a-dg-share { gap: 4px; min-width: 44px; padding: 4px 14px 4px 12px; font-size: var(--fs-sm); letter-spacing: 0.1em; white-space: nowrap; }
 .a-dg-share .a-ic { width: 18px; height: 18px; }
 .a-dg-res-title { margin-top: var(--sp-4); }
+/* 主軸の絵（§12 の1）：題の下に列の幅いっぱい（左右の余白の中まで）。縁はホームの絵と同じようにぼかして地に溶かす */
+.a-dg-hero { margin: 0 calc(-1 * var(--gutter)); }
+.a-dg-hero-pic {
+  aspect-ratio: 1;
+  overflow: hidden;
+  --fade: linear-gradient(to bottom, transparent 0, #000 13%, #000 80%, transparent 100%), linear-gradient(to right, transparent 0, #000 15%, #000 85%, transparent 100%);
+  -webkit-mask-image: var(--fade);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--fade);
+  mask-composite: intersect;
+}
+.a-dg-hero-pic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* 絵の背景の灰色を、ページの地に寄せる（ホームの絵と同じ） */
+  filter: brightness(1.19);
+}
+/* 絵の下の小さな傾向の名前（細い線ではさむ） */
+.a-dg-hero-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: calc(-1 * var(--sp-3));
+  font-size: var(--fs-md);
+  line-height: 1.6;
+  letter-spacing: 0.3em;
+  color: var(--ink-2);
+}
+.a-dg-hero-name::before, .a-dg-hero-name::after {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.5;
+}
+.a-dg-hero + .a-dg-res-title { margin-top: var(--sp-6); }
 .a-dg-res-sample { margin-top: var(--sp-2); }
 .a-dg-cards { display: flex; flex-direction: column; gap: var(--sp-5); margin-top: var(--sp-5); }
 
@@ -534,68 +574,144 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
 .a-dg-pc-toggle .a-ic { width: 18px; height: 18px; color: var(--ink-2); transition: transform var(--dur) var(--ease); }
 .a-dg-pc-toggle[aria-expanded="true"] .a-ic { transform: rotate(180deg); }
 
-/* 8つの軸 */
+/* 8つの軸（§12 の2）：領域ごとに1本の横軸。●の位置＝同じ場面の問で B を選んだ割合（--x）
+   色：A 側＝くすんだ赤、B 側＝灰青（●は面との比 3 以上の濃い灰青）、まんなか＝墨。文字でも「〜寄り」と出すので色だけに頼らない */
 .a-dg-axes-note { margin-bottom: var(--sp-3); }
 .a-dg-axis-list { list-style: none; padding-top: var(--sp-1); padding-bottom: var(--sp-1); }
 .a-dg-axis {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
-  align-items: center;
-  gap: var(--sp-4);
-  padding: var(--sp-3) 0;
+  --side: var(--field);
+  --side-ink: var(--muted);
+  padding: var(--sp-4) 0 var(--sp-3);
 }
+.a-dg-axis.is-a { --side: var(--rose); --side-ink: var(--rose-ink); }
+.a-dg-axis.is-b { --side: var(--slate-ink); --side-ink: var(--slate-ink); }
+.a-dg-axis.is-mid { --side: var(--night); --side-ink: var(--ink); }
 .a-dg-axis + .a-dg-axis { border-top: 1px solid var(--line); }
-.a-dg-axis-pic { width: 52px; border-radius: 50%; }
+.a-dg-axis-head { display: flex; align-items: center; gap: var(--sp-3); }
+.a-dg-axis-pic { flex: none; width: 44px; border-radius: 50%; }
 .a-dg-axis-num {
+  flex: none;
   display: grid;
   place-items: center;
-  width: 52px; height: 52px;
+  width: 44px; height: 44px;
   border-radius: 50%;
   background: var(--surface-2);
   box-shadow: inset 0 0 0 1px var(--line);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-md);
   color: var(--ink-2);
+}
+.a-dg-axis-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--sp-3);
 }
 .a-dg-axis-name {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 2px var(--sp-2);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-md);
   line-height: 1.6;
   letter-spacing: 0.08em;
-  color: var(--muted);
+  color: var(--ink);
 }
 .a-dg-axis-name .a-badge { padding: 0 10px; font-size: var(--fs-xs); }
-.a-dg-poles {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  max-width: 300px;
-  margin-top: 6px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--surface-2);
-  overflow: hidden;
+/* 右上の小さな強さ「即応 40 ・ 熟考 72」。入りきらないときは題の下の右に回る */
+.a-dg-axis-lv {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  line-height: 1.8;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
-.a-dg-pole {
+.a-dg-axis-sep { margin: 0 0.4em; }
+/* 両はしの傾向名 */
+.a-dg-axis-ends {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 34px;
-  padding: 3px 8px;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
   font-size: var(--fs-sm);
-  line-height: 1.4;
+  line-height: 1.5;
   letter-spacing: 0.06em;
   color: var(--muted);
-  text-align: center;
 }
-.a-dg-pole + .a-dg-pole { border-left: 1px solid var(--line); }
-.a-dg-pole.is-lead { font-weight: 700; }
-.a-dg-pole-a.is-lead { background: var(--rose-soft); color: var(--rose-ink); }
-.a-dg-pole-b.is-lead { background: var(--slate-soft); color: var(--slate-ink); }
-.a-dg-pole .a-dot { width: 8px; height: 8px; }
-.a-dg-axis-tie { margin-top: 4px; font-size: var(--fs-sm); letter-spacing: 0.08em; color: var(--ink-2); }
+.a-dg-end-b { text-align: right; }
+.a-dg-end.is-lead { color: var(--side-ink); font-weight: 700; }
+/* 横軸：細い線・両はしとまんなかの目盛り・まんなかから●までの薄い帯・● */
+.a-dg-track {
+  position: relative;
+  height: 22px;
+  margin: 2px 8px 0;
+}
+.a-dg-track::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  top: calc(50% - 1px);
+  height: 2px;
+  border-radius: 1px;
+  background: var(--line-strong);
+}
+.a-dg-track::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  top: 5px; bottom: 5px;
+  border-left: 1.5px solid var(--field);
+  border-right: 1.5px solid var(--field);
+}
+.a-dg-track-mid {
+  position: absolute;
+  left: calc(50% - 0.5px);
+  top: 6px; bottom: 6px;
+  width: 1px;
+  background: var(--field);
+}
+.a-dg-track-fill {
+  position: absolute;
+  left: var(--from, 50%);
+  width: var(--len, 0%);
+  top: calc(50% - 2px);
+  height: 4px;
+  border-radius: 2px;
+  background: var(--side);
+  opacity: 0.32;
+}
+.a-dg-track-dot {
+  position: absolute;
+  left: var(--x, 50%);
+  top: 50%;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--side);
+  box-shadow: 0 0 0 2.5px var(--surface);
+  transform: translate(-50%, -50%);
+  z-index: 1;   /* 両はしの目盛り（::after）より前に */
+}
+/* 「熟考寄り 75%」：●の下あたりに置く（左はし 0% では左寄せ、右はし 100% では右寄せになり、列からはみ出さない） */
+.a-dg-axis-share {
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  letter-spacing: 0.06em;
+  color: var(--side-ink);
+  white-space: nowrap;
+  /* 下の span は動かす前の箱が右へはみ出すので、横スクロールを出さないよう切る（見える文字は transform で列の中に収まる） */
+  overflow: hidden;
+}
+.a-dg-axis-share > span {
+  display: inline-block;
+  margin-left: var(--x, 50%);
+  transform: translateX(calc(-1 * var(--x, 50%)));
+}
+.a-dg-axis:not(.is-none) .a-dg-axis-share { font-weight: 700; }
 
 .a-dg-res-foot { margin-top: var(--sp-8); }
 .a-dg-res-foot .a-note { text-align: center; }
@@ -603,6 +719,10 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
 .a-dg-empty { margin-top: var(--sp-6); }
 
 /* ---------------------------------------------------------------- 狭い画面 */
+@media (max-width: 419px) {
+  /* 8つの軸：強さは入る・入らないが軸ごとに違うと並びがそろわないので、いつも題の下の行（右寄せ）に */
+  .a-dg-axis-lv { flex-basis: 100%; }
+}
 @media (max-width: 359px) {
   .a-dg-ans { gap: 14px; padding: 18px 16px; font-size: var(--fs-base); }
   .a-dg-ans-dot { width: 52px; height: 52px; }

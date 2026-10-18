@@ -1,10 +1,13 @@
 // 診断結果（#result。画像6）。仕様：docs/app-screens.md §4.4
-//   上：「←」・中央「診断結果」・右に枠だけの「シェア」。見出し「あなたを表す解釈」
+//   上：「←」・中央「診断結果」・右に枠だけの「シェア」
+//   主軸の絵（§12 の1）：題の下に、主軸に合う傾向の絵（summary.js の heroKey）を列の幅いっぱいに。縁はぼかす。下に小さく傾向の名前。絵が無ければ出さない
+//   見出し「あなたを表す解釈」
 //   パターンのカード（主軸1＋補強・矛盾・地、合わせて2〜4枚。今の結果と同じ選び方＝store3.result.select.chosen を byRole の順に）
-//     主軸は全部を開いて出す。ほかは見出しと1行だけ見せ、「詳しく」で開く
+//     主軸は全部を開いて出す。ほかは役割の印・種類の印・見出しと「詳しく」だけ（§12 の3）。領域名・1行（one）・本文などは「詳しく」の中
 //     本文（detail）は文ごとに区切り、タップで「違う」の印（もう一度で取り消し）。場面例ごとに「ありそう」「なさそう」
 //     印はこの端末の中だけ（app/js/local.js の setMarks(resultKey(r), …)）。どこにも送らない
-//   「8つの軸」：8領域それぞれの向き（A／B／両方／はっきりしない）と、絵がある傾向は小さく絵
+//   「8つの軸」（§12 の2）：領域ごとに1本の横軸。●＝同じ場面の問で B を選んだ割合、下に「熟考寄り 75%」、右上に強さ「即応 40 ・ 熟考 72」
+//     値は summary.js の axisView（r.states を読むだけ）。絵がある傾向は小さく絵、「弱め」「両方とも強い」の印
 //   結果を開いたら、履歴に1件足す（recordDiagnosis。同じ結果は2回足さない）
 //   値は今の画面 js/ui/three.js の patternCard と同じ（js/ の中身は直さない）。見た目は app/css/diagnose.css（a-dg-）
 import { h, icon, topBar, toast, badge, sectionHead, rowLink, typePic } from "./ui.js";
@@ -17,7 +20,7 @@ import { splitSentences, SCENE_LABEL } from "../../js/feedback_collect.js";   //
 import { DOMAINS } from "../../js/engine3.js";
 import { TYPE_IMAGES, isReady, domainTendencies3 } from "../../js/data/type_images.js";
 import { getMarks, setMarks } from "./local.js";
-import { mainPattern, resultKey, recordDiagnosis } from "./summary.js";
+import { mainPattern, resultKey, recordDiagnosis, heroKey, axisView } from "./summary.js";
 
 const ROLE_TONE = { "主軸": "ink", "補強": "rose", "矛盾": "slate", "地（形状）": "line" };
 
@@ -32,7 +35,8 @@ export function render(root) {
   const sample = r.source && r.source.type && r.source.type !== "session";
   root.append(h("div", { class: "a-dg-res" },
     topBar({ title: "診断結果", heading: true, right: shareButton(r) }),
-    h("h2", { class: "a-h1 a-dg-res-title", id: "a-dg-res-title", "data-focus": "" }, "あなたを表す解釈"),
+    heroFigure(r),
+    h("h2", { class: "a-h1 a-dg-res-title", id: "a-dg-res-title" }, "あなたを表す解釈"),
     sample ? h("p", { class: "a-note a-dg-res-sample" }, "サンプルの回答から作った結果です（試作の確認用）。") : null,
     hits.length
       ? h("div", { class: "a-dg-cards" }, hits.map((hit, i) => patternCard(hit, r, i, marks)))
@@ -43,6 +47,19 @@ export function render(root) {
       h("div", { class: "a-card a-rows a-dg-res-rows" },
         rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" }),
         rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" })))));
+}
+
+// ---------------------------------------------------------------- 主軸の絵（§12 の1）
+//   heroKey（js/data/type_images.js の heroTendency）が選んだ傾向の絵。絵が1枚も無ければ出さない
+function heroFigure(r) {
+  let key = null;
+  try { key = heroKey(r); } catch (err) { console.error(err); }
+  const e = key ? TYPE_IMAGES[key] : null;
+  if (!isReady(e)) return null;
+  return h("figure", { class: "a-dg-hero", "data-key": key },
+    h("div", { class: "a-dg-hero-pic" },
+      h("img", { src: `../${e.file}`, alt: e.alt || "", width: 960, height: 960, decoding: "async", fetchpriority: "high" })),
+    h("figcaption", { class: "a-dg-hero-name" }, h("span", { class: "a-sr" }, "あなたの傾向の絵："), e.tendency));
 }
 
 // ---------------------------------------------------------------- 結果が無いとき
@@ -90,23 +107,24 @@ function patternCard(hit, r, i, marks) {
   const t = p?.text;
   const main = hit.role === "主軸";
   const uid = `a-dg-pc${i}`;
-  const head = [
-    h("div", { class: "a-dg-pc-tags" },
-      badge(hit.role, { tone: ROLE_TONE[hit.role] || "rose" }),
-      badge(kindLabel(m), { tone: "quiet" })),
-    h("h3", { class: "a-dg-pc-title", id: `${uid}-h` }, p?.headline ?? m.headline),
+  const tags = h("div", { class: "a-dg-pc-tags" },
+    badge(hit.role, { tone: ROLE_TONE[hit.role] || "rose" }),
+    badge(kindLabel(m), { tone: "quiet" }));
+  const title = h("h3", { class: "a-dg-pc-title", id: `${uid}-h` }, p?.headline ?? m.headline);
+  // 見出しの下に続く中身：領域名・区切り線・1行（one）・本文・場面例・補足
+  const inner = [
     h("p", { class: "a-dg-pc-domain" }, domainParts(m)),
     h("hr", { class: "a-divider" }),
     t?.one ? h("p", { class: "a-dg-pc-one" }, t.one) : null,
+    ...(t ? bodyParts(m, t, r, uid, marks) : [h("p", { class: "a-note" }, "本文がありません。")]),
   ];
-  const body = t ? bodyParts(m, t, r, uid, marks) : [h("p", { class: "a-note" }, "本文がありません。")];
-  const article = h("article", { class: ["a-dg-pc", `a-dg-pc-${ROLE_CLASS[hit.role] || "support"}`], "data-id": m.id, "data-role": hit.role, "aria-labelledby": `${uid}-h` }, head);
+  const article = h("article", { class: ["a-dg-pc", `a-dg-pc-${ROLE_CLASS[hit.role] || "support"}`], "data-id": m.id, "data-role": hit.role, "aria-labelledby": `${uid}-h` }, tags, title);
   if (main) {
-    article.append(...body);
+    article.append(...inner.filter(Boolean));
     return article;
   }
-  // 主軸以外：最初は見出しと1行だけ。「詳しく」で開く
-  const more = h("div", { class: "a-dg-pc-more", id: `${uid}-more`, hidden: true }, body);
+  // 主軸以外：最初は印と見出しだけ。「詳しく」で、領域名から下を全部開く（§12 の3）
+  const more = h("div", { class: "a-dg-pc-more", id: `${uid}-more`, hidden: true }, inner);
   const label = h("span", null, "詳しく");
   const toggle = h("button", { type: "button", class: "a-dg-pc-toggle", "aria-expanded": "false", "aria-controls": `${uid}-more`,
     onclick: () => {
@@ -170,35 +188,61 @@ function bodyParts(m, t, r, uid, marks) {
   return [detail, tip, ...sceneList, extra];
 }
 
-// ---------------------------------------------------------------- 8つの軸
-const TIE_LABEL = (st) => (st?.state === "5" ? "両方とも強い" : "はっきりしない");
+// ---------------------------------------------------------------- 8つの軸（§12 の2）
+const AXES_NOTE = "●は、同じ場面で左右どちらを選んだかの割合です。右上の数字は、別々の場面を比べた答えから出した強さ（0〜100。あなたの中での比べ）です。「弱め」は、優勢だけれど強さがやや弱い軸です。";
+const SIDE_CLASS = { A: "is-a", B: "is-b", mid: "is-mid" };
 
 function axesSection(r) {
   let leads;
   try { leads = domainTendencies3(r.profile3); } catch (err) { console.error(err); return null; }
   return h("section", { class: "a-dg-axes", "aria-labelledby": "a-dg-axes-h" },
     sectionHead("8つの軸", { id: "a-dg-axes-h" }),
-    h("p", { class: "a-note a-dg-axes-note" }, "領域ごとに、あなたが優勢なほうの傾向です。「弱め」は、優勢だけれど強さがやや弱い軸です。"),
-    h("ul", { class: "a-card a-dg-axis-list" }, Object.keys(DOMAINS).map(d => axisRow(leads[d], r.states?.[d]))));
+    h("p", { class: "a-note a-dg-axes-note" }, AXES_NOTE),
+    h("ul", { class: "a-card a-dg-axis-list" }, Object.keys(DOMAINS).map(d => axisRow(+d, leads[d], r))));
 }
 
-function axisRow(t, st) {
-  const D = DOMAINS[t.domain];
-  const side = t.key ? t.key.slice(-1) : null;
-  const e = t.key ? TYPE_IMAGES[t.key] : null;
+/**
+ * 1本の横軸
+ *   題「2 反応速度」＋印（弱め・両方とも強い）／右上に強さ「即応 40 ・ 熟考 72」
+ *   両はしの傾向名 → 横軸と● → 「熟考寄り 75%」（●の下あたり。両はしでは列からはみ出さない）
+ *   絵・「弱め」は今までどおり左右（W）で優勢な傾向（domainTendencies3）から。●と「〜寄り」は多く選んだ側から
+ */
+function axisRow(d, t, r) {
+  const D = DOMAINS[d];
+  const v = axisView(r, d);
+  const st = r.states?.[d];
+  const lead = t?.key ? t.key.slice(-1) : null;
+  const e = t?.key ? TYPE_IMAGES[t.key] : null;
   const pic = isReady(e)
     ? typePic(e, { cls: "a-dg-axis-pic", pos: "50% 38%", zoom: 1.3 })
-    : h("span", { class: "a-dg-axis-num", "aria-hidden": "true" }, String(t.domain));
-  const pole = (s, name) => h("span", { class: ["a-dg-pole", `a-dg-pole-${s.toLowerCase()}`, side === s && "is-lead"] },
-    side === s ? h("span", { class: ["a-dot", s === "A" ? "a-dot-a" : "a-dot-b"], "aria-hidden": "true" }) : null,
-    h("span", null, name),
-    side === s ? h("span", { class: "a-sr" }, "（こちらが優勢）") : null);
-  return h("li", { class: "a-dg-axis", "data-domain": t.domain, "data-key": t.key, "data-side": side ?? "tie" },
-    pic,
-    h("div", { class: "a-dg-axis-body" },
-      h("p", { class: "a-dg-axis-name" }, h("span", null, `${t.domain} ${D.name}`), side && t.weak ? badge("弱め", { tone: "quiet" }) : null),
-      h("p", { class: "a-dg-poles" }, pole("A", D.a), pole("B", D.b)),
-      side ? null : h("p", { class: "a-dg-axis-tie" }, TIE_LABEL(st))));
+    : h("span", { class: "a-dg-axis-num" }, String(d));
+  const marks = [
+    lead && t.weak ? "弱め" : null,
+    st?.state === "5" ? "両方とも強い" : null,
+  ].filter(Boolean);
+  const x = v.pos == null ? 50 : v.pos * 100;
+  const track = h("div", { class: "a-dg-track" },
+    h("span", { class: "a-dg-track-mid" }),
+    v.pos == null ? null : h("span", { class: "a-dg-track-fill" }),
+    v.pos == null ? null : h("span", { class: "a-dg-track-dot" }));
+  // 読み上げは1文にまとめる（role="img" の aria-label。見た目の部品は読ませない）
+  const view = h("div", { class: "a-dg-axis-view", role: "img", "aria-label": marks.length ? `${v.label}。${marks.join("。")}` : v.label },
+    h("div", { class: "a-dg-axis-head" },
+      pic,
+      h("div", { class: "a-dg-axis-title" },
+        h("p", { class: "a-dg-axis-name" }, h("span", { class: "a-nowrap" }, `${d} ${D.name}`), marks.map(m => badge(m, { tone: "quiet" }))),
+        h("p", { class: "a-dg-axis-lv" },
+          h("span", { class: "a-nowrap" }, `${D.a} ${v.la ?? "—"}`), h("span", { class: "a-dg-axis-sep" }, "・"), h("span", { class: "a-nowrap" }, `${D.b} ${v.lb ?? "—"}`)))),
+    h("div", { class: "a-dg-axis-ends" },
+      h("span", { class: ["a-dg-end", "a-dg-end-a", v.side === "A" && "is-lead"] }, D.a),
+      h("span", { class: ["a-dg-end", "a-dg-end-b", v.side === "B" && "is-lead"] }, D.b)),
+    track,
+    h("p", { class: "a-dg-axis-share" }, h("span", null, v.text)));
+  const row = h("li", { class: ["a-dg-axis", SIDE_CLASS[v.side] || "is-none"], "data-domain": d, "data-key": t?.key ?? null, "data-side": v.side ?? "none" }, view);
+  row.style.setProperty("--x", `${x}%`);
+  row.style.setProperty("--from", `${Math.min(x, 50)}%`);
+  row.style.setProperty("--len", `${Math.abs(x - 50)}%`);
+  return row;
 }
 
 // ---------------------------------------------------------------- シェア

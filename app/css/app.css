@@ -782,7 +782,16 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 .a-card-split > .a-card-main:focus-visible { outline-offset: -3px; border-radius: var(--r-card) var(--r-card) 0 0; }
 .a-card-split > .a-rows { padding: 0 var(--sp-5); border-top: 1px solid var(--line); }
 
-/* 診断後のカード（画像2） */
+/* 診断後のカード（画像2）。上の方に主軸の絵（§12 の4：画像1の診断カードのように左に絵・右に文。狭い画面では絵を上に） */
+.a-diag-top.has-pic {
+  display: grid;
+  grid-template-columns: clamp(96px, 34%, 150px) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-4);
+}
+.a-diag-pic { --ar: 5 / 6; --pos: 50% 42%; --zoom: 1.15; }
+.a-diag-top-text { min-width: 0; }
+.a-diag-top.has-pic + .a-diag-one { margin-top: var(--sp-4); }
 .a-diag-headline {
   margin-top: var(--sp-2);
   font-size: var(--fs-xl);
@@ -926,6 +935,11 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   /* 狭い画面では「主な傾向」を上に置き、点つきの行を横に広く使う */
   .a-trends { grid-template-columns: minmax(0, 1fr) auto; }
   .a-trends-label { grid-column: 1 / -1; }
+}
+@media (max-width: 359px) {
+  /* とても狭い画面では、診断後のカードの絵を上に（横に並べると見出しが窮屈になる） */
+  .a-diag-top.has-pic { grid-template-columns: minmax(0, 1fr); }
+  .a-diag-pic { --ar: 16 / 8.5; --pos: 50% 45%; --zoom: 1; }
 }
 
 /* ---------------------------------------------------------------- 動きを減らす設定 */

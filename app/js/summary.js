@@ -3,6 +3,7 @@
 //   mainPattern(result)      … 主軸のパターン { id, role, headline, one, meta }（byRole の先頭）
 //   topTendencies(result, n) … 強く出ている傾向を n 個（既定 3）
 //   heroKey(result)          … 主軸に合う傾向の絵のキー（heroTendency。出せなければ null）
+//   axisView(result, d)      … 結果の「8つの軸」の1本（●の位置・「熟考寄り 75%」・強さ・読み上げの文）。docs/app-screens.md §12 の2
 //   resultKey(result)        … 結果の key（同じ回答・同じ選ばれたパターンなら同じ）。履歴の重なりの判定と、結果の印の key に使う
 //   diagnosisRecord(result)  … 履歴に足す形 { kind, title, sub, data }
 //   recordDiagnosis(result)  … 履歴に足す（同じ結果は足さない）→ id か null
@@ -53,6 +54,35 @@ export function heroKey(r) {
   } catch {
     return null;
   }
+}
+
+/**
+ * 「8つの軸」の1本（領域 d）。値は結果の r.states[d]（js/engine3.js の domainStates3）を読むだけ
+ *   pos   … ●の位置 0〜1（同じ場面の問で B を選んだ割合。0＝すべて A、1＝すべて B）。答えが無ければ null（●を出さない）
+ *   side  … "A" | "B"（多く選んだ側）| "mid"（同数）| null（答えが無い）
+ *   pct   … 多く選んだ側の割合（0〜100 の整数）。答えが無ければ null
+ *   text  … 「熟考寄り 75%」／「まんなか 50%」／「まだ答えがありません」
+ *   la・lb … 強さ（別々の場面を比べた答えから出した 0〜100。st.LA・st.LB を四捨五入。無ければ null）
+ *   level … 「即応 40 ・ 熟考 72」  label … 読み上げ「反応速度：熟考寄り 75%（即応の強さ 40、熟考の強さ 72）」
+ */
+export function axisView(r, d) {
+  const D = DOMAINS[d];
+  if (!D) return null;
+  const st = r?.states?.[d] || {};
+  const a = Math.max(0, +st.a || 0), b = Math.max(0, +st.b || 0);
+  const n = a + b;
+  const side = n ? (a > b ? "A" : b > a ? "B" : "mid") : null;
+  const pct = n ? Math.round(Math.max(a, b) / n * 100) : null;
+  const text = !n ? "まだ答えがありません" : side === "mid" ? "まんなか 50%" : `${side === "A" ? D.a : D.b}寄り ${pct}%`;
+  const lv = (x) => (Number.isFinite(+x) && x !== null && x !== "" ? Math.round(+x) : null);
+  const la = lv(st.LA), lb = lv(st.LB);
+  const show = (x) => (x == null ? "—" : String(x));
+  return {
+    domain: +d, name: D.name, aName: D.a, bName: D.b,
+    a, b, n, pos: n ? b / n : null, side, pct, text, la, lb,
+    level: `${D.a} ${show(la)} ・ ${D.b} ${show(lb)}`,
+    label: `${D.name}：${text}（${D.a}の強さ ${show(la)}、${D.b}の強さ ${show(lb)}）`,
+  };
 }
 
 // 32 ビットの FNV-1a（結果の key を短くするため。暗号ではない）
