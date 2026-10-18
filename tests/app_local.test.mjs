@@ -1,11 +1,11 @@
 // node tests/app_local.test.mjs
 // 新しい画面（app/）の DOM の無い部分のテスト。仕様：docs/app-screens.md §6.3
 //  - app/js/local.js：記録の出し入れ（新しい順・同じ診断結果は2回足さない・消す・すべて消す）、結果の印、保存できないときも落ちない
-//  - app/js/summary.js：主軸の見出し・主な傾向・結果の key・履歴に足す形（サンプルの結果で）
+//  - app/js/summary.js：主軸の見出し・主な傾向・結果の key・履歴に足す形（サンプルの結果で）、8つの軸の1本（axisView。§12 の2）
 // Node には localStorage が無いので、useStorage で入れ物を差し替える。時刻は ISO（UTC）で渡すので時差に依存しない
 import assert from "node:assert/strict";
 import { STORAGE_KEY, useStorage, loadRecords, getRecord, addRecord, removeRecord, clearRecords, clearAll, getMarks, setMarks, MAX_ITEMS } from "../app/js/local.js";
-import { mainPattern, topTendencies, resultKey, diagnosisRecord, recordDiagnosis, heroKey } from "../app/js/summary.js";
+import { mainPattern, topTendencies, resultKey, diagnosisRecord, recordDiagnosis, heroKey, axisView } from "../app/js/summary.js";
 import { fromLikertAnswers, fromScores } from "../js/adaptive3.js";
 import { SAMPLES3, PROFILE_SAMPLES3 } from "../js/data/samples3.js";
 import { TYPE_IMAGES, isReady } from "../js/data/type_images.js";
@@ -201,6 +201,48 @@ test("主軸に合う絵のキーは、絵がある傾向か null", () => {
     if (k !== null) assert.ok(isReady(TYPE_IMAGES[k]), `${name}：${k}`);
   }
   assert.equal(heroKey(null), null);
+});
+
+test("8つの軸の1本：●の位置・「〜寄り」・まんなか・答えが無いとき・強さ・読み上げ", () => {
+  const at = (states) => ({ states });
+  const b = axisView(at({ 2: { a: 1, b: 3, LA: 40.4, LB: 71.6 } }), 2);
+  assert.equal(b.pos, 0.75);
+  assert.equal(b.side, "B");
+  assert.equal(b.pct, 75);
+  assert.equal(b.text, "熟考寄り 75%");
+  assert.equal(b.level, "即応 40 ・ 熟考 72");
+  assert.equal(b.label, "反応速度：熟考寄り 75%（即応の強さ 40、熟考の強さ 72）");
+  const a = axisView(at({ 1: { a: 5, b: 1, LA: 50, LB: 40 } }), 1);
+  assert.equal(a.side, "A");
+  assert.equal(a.text, "向き合う寄り 83%");
+  assert.ok(Math.abs(a.pos - 1 / 6) < 1e-9);
+  const allA = axisView(at({ 3: { a: 4, b: 0, LA: 100, LB: 0 } }), 3);
+  assert.equal(allA.pos, 0);
+  assert.equal(allA.text, "追う寄り 100%");
+  const mid = axisView(at({ 1: { a: 3, b: 3, LA: 50, LB: 50 } }), 1);
+  assert.equal(mid.side, "mid");
+  assert.equal(mid.pos, 0.5);
+  assert.equal(mid.text, "まんなか 50%");
+  const none = axisView(at({ 4: { a: 0, b: 0, LA: 50, LB: 50 } }), 4);
+  assert.equal(none.pos, null);
+  assert.equal(none.side, null);
+  assert.equal(none.text, "まだ答えがありません");
+  assert.equal(none.label, "感情表出：まだ答えがありません（表に出すの強さ 50、内に置くの強さ 50）");
+  const noLv = axisView(at({ 5: { a: 1, b: 0 } }), 5);
+  assert.equal(noLv.level, "理由・具体 — ・ 気持ち・共感 —");
+  assert.equal(axisView(at({}), 9), null);
+  // サンプルの結果でも、8本とも値が出る（●は 0〜1、割合は 50〜100）
+  for (const { name, r } of results) {
+    for (let d = 1; d <= 8; d++) {
+      const v = axisView(r, d);
+      assert.ok(v, `${name}：領域${d}`);
+      if (v.pos !== null) {
+        assert.ok(v.pos >= 0 && v.pos <= 1, `${name}：領域${d} の●`);
+        assert.ok(v.pct >= 50 && v.pct <= 100, `${name}：領域${d} の割合`);
+      }
+      assert.ok(Number.isInteger(v.la) && Number.isInteger(v.lb), `${name}：領域${d} の強さ`);
+    }
+  }
 });
 
 useStorage(null);
