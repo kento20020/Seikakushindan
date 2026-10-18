@@ -1,6 +1,7 @@
 // マイページ（#mypage）。仕様：docs/app-screens.md §4.9
 //   アカウント：「ログインしていません」＋「アカウントを作成」（→ #account）
 //   診断：「結果を見る」「もう一度診断する」（まだなら「診断をはじめる」、途中なら「続きから答える」）
+//     どの状態でも「診断結果の絵を見る」（→ #images。§14）
 //   この端末の記録：「すべて消す」（確かめてから。app/ の履歴と結果の印、診断の回答と結果。今の画面と共通の保存も消える）
 //   小さく「試作の画面です」と、今の画面（../#three）へのリンク
 import { h, icon, eyebrow, sectionHead, rowLink, toast, go } from "./ui.js";
@@ -43,7 +44,9 @@ function view() {
             rowLink({ href: "#diagnose/q", text: "続きから答える" }),
           ] : [
             rowLink({ href: "#diagnose", text: "診断をはじめる" }),
-          ]))),
+          ],
+          // 絵の一覧（§14）。ほかの行にアイコンがあるとき（診断済み）だけアイコンを付ける
+          rowLink({ href: "#images", ic: state === "done" ? "sparkle" : null, text: "診断結果の絵を見る" })))),
 
     h("section", { "aria-labelledby": "a-me-data" },
       sectionHead("この端末の記録", { id: "a-me-data" }),
