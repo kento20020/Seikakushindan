@@ -1,16 +1,18 @@
 // 診断結果（#result。画像6）。仕様：docs/app-screens.md §4.4
 //   上：「←」・中央「診断結果」・右に枠だけの「シェア」
-//   主軸の絵（§12 の1）：題の下に、主軸に合う傾向の絵（summary.js の heroKey）を列の幅いっぱいに。縁はぼかす。下に小さく傾向の名前。絵が無ければ出さない
+//   主軸の絵（§12 の1・§13）：題の下に、軸の絵（axis_art.js の heroArt。主軸に合う傾向の軸の、●で選んだパターン）を列の幅いっぱいに。
+//     縁はぼかす。下に小さく傾向の名前。出せなければ出さない
 //   見出し「あなたを表す解釈」
 //   パターンのカード（主軸1＋補強・矛盾・地、合わせて2〜4枚。今の結果と同じ選び方＝store3.result.select.chosen を byRole の順に）
 //     主軸は全部を開いて出す。ほかは役割の印・種類の印・見出しと「詳しく」だけ（§12 の3）。領域名・1行（one）・本文などは「詳しく」の中
 //     本文（detail）は文ごとに区切り、タップで「違う」の印（もう一度で取り消し）。場面例ごとに「ありそう」「なさそう」
 //     印はこの端末の中だけ（app/js/local.js の setMarks(resultKey(r), …)）。どこにも送らない
 //   「8つの軸」（§12 の2）：領域ごとに1本の横軸。●＝同じ場面の問で B を選んだ割合、下に「熟考寄り 75%」、右上に強さ「即応 40 ・ 熟考 72」
-//     値は summary.js の axisView（r.states を読むだけ）。絵がある傾向は小さく絵、「弱め」「両方とも強い」の印
+//     値は summary.js の axisView（r.states を読むだけ）。左に、その軸の●で選んだ軸の絵（axis_art.js の axisArt。まんなか・答えなしは番号の丸）
+//     色（§13）：A 側の●と帯はその軸の色、B 側は紺、まんなかの●は墨。文字は墨のまま（「〜寄り」の前に色の点を添える）。「弱め」「両方とも強い」の印
 //   結果を開いたら、履歴に1件足す（recordDiagnosis。同じ結果は2回足さない）
 //   値は今の画面 js/ui/three.js の patternCard と同じ（js/ の中身は直さない）。見た目は app/css/diagnose.css（a-dg-）
-import { h, icon, topBar, toast, badge, sectionHead, rowLink, typePic } from "./ui.js";
+import { h, icon, topBar, toast, badge, sectionHead, rowLink, artPic } from "./ui.js";
 import { store3, restore3 } from "../../js/ui/three_store.js";
 import { PATTERN_BY_ID } from "../../js/data/patterns.js";
 import { byRole } from "../../js/ui/result.js";
@@ -18,9 +20,10 @@ import { ROLE_CLASS, kindLabel, domainLine, uniqueLabel } from "../../js/ui/labe
 import { scenesFor } from "../../js/three_version.js";
 import { splitSentences, SCENE_LABEL } from "../../js/feedback_collect.js";   // テスト協力モードと同じ文の区切り方・ありそう／なさそう
 import { DOMAINS } from "../../js/engine3.js";
-import { TYPE_IMAGES, isReady, domainTendencies3 } from "../../js/data/type_images.js";
+import { domainTendencies3 } from "../../js/data/type_images.js";
 import { getMarks, setMarks } from "./local.js";
-import { mainPattern, resultKey, recordDiagnosis, heroKey, axisView, jpQuotes } from "./summary.js";
+import { mainPattern, resultKey, recordDiagnosis, axisView, jpQuotes } from "./summary.js";
+import { heroArt, axisArt, NAVY, ART_SIZE } from "./axis_art.js";
 
 const ROLE_TONE = { "主軸": "ink", "補強": "rose", "矛盾": "slate", "地（形状）": "line" };
 
@@ -49,17 +52,17 @@ export function render(root) {
         rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" })))));
 }
 
-// ---------------------------------------------------------------- 主軸の絵（§12 の1）
-//   heroKey（js/data/type_images.js の heroTendency）が選んだ傾向の絵。絵が1枚も無ければ出さない
+// ---------------------------------------------------------------- 主軸の絵（§12 の1・§13）
+//   axis_art.js の heroArt：主軸に合う傾向（heroTendency。16の傾向すべてに絵がある前提）の軸の、●で選んだパターンの絵。
+//   その軸がまんなか・答えなしなら、主軸に合う傾向の側の絵。出せなければ（主軸が無いなど）出さない
 function heroFigure(r) {
-  let key = null;
-  try { key = heroKey(r); } catch (err) { console.error(err); }
-  const e = key ? TYPE_IMAGES[key] : null;
-  if (!isReady(e)) return null;
-  return h("figure", { class: "a-dg-hero", "data-key": key },
+  let art = null;
+  try { art = heroArt(r); } catch (err) { console.error(err); }
+  if (!art?.file) return null;
+  return h("figure", { class: "a-dg-hero", "data-key": art.key, "data-art": art.id },
     h("div", { class: "a-dg-hero-pic" },
-      h("img", { src: `../${e.file}`, alt: e.alt || "", width: 960, height: 960, decoding: "async", fetchpriority: "high" })),
-    h("figcaption", { class: "a-dg-hero-name" }, h("span", { class: "a-sr" }, "あなたの傾向の絵："), e.tendency));
+      h("img", { src: art.file, alt: art.alt || "", width: ART_SIZE, height: ART_SIZE, decoding: "async", fetchpriority: "high" })),
+    h("figcaption", { class: "a-dg-hero-name" }, h("span", { class: "a-sr" }, "あなたの傾向の絵："), art.tendency));
 }
 
 // ---------------------------------------------------------------- 結果が無いとき
@@ -190,6 +193,8 @@ function bodyParts(m, t, r, uid, marks) {
 
 // ---------------------------------------------------------------- 8つの軸（§12 の2）
 const AXES_NOTE = "●は、同じ場面で左右どちらを選んだかの割合です。右上の数字は、別々の場面を比べた答えから出した強さ（0〜100。あなたの中での比べ）です。「弱め」は、優勢だけれど強さがやや弱い軸です。";
+// 左の小さな丸の絵の切り取り（人物の顔と、手もとのリボンが入るように）
+const AXIS_PIC = { pos: "52% 40%", zoom: 1.35 };
 const SIDE_CLASS = { A: "is-a", B: "is-b", mid: "is-mid" };
 
 function axesSection(r) {
@@ -203,19 +208,19 @@ function axesSection(r) {
 
 /**
  * 1本の横軸
- *   題「2 反応速度」＋印（弱め・両方とも強い）／右上に強さ「即応 40 ・ 熟考 72」
+ *   左に軸の絵（●で選んだパターン。まんなか・答えなしは番号の丸）／題「2 反応速度」＋印（弱め・両方とも強い）／右上に強さ「即応 40 ・ 熟考 72」
  *   両はしの傾向名 → 横軸と● → 「熟考寄り 75%」（●の下あたり。両はしでは列からはみ出さない）
- *   絵・「弱め」は今までどおり左右（W）で優勢な傾向（domainTendencies3）から。●と「〜寄り」は多く選んだ側から
+ *   「弱め」は今までどおり左右（W）で優勢な傾向（domainTendencies3）から。絵・●・「〜寄り」は多く選んだ側から
+ *   色：--axis（絵の色。A 側の帯）・--axis-deep（点の色。A 側の●）を行に置く。B 側は紺（NAVY）。CSS は diagnose.css の .a-dg-axis
  */
 function axisRow(d, t, r) {
   const D = DOMAINS[d];
   const v = axisView(r, d);
   const st = r.states?.[d];
   const lead = t?.key ? t.key.slice(-1) : null;
-  const e = t?.key ? TYPE_IMAGES[t.key] : null;
-  const pic = isReady(e)
-    ? typePic(e, { cls: "a-dg-axis-pic", pos: "50% 38%", zoom: 1.3 })
-    : h("span", { class: "a-dg-axis-num" }, String(d));
+  const art = axisArt(d, v);
+  const pic = artPic(art, { cls: "a-dg-axis-pic", ...AXIS_PIC })
+    ?? h("span", { class: "a-dg-axis-num", "aria-hidden": "true" }, String(d));
   const marks = [
     lead && t.weak ? "弱め" : null,
     st?.state === "5" ? "両方とも強い" : null,
@@ -237,8 +242,12 @@ function axisRow(d, t, r) {
       h("span", { class: ["a-dg-end", "a-dg-end-a", v.side === "A" && "is-lead"] }, D.a),
       h("span", { class: ["a-dg-end", "a-dg-end-b", v.side === "B" && "is-lead"] }, D.b)),
     track,
-    h("p", { class: "a-dg-axis-share" }, h("span", null, v.text)));
-  const row = h("li", { class: ["a-dg-axis", SIDE_CLASS[v.side] || "is-none"], "data-domain": d, "data-key": t?.key ?? null, "data-side": v.side ?? "none" }, view);
+    h("p", { class: "a-dg-axis-share" }, h("span", null,
+      v.pos == null ? null : h("i", { class: "a-dg-share-dot", "aria-hidden": "true" }),
+      v.text)));
+  const row = h("li", { class: ["a-dg-axis", SIDE_CLASS[v.side] || "is-none"], "data-domain": d, "data-key": t?.key ?? null, "data-side": v.side ?? "none", "data-art": art?.file ? art.id : null }, view);
+  row.style.setProperty("--axis", art?.color ?? NAVY);
+  row.style.setProperty("--axis-deep", art?.deep ?? NAVY);
   row.style.setProperty("--x", `${x}%`);
   row.style.setProperty("--from", `${Math.min(x, 50)}%`);
   row.style.setProperty("--len", `${Math.abs(x - 50)}%`);

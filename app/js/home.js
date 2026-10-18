@@ -1,32 +1,33 @@
 // ホーム（#home。画像1・2）。仕様：docs/app-screens.md §4.1・§12.1（決定 U32。U31 の4を置き換え）
-//   上：「HOME」・見出し・3行の文・大きな絵。診断後は主軸に合う傾向の絵（summary.js の heroKey）＝「あなた」の絵。診断前・途中は仮の絵（4B）
+//   上：「HOME」・見出し・3行の文・大きな絵（軸の絵。§13）。診断後は axis_art.js の heroArt（結果の一番上と同じ絵）＝「あなた」の絵。
+//     診断前・途中は軸の絵 4-b（感情表出の B寄り）
 //   相談の欄（上・カード1枚）→ #consult。人物の絵は出さない（画像2の形：薄いくすんだ赤の丸に吹き出しのアイコン・題・2行の文・丸い →）
-//   診断の欄（下）：診断前／途中（1問以上答えた）は小さな絵つきのカード。診断後は文だけのカード（主軸の見出し・1〜2行・主な傾向3つ）
+//   診断の欄（下）：診断前／途中（1問以上答えた）は小さな絵（軸の絵 5-a）つきのカード。診断後は文だけのカード（主軸の見出し・1〜2行・主な傾向3つ）
 //   同じ絵は1つの画面に2回出さない（絵が出るのは、上と、診断前・途中のカードだけ。この2つを重ねない）
 //   診断の状態は js/ui/three_store.js（今の画面と同じ保存のキー。どちらで答えても共通）。js/ の中身は直さない
-import { h, eyebrow, sectionHead, badge, roundArrow, rowLink, typePic, icon, go } from "./ui.js";
+import { h, eyebrow, sectionHead, badge, roundArrow, rowLink, artPic, icon, go } from "./ui.js";
 import { store3, restore3, discard3 } from "../../js/ui/three_store.js";
-import { TYPE_IMAGES, isReady } from "../../js/data/type_images.js";
-import { mainPattern, topTendencies, heroKey, recordDiagnosis } from "./summary.js";
+import { mainPattern, topTendencies, recordDiagnosis } from "./summary.js";
+import { heroArt, artOf, ART_SIZE } from "./axis_art.js";
 
-// 仮の絵（img/types/ の8枚から。新しい絵が届いたら差し替える）。上は先頭が基本で、診断のカードの絵と重なるときだけ次の候補
-const PIC = { hero: ["4B", "8B", "1A"], diagnose: "5A" };
-const entry = (key) => (isReady(TYPE_IMAGES[key]) ? TYPE_IMAGES[key] : null);
+// 診断前・途中の絵（軸の絵から2枚。同じ絵にしない。§13.3）
+//   上＝4-b（感情表出の B寄り。胸もとに小さなピンクがのぞく、静かな絵。前の仮の絵 4B と同じ見え方）。候補の先頭が基本で、診断のカードの絵と重なるときだけ次
+//   診断のカード＝5-a（納得の条件の A寄り。パズルのピースを合わせる絵＝「自分を知る」）
+const PIC = { hero: [[4, "b"], [8, "b"], [2, "b"]], diagnose: [5, "a"] };
+const has = (art) => !!art?.file;
 
 /**
- * ホームの絵のキー { hero, diagnose }（DOM を使わない）
- *   state   … diagnosisState() の値（"done" | "mid" | "before"）
- *   mainKey … 診断後の主軸の絵のキー（heroKey(r)）。"done" のときだけ使う
- *   診断後：上＝主軸の絵（無ければ仮の絵）、診断のカード＝絵なし（diagnose は null）
- *   診断前・途中：上＝仮の絵（4B）、診断のカード＝5A。上は診断のカードの絵と重ならない候補を選ぶ
+ * ホームの絵 { hero, diagnose }（axis_art.js の artOf・heroArt の形か null。DOM を使わない）
+ *   state … diagnosisState() の値（"done" | "mid" | "before"）
+ *   main  … 診断後の「あなた」の絵（heroArt(r)）。"done" のときだけ使う
+ *   診断後：上＝heroArt の絵（無ければ診断前と同じ絵）、診断のカード＝絵なし（diagnose は null）
+ *   診断前・途中：上＝4-b、診断のカード＝5-a。上は診断のカードの絵と重ならない候補を選ぶ
  */
-export function homePics(state = "before", mainKey = null, ready = (k) => !!entry(k)) {
-  if (state === "done") {
-    const hero = mainKey && ready(mainKey) ? mainKey : (PIC.hero.find(k => ready(k)) ?? null);
-    return { hero, diagnose: null };
-  }
-  const diagnose = ready(PIC.diagnose) ? PIC.diagnose : null;
-  return { hero: PIC.hero.find(k => ready(k) && k !== diagnose) ?? null, diagnose };
+export function homePics(state = "before", main = null) {
+  const fallback = PIC.hero.map(([d, s]) => artOf(d, s)).filter(has);
+  if (state === "done") return { hero: has(main) ? main : (fallback[0] ?? null), diagnose: null };
+  const diagnose = artOf(...PIC.diagnose);
+  return { hero: fallback.find(a => a.id !== diagnose?.id) ?? null, diagnose: has(diagnose) ? diagnose : null };
 }
 
 /** 診断の状態："done"（結果あり）／"mid"（1問以上答えた途中）／"before" */
@@ -43,14 +44,14 @@ export function render(root) {
   restore3();
   const state = diagnosisState();
   const r = store3.result;
-  let mainKey = null;
+  let main = null;
   if (state === "done") {
     try { recordDiagnosis(r); } catch (err) { console.error(err); }   // 履歴にまだ無ければ足す（同じ結果は足さない）
-    try { mainKey = heroKey(r); } catch (err) { console.error(err); }
+    try { main = heroArt(r); } catch (err) { console.error(err); }
   }
   // 診断の欄と、上・診断のカードの絵を同じ状態で作る（診断後のカードが作れなければ、診断前として出す）
   const build = (s) => {
-    const pics = homePics(s, mainKey);
+    const pics = homePics(s, main);
     return { pics, diag: s === "done" ? doneSection(r) : diagnoseSection(s, pics.diagnose) };
   };
   let view;
@@ -64,21 +65,21 @@ export function render(root) {
 }
 
 // ---------------------------------------------------------------- 上
-function hero(key) {
+function hero(art) {
   return h("section", { class: "a-home-hero", "aria-labelledby": "a-home-title" },
     h("div", { class: "a-home-hero-text" },
       eyebrow("HOME"),
       h("h1", { class: "a-home-title", id: "a-home-title" }, "今日はこちらから"),
       h("p", { class: "a-home-lead" }, "心が少し軽くなる、", h("br"), "あなたのための診断と相談。", h("br"), "いつでも、ここにいます。")),
-    heroPic(key));
+    heroPic(art));
 }
 
-// 切り取りは app.css の .a-home-pic（絵ごとに人物の位置が違うので、data-key で見せる位置を変える）
-function heroPic(key) {
-  const e = entry(key);
-  if (!e) return null;
-  return h("div", { class: "a-home-pic", "data-key": key, "aria-hidden": "true" },
-    h("img", { src: `../${e.file}`, alt: "", width: 960, height: 960, decoding: "async", fetchpriority: "high" }));
+// 切り取りは app.css の .a-home-pic（絵ごとに人物とリボンの位置が違うので、data-key＝絵の id「2-b」で見せる位置を変える）
+//   飾り（aria-hidden）。結果の一番上と同じ絵で、意味は結果の画面の alt と題で伝える
+function heroPic(art) {
+  if (!has(art)) return null;
+  return h("div", { class: "a-home-pic", "data-key": art.id, "aria-hidden": "true" },
+    h("img", { src: art.file, alt: "", width: ART_SIZE, height: ART_SIZE, decoding: "async", fetchpriority: "high" }));
 }
 
 // ---------------------------------------------------------------- 相談の欄（上・1つだけ。画像2の相談カードの形。人物の絵は出さない）
@@ -95,11 +96,11 @@ function consultSection() {
 }
 
 // ---------------------------------------------------------------- 診断の欄（診断前・途中）
-function diagnoseSection(state, picKey = PIC.diagnose) {
+function diagnoseSection(state, pic = artOf(...PIC.diagnose)) {
   const mid = state === "mid";
   const answered = mid ? store3.session.progress().answered : 0;
   const inner = [
-    typePic(entry(picKey), { pos: "50% 42%", zoom: 1.45 }),
+    artPic(pic, { pos: "55% 0%" }),   // 5-a：頭とパズルのピースが入るように（縦長の枠なので左右だけ少し切る）
     h("span", { class: "a-feature-body" },
       mid ? midBadge(answered) : badge("まだ診断していません", { tone: "quiet" }),
       h("span", { class: "a-feature-title" }, mid ? "続きから答える" : "診断をはじめる"),

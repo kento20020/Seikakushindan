@@ -67,7 +67,7 @@
      .a-input / .a-textarea … 入力欄（文字は 16px。iPhone で拡大されない）。.a-count … 「0 / 2000」
      .a-check          … チェック（label.a-check > input[type=checkbox] ＋ span.a-check-box ＋ 文）。押せる範囲は 44px 以上
    絵
-     .a-pic            … 傾向の絵の枠（ui.js の typePic(entry, opts)）。灰色の背景を地の色に寄せる（明るさ）
+     .a-pic            … 軸の絵の枠（ui.js の artPic(art, opts)。絵は app/img/axes/、一覧は app/js/axis_art.js）。灰色の背景を地の色に寄せる（明るさ）
      .a-pic-soft       … 縁をぼかす（mask-image）。--pos（見せる位置）・--zoom（拡大）で切り取りを変える
    決まり：押せる部品は 44px 以上。焦点は --rose-ink の輪で見える。動きを減らす設定では動かさない。横スクロールを出さない
    ====================================================================== */
@@ -674,8 +674,8 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   object-position: var(--pos, 50% 45%);
   transform: scale(var(--zoom, 1));
   transform-origin: var(--pos, 50% 45%);
-  /* 絵の背景の灰色（約 #C6C1BB）を、ページの地（#ECE6DE）に寄せる */
-  filter: brightness(1.19);
+  /* 軸の絵の背景の灰色（約 #C4BEB8）を、ページの地（#ECE6DE）に寄せる */
+  filter: brightness(1.2);
 }
 .a-pic-soft {
   border-radius: 0;
@@ -725,20 +725,31 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   mask-composite: intersect;
 }
 .a-home-pic img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: var(--hp, 30% 40%);
-  transform: scale(var(--hz, 1.2));
-  transform-origin: var(--ho, 40% 40%);
-  filter: brightness(1.19);
+  position: absolute;
+  top: var(--ht, 4%);
+  right: var(--hr, -20%);
+  width: var(--hw, 88%);
+  height: auto;
+  max-width: none;
+  aspect-ratio: 1;
+  filter: brightness(1.2);
+  --img-fade: linear-gradient(to right, transparent 0, #000 26%), linear-gradient(to bottom, transparent 0, #000 10%, #000 80%, transparent 100%);
+  -webkit-mask-image: var(--img-fade);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--img-fade);
+  mask-composite: intersect;
 }
-/* 絵ごとの切り取り（§12.1：診断後は主軸の絵が入るので、人物が左寄り・リボンが大きい絵は、題と重ならないよう右へ寄せる）
-   --hp＝見せる位置（object-position。負の値で右へ寄る。狭い画面ほど効く）  --hz＝拡大  --ho＝拡大の中心。4B・5A・8B は既定のまま */
-.a-home-pic[data-key="1A"], .a-home-pic[data-key="7A"] { --hp: -80% 40%; --hz: 1.1; --ho: 60% 40%; }
-.a-home-pic[data-key="2B"] { --hp: -40% 40%; --hz: 1.05; --ho: 70% 70%; }
-.a-home-pic[data-key="3A"] { --hp: -40% 40%; }
-.a-home-pic[data-key="6B"] { --hp: -40% 40%; --hz: 1.1; --ho: 70% 70%; }
+/* 絵ごとの切り取り（§13：軸の絵の16枚のどれが上に来ても、題「今日はこちらから」と人物の頭・リボンが重ならないように）
+   絵は枠の右上に置く（枠の幅に対する割合なので、スマホと PC で同じ見え方。PC は枠が広いぶん絵も大きい）
+   --hw＝絵の幅  --hr＝右へのはみ出し（負の値）  --ht＝上からの位置（枠の高さに対する割合）。絵の左・上・下の縁は絵の側でもぼかす（--img-fade）
+   既定で人物の頭が題の右に来る。左へリボンが伸びている絵（1-a・1-b・2-b・6-a・6-b・7-a・8-a・8-b）は、少し右へ寄せる */
+.a-home-pic[data-key="1-a"], .a-home-pic[data-key="1-b"], .a-home-pic[data-key="2-b"], .a-home-pic[data-key="6-a"],
+.a-home-pic[data-key="6-b"], .a-home-pic[data-key="7-a"], .a-home-pic[data-key="8-a"], .a-home-pic[data-key="8-b"] { --hr: -27%; }
+.a-home-pic[data-key="7-a"] { --ht: 8%; }   /* 頭が絵の上の端に近いので、少し下げる */
+/* とても狭い画面（320px など）は題の右があまり空かないので、絵を小さくして右上へ寄せる */
+@media (max-width: 359px) {
+  .a-home-pic img { transform: scale(0.8); transform-origin: 100% 0; }
+}
 .a-home-sec { position: relative; z-index: 1; }
 .a-home-hero + .a-home-sec .a-section-h { margin-top: var(--sp-6); }
 
