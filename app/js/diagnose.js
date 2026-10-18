@@ -87,7 +87,7 @@ function startView() {
 
   const actions = mid
     ? [
-      h("p", { class: "a-dg-resume" }, `途中まで答えた診断があります（${p.answered}問回答済み）。`),
+      h("p", { class: "a-dg-resume" }, "途中まで答えた診断があります", h("span", { class: "a-nowrap" }, `（${p.answered}問回答済み）。`)),
       h("a", { class: "a-btn a-btn-block", href: "#diagnose/q", id: "a-dg-resume" }, "続きから答える", icon("arrow-right")),
       h("button", { type: "button", class: "a-btn a-btn-outline a-btn-block", id: "a-dg-restart", onclick: restart }, "最初からやり直す"),
     ]
