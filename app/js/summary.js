@@ -3,7 +3,8 @@
 //   mainPattern(result)      … 主軸のパターン { id, role, headline, one, meta }（byRole の先頭。headline は jpQuotes を通す）
 //   jpQuotes(text)           … 見出しの半角の引用符 "X" を「X」にする（新しい画面の表示だけ。元の文 js/data/ は変えない）
 //   topTendencies(result, n) … 強く出ている傾向を n 個（既定 3）
-//   heroKey(result)          … 主軸に合う傾向の絵のキー（heroTendency。出せなければ null）
+//   heroKey(result)          … 主軸に合う傾向の、今の傾向の絵（img/types/。絵のある8つから）のキー（heroTendency。出せなければ null）
+//                              app/ の画面は使わない（軸の絵 app/js/axis_art.js の heroArt を使う。§13）
 //   axisView(result, d)      … 結果の「8つの軸」の1本（●の位置・「熟考寄り 75%」・強さ・読み上げの文）。docs/app-screens.md §12 の2
 //   resultKey(result)        … 結果の key（同じ回答・同じ選ばれたパターンなら同じ）。履歴の重なりの判定と、結果の印の key に使う
 //   diagnosisRecord(result)  … 履歴に足す形 { kind, title, sub, data }

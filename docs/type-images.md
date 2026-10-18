@@ -129,3 +129,5 @@
 | `css/style.css`（末尾） | 見た目（クラスは `ti-` で始まる）。`<img>` には `width`／`height`・`loading="lazy"`・データの `alt` を付けて、読み込み前に場所を確保する（レイアウトがずれない） |
 | `img/types/<キー>.jpg` | 絵（960×960） |
 | `tests/type_images.test.mjs` | データの整合・ヒーローの選び方のテスト |
+
+> **新しい画面 `app/` は別の絵を使う（2026-10-18、決定 U33）**：8つの軸それぞれに色があり、軸ごとに A寄り・まんなか・B寄りの3パターン（`app/img/axes/`。一覧は [app-screens.md](app-screens.md) §13）。このページの16傾向の絵（`img/types/`）は今の画面（`/#three`）で使い続ける。

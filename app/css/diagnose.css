@@ -15,8 +15,9 @@
               .a-dg-cards > .a-dg-pc.a-dg-pc-main|support|contra|shape（左の帯）
                 .a-dg-sent[aria-pressed]（文ごとの「違う」）／.a-dg-scene ＋ .a-dg-yn[aria-pressed]（ありそう／なさそう）
                 .a-dg-pc-toggle（主軸以外の「詳しく」）／.a-dg-extra（補足）
-              .a-dg-axes > .a-dg-axis-list > .a-dg-axis.is-a|is-b|is-mid|is-none（8つの軸。--x ●の位置）
-                .a-dg-axis-head（絵か番号・題・右上の強さ）／.a-dg-axis-ends（両はしの傾向名）／.a-dg-track（横軸と●）／.a-dg-axis-share（「〜寄り 75%」）
+              .a-dg-axes > .a-dg-axis-list > .a-dg-axis.is-a|is-b|is-mid|is-none（8つの軸。--x ●の位置、--axis・--axis-deep 軸の色）
+                .a-dg-axis-head（軸の絵か番号・題・右上の強さ）／.a-dg-axis-ends（両はしの傾向名）／.a-dg-track（横軸と●）
+                .a-dg-axis-share（「〜寄り 75%」。前に色の点 .a-dg-share-dot）
    決まり：押せる部品は 44px 以上、焦点は app.css の輪、動きを減らす設定では動かさない、横スクロールを出さない */
 
 /* ======================================================================
@@ -378,7 +379,7 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
   height: 100%;
   object-fit: cover;
   /* 絵の背景の灰色を、ページの地に寄せる（ホームの絵と同じ） */
-  filter: brightness(1.19);
+  filter: brightness(1.2);
 }
 /* 絵の下の小さな傾向の名前（細い線ではさむ） */
 .a-dg-hero-name {
@@ -575,18 +576,22 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
 .a-dg-pc-toggle .a-ic { width: 18px; height: 18px; color: var(--ink-2); transition: transform var(--dur) var(--ease); }
 .a-dg-pc-toggle[aria-expanded="true"] .a-ic { transform: rotate(180deg); }
 
-/* 8つの軸（§12 の2）：領域ごとに1本の横軸。●の位置＝同じ場面の問で B を選んだ割合（--x）
-   色：A 側＝くすんだ赤、B 側＝灰青（●は面との比 3 以上の濃い灰青）、まんなか＝墨。文字でも「〜寄り」と出すので色だけに頼らない */
+/* 8つの軸（§12 の2・§13）：領域ごとに1本の横軸。●の位置＝同じ場面の問で B を選んだ割合（--x）
+   色（§13）：A 側＝その軸の色（●は --axis-deep＝面との比 3 以上、帯は --axis）、B 側＝紺 --navy、まんなか＝墨。
+   --axis・--axis-deep は result.js が行ごとに置く（値は app/js/axis_art.js）。
+   文字は墨のまま（軸の色は文字には面との比 4.5 が取れないため）。「〜寄り」の前に色の点を添え、文字でも「〜寄り」と出すので色だけに頼らない */
 .a-dg-axes-note { margin-bottom: var(--sp-3); }
 .a-dg-axis-list { list-style: none; padding-top: var(--sp-1); padding-bottom: var(--sp-1); }
 .a-dg-axis {
+  --navy: #22315A;
   --side: var(--field);
+  --band: var(--field);
   --side-ink: var(--muted);
   padding: var(--sp-4) 0 var(--sp-3);
 }
-.a-dg-axis.is-a { --side: var(--rose); --side-ink: var(--rose-ink); }
-.a-dg-axis.is-b { --side: var(--slate-ink); --side-ink: var(--slate-ink); }
-.a-dg-axis.is-mid { --side: var(--night); --side-ink: var(--ink); }
+.a-dg-axis.is-a { --side: var(--axis-deep, var(--rose)); --band: var(--axis, var(--rose)); --side-ink: var(--ink); }
+.a-dg-axis.is-b { --side: var(--navy); --band: var(--navy); --side-ink: var(--ink); }
+.a-dg-axis.is-mid { --side: var(--night); --band: var(--night); --side-ink: var(--ink); }
 .a-dg-axis + .a-dg-axis { border-top: 1px solid var(--line); }
 .a-dg-axis-head { display: flex; align-items: center; gap: var(--sp-3); }
 .a-dg-axis-pic { flex: none; width: 44px; border-radius: 50%; }
@@ -682,8 +687,8 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
   top: calc(50% - 2px);
   height: 4px;
   border-radius: 2px;
-  background: var(--side);
-  opacity: 0.32;
+  background: var(--band);
+  opacity: 0.45;
 }
 .a-dg-track-dot {
   position: absolute;
@@ -708,9 +713,18 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
   overflow: hidden;
 }
 .a-dg-axis-share > span {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-left: var(--x, 50%);
   transform: translateX(calc(-1 * var(--x, 50%)));
+}
+/* 「〜寄り」の前の色の点（●と同じ色。文字は墨のまま） */
+.a-dg-share-dot {
+  flex: none;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--side);
 }
 .a-dg-axis:not(.is-none) .a-dg-axis-share { font-weight: 700; }
 

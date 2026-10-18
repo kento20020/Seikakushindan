@@ -3,13 +3,18 @@
 //  - app/js/local.js：記録の出し入れ（新しい順・同じ診断結果は2回足さない・消す・すべて消す）、結果の印、保存できないときも落ちない
 //  - app/js/summary.js：主軸の見出し・主な傾向・結果の key・履歴に足す形（サンプルの結果で）、8つの軸の1本（axisView。§12 の2）、
 //    見出しの半角の引用符を「」にする（jpQuotes）
+//  - app/js/axis_art.js：軸の絵（8軸×3パターン。§13）。axisArt の a・b・mid・答えなし、heroArt が軸の絵を返すこと、ホームの絵（home.js の homePics）
 // Node には localStorage が無いので、useStorage で入れ物を差し替える。時刻は ISO（UTC）で渡すので時差に依存しない
 import assert from "node:assert/strict";
 import { STORAGE_KEY, useStorage, loadRecords, getRecord, addRecord, removeRecord, clearRecords, clearAll, getMarks, setMarks, MAX_ITEMS } from "../app/js/local.js";
 import { mainPattern, topTendencies, resultKey, diagnosisRecord, recordDiagnosis, heroKey, axisView, jpQuotes } from "../app/js/summary.js";
 import { fromLikertAnswers, fromScores } from "../js/adaptive3.js";
 import { SAMPLES3, PROFILE_SAMPLES3 } from "../js/data/samples3.js";
-import { TYPE_IMAGES, isReady } from "../js/data/type_images.js";
+import { TYPE_IMAGES, isReady, heroTendency } from "../js/data/type_images.js";
+import { AXIS_ART, NAVY, artOf, artSide, axisArt, heroArt } from "../app/js/axis_art.js";
+import { homePics } from "../app/js/home.js";
+import { DOMAINS } from "../js/engine3.js";
+import { existsSync } from "node:fs";
 
 let fail = 0, pass = 0;
 function test(name, fn) {
@@ -252,6 +257,124 @@ test("見出しの半角の引用符を「」にする（jpQuotes）：置き換
   assert.equal(jpQuotes(null), null);
   assert.equal(jpQuotes(undefined), undefined);
   assert.equal(jpQuotes("引用符の無い見出し。"), "引用符の無い見出し。");
+});
+
+// ---------------------------------------------------------------- axis_art.js（軸の絵。§13）
+const appFile = (f) => new URL(`../app/${f}`, import.meta.url);
+
+test("軸の絵の一覧：8軸それぞれに色と a・b の絵（ファイルがある）。まんなかはまだ無い。B 側は紺", () => {
+  const colors = { 1: ["#2E9A8F", "#2E9188"], 2: ["#D9A23A", "#A47D38"], 3: ["#4F86CC", "#4E84C9"], 4: ["#C06A92", "#BD6990"],
+    5: ["#9468B6", "#9468B6"], 6: ["#DB7A45", "#BF6D42"], 7: ["#7F9545", "#768A43"], 8: ["#DE675F", "#D0625B"] };
+  assert.deepEqual(Object.keys(AXIS_ART).map(Number), [1, 2, 3, 4, 5, 6, 7, 8]);
+  for (const [d, [color, deep]] of Object.entries(colors)) {
+    const t = AXIS_ART[d];
+    assert.equal(t.color, color, `軸${d} の色`);
+    assert.equal(t.deep, deep, `軸${d} の点の色`);
+    assert.equal(t.name, DOMAINS[d].name);
+    for (const side of ["a", "b"]) {
+      assert.equal(t[side].file, `img/axes/${d}-${side}.jpg`);
+      assert.ok(existsSync(appFile(t[side].file)), `${t[side].file} がある`);
+      assert.match(t[side].alt, /人の絵/, `軸${d}-${side} の alt`);
+    }
+    assert.equal(t.mid, null, `軸${d} のまんなかはまだ無い`);
+  }
+  assert.equal(NAVY, "#22315A");
+});
+
+test("axisArt：A の割合が 50% より多ければ a、少なければ b、ちょうど 50% は mid（絵はまだ無い）、答えなしは null", () => {
+  const at = (states) => ({ states });
+  const a = axisArt(2, axisView(at({ 2: { a: 3, b: 1 } }), 2));
+  assert.deepEqual(a, { id: "2-a", domain: 2, side: "a", file: "img/axes/2-a.jpg", alt: AXIS_ART[2].a.alt, color: "#D9A23A", deep: "#A47D38" });
+  const b = axisArt(2, axisView(at({ 2: { a: 1, b: 3 } }), 2));
+  assert.equal(b.side, "b");
+  assert.equal(b.file, "img/axes/2-b.jpg");
+  assert.equal(b.id, "2-b");
+  const allA = axisArt(3, axisView(at({ 3: { a: 4, b: 0 } }), 3));
+  assert.equal(allA.side, "a");
+  const mid = axisArt(1, axisView(at({ 1: { a: 3, b: 3 } }), 1));
+  assert.equal(mid.side, "mid");
+  assert.equal(mid.file, null, "まんなかの絵はまだ無い（番号の丸を出す）");
+  assert.equal(mid.color, "#2E9A8F");
+  const none = axisArt(4, axisView(at({ 4: { a: 0, b: 0 } }), 4));
+  assert.equal(none.side, null);
+  assert.equal(none.file, null);
+  assert.equal(none.deep, "#BD6990", "答えなしでも色は返す");
+  assert.equal(axisArt(9, { pos: 0.2 }), null, "知らない軸");
+  assert.equal(artSide(null), null);
+  assert.equal(artSide({ pos: 0.4 }), "a");
+  assert.equal(artSide({ pos: 0.6 }), "b");
+  assert.equal(artSide({ pos: 0.5 }), "mid");
+  assert.equal(artSide({ pos: null }), null);
+  assert.equal(artOf(5, "mid").file, null);
+  assert.equal(artOf(5, "x"), null);
+  assert.equal(artOf(0, "a"), null);
+});
+
+// 16の傾向すべてに絵がある前提の images（テストの側でも作って、heroArt の選び方と比べる）
+const allReady = Object.fromEntries(Object.entries(TYPE_IMAGES).map(([k, e]) => [k, { ...e, status: "ready", file: `x/${k}.jpg` }]));
+
+test("heroArt：主軸に合う傾向（16すべてに絵がある前提の heroTendency）の軸の、●で選んだ絵を返す", () => {
+  let other = 0;
+  for (const { name, r } of results) {
+    const art = heroArt(r);
+    const pick = heroTendency(r.profile3, r.select.chosen, allReady);
+    if (!pick) { assert.equal(art, null, name); continue; }
+    assert.ok(art, name);
+    assert.equal(art.key, pick.key, `${name}：傾向`);
+    const d = parseInt(pick.key, 10);
+    assert.equal(art.domain, d);
+    assert.equal(art.tendency, pick.key.endsWith("A") ? DOMAINS[d].a : DOMAINS[d].b, `${name}：傾向の名前`);
+    assert.match(art.file, /^img\/axes\/[1-8]-[ab]\.jpg$/, `${name}：軸の絵`);
+    assert.ok(existsSync(appFile(art.file)), `${name}：${art.file}`);
+    assert.ok(art.alt, `${name}：alt`);
+    const v = axisView(r, d);
+    const side = artSide(v);
+    if (side === "a" || side === "b") {
+      assert.equal(art.side, side, `${name}：●で選ぶ`);
+      assert.equal(art.bySide, false);
+    } else {
+      assert.equal(art.side, pick.key.endsWith("A") ? "a" : "b", `${name}：まんなか・答えなしは傾向の側`);
+      assert.equal(art.bySide, true);
+    }
+    if (!isReady(TYPE_IMAGES[pick.key])) other++;
+  }
+  assert.ok(other > 0, "今の傾向の絵が無い傾向（例 1B・2A）も選ばれる");
+  assert.equal(heroArt(null), null);
+  assert.equal(heroArt({}), null);
+});
+
+test("heroArt：その軸の●がまんなか・答えなしなら、主軸に合う傾向の側の絵", () => {
+  const { r } = results[0];
+  const base = heroArt(r);
+  const d = base.domain;
+  const lead = base.key.endsWith("A") ? "a" : "b";
+  const tie = heroArt({ ...r, states: { ...r.states, [d]: { ...r.states[d], a: 2, b: 2 } } });
+  assert.equal(tie.key, base.key);
+  assert.equal(tie.side, lead);
+  assert.equal(tie.file, `img/axes/${d}-${lead}.jpg`);
+  assert.equal(tie.bySide, true);
+  const none = heroArt({ ...r, states: { ...r.states, [d]: { ...r.states[d], a: 0, b: 0 } } });
+  assert.equal(none.side, lead);
+  assert.equal(none.bySide, true);
+  // ●が傾向と逆の側なら、●の側の絵（§13.3：●で選んだパターン）
+  const flip = lead === "a" ? { a: 1, b: 3 } : { a: 3, b: 1 };
+  const opp = heroArt({ ...r, states: { ...r.states, [d]: { ...r.states[d], ...flip } } });
+  assert.equal(opp.side, lead === "a" ? "b" : "a");
+  assert.equal(opp.tendency, base.tendency, "傾向の名前は主軸に合う傾向のまま");
+});
+
+test("ホームの絵：診断前・途中は 4-b と 5-a（同じ絵にしない）、診断後は heroArt の絵でカードは絵なし", () => {
+  for (const st of ["before", "mid"]) {
+    const p = homePics(st);
+    assert.equal(p.hero.id, "4-b");
+    assert.equal(p.diagnose.id, "5-a");
+    assert.notEqual(p.hero.file, p.diagnose.file);
+  }
+  const art = heroArt(results[0].r);
+  const done = homePics("done", art);
+  assert.equal(done.hero, art);
+  assert.equal(done.diagnose, null);
+  assert.equal(homePics("done", null).hero.id, "4-b", "heroArt が無ければ診断前と同じ絵");
 });
 
 useStorage(null);
