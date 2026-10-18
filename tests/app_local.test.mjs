@@ -1,11 +1,12 @@
 // node tests/app_local.test.mjs
 // 新しい画面（app/）の DOM の無い部分のテスト。仕様：docs/app-screens.md §6.3
 //  - app/js/local.js：記録の出し入れ（新しい順・同じ診断結果は2回足さない・消す・すべて消す）、結果の印、保存できないときも落ちない
-//  - app/js/summary.js：主軸の見出し・主な傾向・結果の key・履歴に足す形（サンプルの結果で）、8つの軸の1本（axisView。§12 の2）
+//  - app/js/summary.js：主軸の見出し・主な傾向・結果の key・履歴に足す形（サンプルの結果で）、8つの軸の1本（axisView。§12 の2）、
+//    見出しの半角の引用符を「」にする（jpQuotes）
 // Node には localStorage が無いので、useStorage で入れ物を差し替える。時刻は ISO（UTC）で渡すので時差に依存しない
 import assert from "node:assert/strict";
 import { STORAGE_KEY, useStorage, loadRecords, getRecord, addRecord, removeRecord, clearRecords, clearAll, getMarks, setMarks, MAX_ITEMS } from "../app/js/local.js";
-import { mainPattern, topTendencies, resultKey, diagnosisRecord, recordDiagnosis, heroKey, axisView } from "../app/js/summary.js";
+import { mainPattern, topTendencies, resultKey, diagnosisRecord, recordDiagnosis, heroKey, axisView, jpQuotes } from "../app/js/summary.js";
 import { fromLikertAnswers, fromScores } from "../js/adaptive3.js";
 import { SAMPLES3, PROFILE_SAMPLES3 } from "../js/data/samples3.js";
 import { TYPE_IMAGES, isReady } from "../js/data/type_images.js";
@@ -243,6 +244,14 @@ test("8つの軸の1本：●の位置・「〜寄り」・まんなか・答え
       assert.ok(Number.isInteger(v.la) && Number.isInteger(v.lb), `${name}：領域${d} の強さ`);
     }
   }
+});
+
+test("見出しの半角の引用符を「」にする（jpQuotes）：置き換え・null・引用符の無い文", () => {
+  assert.equal(jpQuotes('"ちょっと待って"は早い。本題は遅い。'), "「ちょっと待って」は早い。本題は遅い。");
+  assert.equal(jpQuotes('"ごめん"より、"なぜ"が聞きたい。'), "「ごめん」より、「なぜ」が聞きたい。");
+  assert.equal(jpQuotes(null), null);
+  assert.equal(jpQuotes(undefined), undefined);
+  assert.equal(jpQuotes("引用符の無い見出し。"), "引用符の無い見出し。");
 });
 
 useStorage(null);

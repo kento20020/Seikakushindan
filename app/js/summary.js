@@ -1,6 +1,7 @@
 // 診断の結果から、ホーム・履歴・結果の画面で使う要点を取り出す。DOM を使わない（Node のテストでも動く）。
 // 判定はしない（js/ の結果を読むだけ。js/ の中身は直さない）。
-//   mainPattern(result)      … 主軸のパターン { id, role, headline, one, meta }（byRole の先頭）
+//   mainPattern(result)      … 主軸のパターン { id, role, headline, one, meta }（byRole の先頭。headline は jpQuotes を通す）
+//   jpQuotes(text)           … 見出しの半角の引用符 "X" を「X」にする（新しい画面の表示だけ。元の文 js/data/ は変えない）
 //   topTendencies(result, n) … 強く出ている傾向を n 個（既定 3）
 //   heroKey(result)          … 主軸に合う傾向の絵のキー（heroTendency。出せなければ null）
 //   axisView(result, d)      … 結果の「8つの軸」の1本（●の位置・「熟考寄り 75%」・強さ・読み上げの文）。docs/app-screens.md §12 の2
@@ -13,6 +14,15 @@ import { DOMAINS } from "../../js/engine3.js";
 import { domainTendencies3, heroTendency, TYPE_IMAGES, isReady } from "../../js/data/type_images.js";
 import { addRecord } from "./local.js";
 
+/**
+ * 半角の引用符 "X" を「X」にする（明朝では浮いて見え、変な所で折り返すため。新しい画面の表示だけ）
+ *   元の文（js/data/・docs/design.md）と今の画面は変えない。文字列でなければ（null など）そのまま返す
+ *   今の見出しの " はどれも対になっている（「」とまざっている所は無い）
+ */
+export function jpQuotes(text) {
+  return typeof text === "string" ? text.replace(/"([^"]*)"/g, "「$1」") : text;
+}
+
 const chosenOf = (r) => (Array.isArray(r?.select?.chosen) ? r.select.chosen.filter(x => x && x.meta) : []);
 
 /** 主軸のパターン。役割の順（js/ui/result.js の byRole）で並べた先頭。無ければ null */
@@ -22,7 +32,7 @@ export function mainPattern(r) {
   if (!hit) return null;
   const m = hit.meta;
   const p = PATTERN_BY_ID[m.id];
-  return { id: m.id, role: hit.role, headline: p?.headline ?? m.headline ?? "", one: p?.text?.one ?? "", meta: m };
+  return { id: m.id, role: hit.role, headline: jpQuotes(p?.headline ?? m.headline ?? ""), one: p?.text?.one ?? "", meta: m };
 }
 
 /**

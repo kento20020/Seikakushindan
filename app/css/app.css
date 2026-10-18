@@ -728,11 +728,17 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 30% 40%;
-  transform: scale(1.2);
-  transform-origin: 40% 40%;
+  object-position: var(--hp, 30% 40%);
+  transform: scale(var(--hz, 1.2));
+  transform-origin: var(--ho, 40% 40%);
   filter: brightness(1.19);
 }
+/* 絵ごとの切り取り（§12.1：診断後は主軸の絵が入るので、人物が左寄り・リボンが大きい絵は、題と重ならないよう右へ寄せる）
+   --hp＝見せる位置（object-position。負の値で右へ寄る。狭い画面ほど効く）  --hz＝拡大  --ho＝拡大の中心。4B・5A・8B は既定のまま */
+.a-home-pic[data-key="1A"], .a-home-pic[data-key="7A"] { --hp: -80% 40%; --hz: 1.1; --ho: 60% 40%; }
+.a-home-pic[data-key="2B"] { --hp: -40% 40%; --hz: 1.05; --ho: 70% 70%; }
+.a-home-pic[data-key="3A"] { --hp: -40% 40%; }
+.a-home-pic[data-key="6B"] { --hp: -40% 40%; --hz: 1.1; --ho: 70% 70%; }
 .a-home-sec { position: relative; z-index: 1; }
 .a-home-hero + .a-home-sec .a-section-h { margin-top: var(--sp-6); }
 
