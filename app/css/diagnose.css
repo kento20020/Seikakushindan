@@ -424,6 +424,7 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
   margin-top: var(--sp-4);
   font-size: var(--fs-xl);
   font-weight: 700;
+  word-break: auto-phrase;   /* 言葉の途中で折り返さない（Chrome 系だけ。ホームの見出しと同じ） */
   line-height: 1.55;
   letter-spacing: 0.06em;
   color: var(--ink);

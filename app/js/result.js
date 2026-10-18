@@ -20,7 +20,7 @@ import { splitSentences, SCENE_LABEL } from "../../js/feedback_collect.js";   //
 import { DOMAINS } from "../../js/engine3.js";
 import { TYPE_IMAGES, isReady, domainTendencies3 } from "../../js/data/type_images.js";
 import { getMarks, setMarks } from "./local.js";
-import { mainPattern, resultKey, recordDiagnosis, heroKey, axisView } from "./summary.js";
+import { mainPattern, resultKey, recordDiagnosis, heroKey, axisView, jpQuotes } from "./summary.js";
 
 const ROLE_TONE = { "主軸": "ink", "補強": "rose", "矛盾": "slate", "地（形状）": "line" };
 
@@ -110,7 +110,7 @@ function patternCard(hit, r, i, marks) {
   const tags = h("div", { class: "a-dg-pc-tags" },
     badge(hit.role, { tone: ROLE_TONE[hit.role] || "rose" }),
     badge(kindLabel(m), { tone: "quiet" }));
-  const title = h("h3", { class: "a-dg-pc-title", id: `${uid}-h` }, p?.headline ?? m.headline);
+  const title = h("h3", { class: "a-dg-pc-title", id: `${uid}-h` }, jpQuotes(p?.headline ?? m.headline));   // 半角の "X" は「X」で出す
   // 見出しの下に続く中身：領域名・区切り線・1行（one）・本文・場面例・補足
   const inner = [
     h("p", { class: "a-dg-pc-domain" }, domainParts(m)),

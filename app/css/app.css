@@ -40,7 +40,7 @@
      .a-card-link      … カード全体が押せる（a や button に付ける）。中の丸い矢印は飾り（aria-hidden）
      .a-card-flat      … 影なし（カードの中のカード・一覧の行）
      .a-card-split     … カードを「押せる上の部分（.a-card-main。a に付ける）」と「下の行（.a-rows）」に分ける。リンクを入れ子にしないため
-     .a-feature        … 絵つきのカードの中身（.a-feature-v＝絵が上、.a-feature-h＝絵が左。.a-feature-body / -title / -text / -foot / -meta）
+     .a-feature        … カードの中身（.a-feature-v＝縦：丸のアイコン .a-feature-mark が上、.a-feature-h＝絵が左。.a-feature-body / -title / -text / -foot / -meta）
      .a-divider        … 区切り線（hr）
    ボタン
      .a-btn            … 主ボタン（丸い・主の色・白い文字）。右の → は ui.js の icon("arrow-right") を中に入れる
@@ -728,17 +728,32 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 30% 40%;
-  transform: scale(1.2);
-  transform-origin: 40% 40%;
+  object-position: var(--hp, 30% 40%);
+  transform: scale(var(--hz, 1.2));
+  transform-origin: var(--ho, 40% 40%);
   filter: brightness(1.19);
 }
+/* 絵ごとの切り取り（§12.1：診断後は主軸の絵が入るので、人物が左寄り・リボンが大きい絵は、題と重ならないよう右へ寄せる）
+   --hp＝見せる位置（object-position。負の値で右へ寄る。狭い画面ほど効く）  --hz＝拡大  --ho＝拡大の中心。4B・5A・8B は既定のまま */
+.a-home-pic[data-key="1A"], .a-home-pic[data-key="7A"] { --hp: -80% 40%; --hz: 1.1; --ho: 60% 40%; }
+.a-home-pic[data-key="2B"] { --hp: -40% 40%; --hz: 1.05; --ho: 70% 70%; }
+.a-home-pic[data-key="3A"] { --hp: -40% 40%; }
+.a-home-pic[data-key="6B"] { --hp: -40% 40%; --hz: 1.1; --ho: 70% 70%; }
 .a-home-sec { position: relative; z-index: 1; }
 .a-home-hero + .a-home-sec .a-section-h { margin-top: var(--sp-6); }
 
-/* 絵つきのカード（相談＝縦、診断＝横） */
+/* カードの中身（相談＝縦・丸のアイコンが上、診断前・途中＝横・絵が左） */
 .a-feature { display: grid; gap: var(--sp-4); }
-.a-feature-v .a-pic { --ar: 16 / 8.5; border-radius: var(--r-md); }
+/* 相談のカード（画像2）：薄いくすんだ赤の丸に吹き出しのアイコン。人物の絵は出さない（§12.1） */
+.a-feature-mark {
+  display: grid;
+  place-items: center;
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--rose-soft);
+  color: var(--rose-ink);
+}
+.a-feature-mark .a-ic { width: 30px; height: 30px; }
 .a-feature-h { grid-template-columns: clamp(96px, 34%, 150px) minmax(0, 1fr); align-items: center; }
 .a-feature-h .a-pic { --ar: 5 / 6; }
 .a-feature-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); min-width: 0; }
@@ -782,16 +797,7 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 .a-card-split > .a-card-main:focus-visible { outline-offset: -3px; border-radius: var(--r-card) var(--r-card) 0 0; }
 .a-card-split > .a-rows { padding: 0 var(--sp-5); border-top: 1px solid var(--line); }
 
-/* 診断後のカード（画像2）。上の方に主軸の絵（§12 の4：画像1の診断カードのように左に絵・右に文。狭い画面では絵を上に） */
-.a-diag-top.has-pic {
-  display: grid;
-  grid-template-columns: clamp(96px, 34%, 150px) minmax(0, 1fr);
-  align-items: center;
-  gap: var(--sp-4);
-}
-.a-diag-pic { --ar: 5 / 6; --pos: 50% 42%; --zoom: 1.15; }
-.a-diag-top-text { min-width: 0; }
-.a-diag-top.has-pic + .a-diag-one { margin-top: var(--sp-4); }
+/* 診断後のカード（画像2）。文だけ（主軸の絵はページの一番上に出す。§12.1） */
 .a-diag-headline {
   margin-top: var(--sp-2);
   font-size: var(--fs-xl);
@@ -935,11 +941,6 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   /* 狭い画面では「主な傾向」を上に置き、点つきの行を横に広く使う */
   .a-trends { grid-template-columns: minmax(0, 1fr) auto; }
   .a-trends-label { grid-column: 1 / -1; }
-}
-@media (max-width: 359px) {
-  /* とても狭い画面では、診断後のカードの絵を上に（横に並べると見出しが窮屈になる） */
-  .a-diag-top.has-pic { grid-template-columns: minmax(0, 1fr); }
-  .a-diag-pic { --ar: 16 / 8.5; --pos: 50% 45%; --zoom: 1; }
 }
 
 /* ---------------------------------------------------------------- 動きを減らす設定 */

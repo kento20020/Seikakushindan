@@ -49,6 +49,8 @@ const ICONS = {
   close: { line: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>' },
   trash: { line: '<path d="M4.75 7h14.5"/><path d="M9.75 7V5.25h4.5V7"/><path d="M6.75 7l.8 11.6a1.5 1.5 0 0 0 1.5 1.4h5.9a1.5 1.5 0 0 0 1.5-1.4L17.25 7"/><path d="M10.25 10.75v5.5M13.75 10.75v5.5"/>' },
   copy: { line: '<rect x="8.75" y="8.75" width="11" height="11" rx="2"/><path d="M15.25 8.75V6.25a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2.5"/>' },
+  // 吹き出し（中に点が3つ。ホームの相談のカード）
+  chat: { line: '<path d="M7.27 16.57A8.25 6.5 0 1 1 12 17.75c-1.3 0-2.53-.2-3.64-.57L5.25 19.75z"/><circle cx="8.4" cy="11.25" r=".95" fill="currentColor" stroke="none"/><circle cx="12" cy="11.25" r=".95" fill="currentColor" stroke="none"/><circle cx="15.6" cy="11.25" r=".95" fill="currentColor" stroke="none"/>' },
 };
 export const ICON_NAMES = Object.freeze(Object.keys(ICONS));
 

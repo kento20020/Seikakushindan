@@ -6,7 +6,7 @@
 import { h, icon, eyebrow, badge, topBar, fmtDate, toast } from "./ui.js";
 import { loadRecords, getRecord, removeRecord } from "./local.js";
 import { store3, restore3 } from "../../js/ui/three_store.js";
-import { resultKey } from "./summary.js";
+import { resultKey, jpQuotes } from "./summary.js";
 
 const KIND_LABEL = { diagnosis: "診断", consult: "相談" };
 
@@ -47,7 +47,7 @@ function listView() {
 
 function itemRow(item, cur, list) {
   const label = KIND_LABEL[item.kind] || "記録";
-  const title = item.title || (item.kind === "consult" ? "相談" : "診断結果");
+  const title = titleOf(item) || (item.kind === "consult" ? "相談" : "診断結果");
   const li = h("li", { class: "a-card a-hist-item", "data-id": item.id, "data-kind": item.kind },
     h("a", { class: "a-hist-link", href: hrefOf(item, cur) },
       h("span", { class: "a-hist-meta" },
@@ -97,7 +97,7 @@ async function detail(root, id) {
   const label = KIND_LABEL[item.kind] || "記録";
   const head = h("div", { class: "a-detail" },
     h("p", { class: "a-hist-meta" }, badge(label, { tone: item.kind === "consult" ? "rose" : "slate" }), h("time", { datetime: item.at }, fmtDate(item.at))),
-    h("h1", { class: "a-detail-title" }, item.title || label));
+    h("h1", { class: "a-detail-title" }, titleOf(item) || label));
   root.append(head);
   if (item.kind === "diagnosis") root.append(...diagnosisDetail(item));
   else root.append(...await consultDetail(item));
@@ -140,3 +140,6 @@ async function consultDetail(item) {
     item.sub ? h("section", { class: "a-detail-block" }, h("h2", null, "次の一手"), h("p", { class: "a-detail-sub" }, item.sub)) : null,
   ].filter(Boolean);
 }
+
+// 診断の題は見出し（前に保存した記録は半角の "…" のまま）なので「」にそろえる。相談の題は書いた文の冒頭なので変えない
+function titleOf(item) { return item.kind === "diagnosis" ? jpQuotes(item.title) : item.title; }
