@@ -1,9 +1,9 @@
 // 三択の質問カードの「スワイプの形」（?sw=card|a|b|c。判定は js/ui_flags.js の resolveUiFlags）。DOM を使わない純粋関数（tests/swipe_variants.test.mjs）
 //
-//   card … 今の形（既定）。質問カード全体が動く
+//   card … カードごと（2026-10-17 までの既定）。質問カード全体が動く
 //   a    … 回答をまとめて。質問文は動かず、回答2枚の入れ物（.t3-pair）だけが1枚のカードのように動く
 //   b    … 向きの側だけ。左へ → 左の回答だけが左へ、右へ → 右の回答だけが右へ（指を置いた場所は関係ない。途中で向きが変われば入れ替わる）
-//   c    … 触った回答だけ。指を置いた回答だけが、その側へだけ動く（逆向きは無効な向きと同じ抵抗）。回答の外から始めたときは b と同じ
+//   c    … 触った回答だけ（既定。決定 U28）。指を置いた回答だけが、その側へだけ動く（逆向きは無効な向きと同じ抵抗）。回答の外から始めたときは b と同じ
 //   上（問題を変える／答えずに進む）・下（戻る）は、どの形でもカード全体が動く（質問そのものが入れ替わるので）
 //
 // js/ui/three.js がこれで attachSwipe（js/ui/swipe.js）の target・allow を組み立てる。
@@ -11,7 +11,7 @@ import { SWIPE_VARIANTS, DEFAULT_SWIPE } from "../ui_flags.js";
 
 /** 開発用の表示（?dev=1 の開始画面の欄・質問画面のバッジ）に使う名前と一言の説明 */
 export const SWIPE_LABEL = { card: "カード", a: "A", b: "B", c: "C" };
-export const SWIPE_NAME = { card: "今の形", a: "回答をまとめて", b: "向きの側だけ", c: "触った回答だけ" };
+export const SWIPE_NAME = { card: "カードごと", a: "回答をまとめて", b: "向きの側だけ", c: "触った回答だけ" };
 export const SWIPE_DESC = {
   card: "質問カード全体が動く。",
   a: "質問文は動かず、回答2枚がまとめて1枚のカードのように動く。",
@@ -26,7 +26,7 @@ export const SWIPE_TIP = {
   c: "選ぶ回答をつかんで、その側へスワイプ（左の回答は左へ、右の回答は右へ）して答えられます。上へ＝",
 };
 
-/** 知らない値は既定（card） */
+/** 知らない値は既定（DEFAULT_SWIPE。いまは c） */
 export const normSwipe = (variant) => SWIPE_VARIANTS.includes(variant) ? variant : DEFAULT_SWIPE;
 const isSide = (x) => x === "left" || x === "right";
 

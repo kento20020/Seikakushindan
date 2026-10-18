@@ -64,9 +64,9 @@ const rootVarNames = (rules) => new Set(rules.filter(r => r.selector === ":root"
 test("resolveUiFlags：?ui= が無い・知らない値なら既定（v1）、v1・v2 はそのまま", () => {
   assert.equal(DEFAULT_UI, "v1");
   assert.deepEqual(UI_VERSIONS, ["v1", "v2"]);
-  assert.deepEqual(resolveUiFlags(""), { ui: "v1", dev: false, fb: false, sw: "card" });
-  assert.deepEqual(resolveUiFlags("?ui=v2"), { ui: "v2", dev: false, fb: false, sw: "card" });
-  assert.deepEqual(resolveUiFlags("?ui=v1"), { ui: "v1", dev: false, fb: false, sw: "card" });
+  assert.deepEqual(resolveUiFlags(""), { ui: "v1", dev: false, fb: false, sw: "c" });
+  assert.deepEqual(resolveUiFlags("?ui=v2"), { ui: "v2", dev: false, fb: false, sw: "c" });
+  assert.deepEqual(resolveUiFlags("?ui=v1"), { ui: "v1", dev: false, fb: false, sw: "c" });
   for (const s of ["?ui=v3", "?ui=V2", "?ui=", "?ui", "?ui=v2x", "?five=1"]) assert.equal(resolveUiFlags(s).ui, "v1", s);
   assert.equal(resolveUiFlags("ui=v2").ui, "v2", "先頭の ? は無くてもよい");
   assert.equal(resolveUiFlags("?ui=v2&ui=v1").ui, "v2", "同じ名前が2つあれば最初の値（URLSearchParams.get と同じ）");
@@ -87,14 +87,14 @@ test("resolveUiFlags：?dev=1・?fb=1 のときだけ true", () => {
   for (const s of ["?dev=0", "?dev=true", "?dev=", "?dev", "?devx=1", ""]) assert.equal(resolveUiFlags(s).dev, false, s);
   assert.equal(resolveUiFlags("?fb=1").fb, true);
   assert.equal(resolveUiFlags("?fb=0").fb, false);
-  assert.deepEqual(resolveUiFlags("?qv=v2&ui=v2&dev=1&fb=1"), { ui: "v2", dev: true, fb: true, sw: "card" });
+  assert.deepEqual(resolveUiFlags("?qv=v2&ui=v2&dev=1&fb=1"), { ui: "v2", dev: true, fb: true, sw: "c" });
 });
 
-test("resolveUiFlags：?sw= はスワイプの形（card・a・b・c）。無い・知らない値なら既定（card）", () => {
-  assert.equal(DEFAULT_SWIPE, "card");
+test("resolveUiFlags：?sw= はスワイプの形（card・a・b・c）。無い・知らない値なら既定（c。決定 U28）", () => {
+  assert.equal(DEFAULT_SWIPE, "c");
   assert.deepEqual(SWIPE_VARIANTS, ["card", "a", "b", "c"]);
   for (const v of SWIPE_VARIANTS) assert.equal(resolveUiFlags(`?sw=${v}`).sw, v, v);
-  for (const s of ["", "?sw=", "?sw=A", "?sw=d"]) assert.equal(resolveUiFlags(s).sw, "card", s);
+  for (const s of ["", "?sw=", "?sw=A", "?sw=d"]) assert.equal(resolveUiFlags(s).sw, "c", s);
   assert.deepEqual(resolveUiFlags("?ui=v2&dev=1&qv=v1&fb=1&sw=a"), { ui: "v2", dev: true, fb: true, sw: "a" }, "ほかのクエリと組み合わせられる");
 });
 

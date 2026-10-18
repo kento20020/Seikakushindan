@@ -1,0 +1,644 @@
+/* app/css/consult.css — 相談（入力 → 受け止めと状況の整理 → 足りない問 → 次の一手カード）の画面。仕様：docs/app-screens.md §4.5・§4.6
+   色・文字・部品は app/css/app.css の変数とクラス（a- で始まる）を使う。ここのクラスは a-cs- で始める。
+   見出し・部品の文字は明朝（app.css の既定）、長い本文（受け止めの下の補足・カードの理由・文面・このあと）はゴシック（§5.2）。
+   目立たせるのは1か所：送る一手は「送る吹き出し」（コピーは右上の小さな札）、待つ一手は大きな戻る時刻。ほかは静かに。
+   「止める」意味（足さない方がいい一言・危ないとき）だけ、朱を暗くした --cs-stop（地・面の上で 5:1 以上）。 */
+
+.a-cs {
+  --cs-stop: #9E3A31;
+  --cs-safety: #F6E7E2;
+  --cs-card: var(--surface-2);
+}
+/* 閉じた欄（hidden）は、下の display の指定より強く隠す */
+.a-cs [hidden] { display: none !important; }
+.a-cs.has-dock { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+.a-cs-body { display: flex; flex-direction: column; gap: var(--sp-5); padding-top: var(--sp-2); }
+
+/* 上の右：危ないときは（どの段階にも。U22） */
+.a-cs-danger {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--cs-stop);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.3em;
+}
+.a-cs-danger:hover { background: rgb(158 58 49 / 0.06); }
+
+/* 下に固定の主ボタン（入力・受け止め） */
+.a-cs-dock {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 15;
+  padding: var(--sp-6) var(--gutter) calc(var(--sp-4) + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 62%, rgb(236 230 222 / 0));
+  pointer-events: none;
+}
+.a-cs-dock-in { max-width: var(--col); margin: 0 auto; pointer-events: auto; }
+.a-cs-dock .a-btn { width: 100%; box-shadow: 0 10px 24px -14px rgb(161 94 88 / 0.7); }
+.a-cs-dock .a-btn:disabled { box-shadow: none; }
+
+/* ---------------------------------------------------------------- 1. 入力（画像5） */
+.a-cs-intro { display: flex; flex-direction: column; gap: var(--sp-2); padding-top: var(--sp-3); }
+.a-cs-title { margin-bottom: var(--sp-1); }
+.a-cs-intro .a-lead { font-size: var(--fs-md); letter-spacing: 0.08em; }
+.a-cs-form { padding: var(--sp-5) var(--sp-4) var(--sp-4); }
+@media (min-width: 400px) { .a-cs-form { padding-left: var(--sp-5); padding-right: var(--sp-5); } }
+.a-cs-form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin: calc(-1 * var(--sp-2)) 0 var(--sp-3);
+}
+.a-cs-label-main {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+  font-size: var(--fs-lg);
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+.a-cs-label-main .a-ic { width: 24px; height: 24px; color: var(--ink-2); }
+.a-cs-ex-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  margin-right: -6px;
+  padding: 0 6px 0 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+.a-cs-ex-btn:hover { color: var(--rose-ink); }
+.a-cs-ex-btn .a-ic { transition: rotate var(--dur) var(--ease); }
+.a-cs-ex-btn[aria-expanded="true"] .a-ic { rotate: 90deg; }
+.a-cs-examples { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-4); }
+.a-cs-example-list { list-style: none; display: flex; flex-direction: column; gap: var(--sp-2); }
+.a-cs-example {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: var(--fs-md);
+  line-height: 1.75;
+  letter-spacing: 0.02em;
+  text-align: left;
+}
+.a-cs-example:hover { border-color: var(--line-strong); background: #fff; }
+.a-cs-field { position: relative; }
+.a-cs-text { min-height: 200px; padding-bottom: 40px; }
+.a-cs-count {
+  position: absolute;
+  right: 16px;
+  bottom: 9px;
+  margin: 0;
+  pointer-events: none;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.a-cs-privacy { padding: 0 var(--sp-1); }
+.a-cs-submit .a-ic-sparkle { width: 22px; height: 22px; }
+
+/* ---------------------------------------------------------------- 2〜4. 安全の確認・受け止め・足りない問 */
+.a-cs-q {
+  font-size: var(--fs-2xl);
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0.06em;
+  word-break: auto-phrase;
+  text-wrap: pretty;
+  padding-top: var(--sp-3);
+}
+.a-cs-sub { font-size: var(--fs-md); line-height: 1.9; letter-spacing: 0.06em; color: var(--ink-2); margin-top: calc(-1 * var(--sp-2)); }
+.a-cs-step { font-size: var(--fs-sm); letter-spacing: 0.1em; color: var(--muted); padding-top: var(--sp-3); margin-bottom: calc(-1 * var(--sp-3)); }
+
+/* 選ぶボタン（足りない問・安全の確認）。縦に並べ、文は左、右に › */
+.a-cs-options { display: flex; flex-direction: column; gap: var(--sp-3); }
+.a-cs-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 60px;
+  padding: 14px 18px 14px 20px;
+  border: 1px solid rgb(255 255 255 / 0.6);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  font-size: var(--fs-lg);
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.a-cs-option > span { flex: 1; min-width: 0; word-break: auto-phrase; }
+.a-cs-option > .a-ic { flex: none; color: var(--ink-2); }
+.a-cs-option:hover { background: var(--surface-2); }
+.a-cs-option:active { transform: scale(0.99); }
+.a-cs-option.is-stop { border: 1.5px solid var(--cs-stop); color: var(--cs-stop); font-weight: 700; }
+.a-cs-option.is-stop > .a-ic { color: var(--cs-stop); }
+.a-cs-more { margin-top: calc(-1 * var(--sp-2)); }
+
+/* 受け止め：事実と気持ちをひと続きにした文が主役（見出し・区切りで分けない） */
+.a-cs-accept {
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  line-height: 2;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  word-break: auto-phrase;
+  text-wrap: pretty;
+  padding: var(--sp-6) 0 var(--sp-1);
+}
+.a-cs-fix { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+.a-cs-fix-panel { display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; }
+.a-cs-next-note { margin-top: calc(-1 * var(--sp-2)); }
+
+/* 開け閉めの文字ボタン（下向きの印つき） */
+.a-cs-toggle { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-size: var(--fs-md); }
+.a-cs-toggle.a-link-tap { padding-top: 10px; padding-bottom: 10px; margin-top: -10px; margin-bottom: -10px; }
+.a-cs-toggle .a-ic { width: 16px; height: 16px; transition: rotate var(--dur) var(--ease); }
+.a-cs-toggle[aria-expanded="true"] .a-ic { rotate: 180deg; }
+
+/* チップ（読み取りの直し・選び直し） */
+.a-cs-chips, .a-cs-chip-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.a-cs-chip-item { display: contents; }
+.a-cs-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 7px 16px;
+  border: 1px solid var(--field);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-align: left;
+}
+.a-cs-chip > span { min-width: 0; }
+.a-cs-chip:hover { background: #fff; }
+.a-cs-chip .a-ic { flex: none; width: 16px; height: 16px; color: var(--ink-2); }
+.a-cs-chip[aria-expanded="true"] .a-ic-chevron-down { rotate: 180deg; }
+.a-cs-chip[aria-pressed="true"] { background: var(--rose-soft); border-color: var(--rose); color: var(--rose-ink); font-weight: 700; }
+.a-cs-chip[aria-pressed="true"] .a-ic { color: var(--rose-ink); }
+.a-cs-chip.is-weak { border-style: dashed; border-width: 1.5px; }
+.a-cs-chip.is-quiet { border-style: dashed; color: var(--ink-2); }
+.a-cs-chip-flag { flex: none; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.06em; color: var(--rose-ink); }
+.a-cs-edit { flex-basis: 100%; display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-2) 0 var(--sp-3) var(--sp-3); border-left: 1.5px solid var(--line-strong); }
+.a-cs-edit-q { font-size: var(--fs-md); font-weight: 700; letter-spacing: 0.08em; }
+
+/* 窓口の1行 */
+.a-cs-safety-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--sp-4);
+  padding: var(--sp-1) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--cs-safety);
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: var(--fs-md);
+  letter-spacing: 0.02em;
+}
+.a-cs-safety-lead { color: var(--cs-stop); font-weight: 700; }
+.a-cs-tel-inline { display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: 0.4em; min-height: 44px; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- 5. 次の一手カード（1枚。中を「決める所」と「このあと」に分け、線は1本だけ） */
+.a-cs-card { background: var(--cs-card); padding: var(--sp-6) var(--sp-5) var(--sp-5); }
+@media (max-width: 379px) { .a-cs-card { padding-left: var(--sp-4); padding-right: var(--sp-4); } }
+.a-cs-card.is-enter { animation: a-cs-in 0.24s var(--ease) both; }
+@keyframes a-cs-in { from { opacity: 0; } to { opacity: 1; } }
+.a-cs-decide, .a-cs-later { display: flex; flex-direction: column; gap: var(--sp-4); }
+.a-cs-rule { height: 1px; margin: var(--sp-6) 0 var(--sp-5); background: var(--line); }
+.a-cs-label { display: block; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.12em; line-height: 1.5; color: var(--muted); }
+.a-cs-headline {
+  font-size: var(--fs-2xl);
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  word-break: auto-phrase;
+  text-wrap: pretty;
+}
+.a-cs-timing { margin-top: calc(-1 * var(--sp-2)); font-size: var(--fs-md); letter-spacing: 0.06em; color: var(--ink-2); }
+/* 長い本文はゴシック */
+.a-cs-reason, .a-cs-why, .a-cs-donow, .a-cs-dont, .a-cs-guess, .a-cs-cond, .a-cs-small, .a-cs-variants, .a-cs-level, .a-cs-hits, .a-cs-want, .a-cs-readline-panel p, .a-cs-res .a-cs-small, .a-cs-steps {
+  font-family: var(--sans);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+.a-cs-reason { font-size: var(--fs-md); line-height: 1.9; color: var(--ink-2); }
+.a-cs-why { padding-left: 1.2em; display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-sm); line-height: 1.85; color: var(--ink-2); }
+.a-cs-reason-wrap { display: flex; flex-direction: column; gap: var(--sp-2); }
+.a-cs-small { font-size: var(--fs-sm); line-height: 1.8; color: var(--ink-2); }
+
+/* 文の中の小さなボタン（見た目は文字、押せる範囲は 44px） */
+.a-cs-inline {
+  position: relative;
+  display: inline;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--rose-ink);
+  font-family: var(--serif);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  line-height: inherit;
+  letter-spacing: 0.06em;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+  white-space: nowrap;
+}
+.a-cs-inline::after { content: ""; position: absolute; left: -8px; right: -8px; top: 50%; height: 44px; transform: translateY(-50%); }
+.a-cs-inline.is-strong { font-weight: 700; }
+.a-cs-inline:hover { color: var(--ink); }
+
+/* 伝えたいのは（見出しの上の小さな1行） */
+.a-cs-want-wrap { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: calc(-1 * var(--sp-2)); }
+.a-cs-want { font-size: var(--fs-sm); line-height: 1.8; color: var(--ink-2); }
+.a-cs-want b { color: var(--rose-ink); font-weight: 700; }
+.a-cs-want .a-cs-inline { margin-left: var(--sp-1); }
+.a-cs-choose { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-1) 0 var(--sp-2); }
+
+/* 戻る時刻（大きな数字）と細い進み具合の線 */
+.a-cs-time { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-1) 0; }
+.a-cs-time-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.a-cs-time-main { display: flex; flex-direction: column; gap: 2px; }
+.a-cs-big {
+  font-size: 2rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0.06em;
+  color: var(--rose-ink);
+  font-variant-numeric: tabular-nums;
+}
+.a-cs-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.a-cs-timer:hover { border-color: var(--field); background: #fff; }
+.a-cs-timer[aria-pressed="true"] { background: var(--rose-soft); border-color: var(--rose); color: var(--rose-ink); }
+.a-cs-track { position: relative; height: 3px; margin: 4px 0; border-radius: 2px; background: var(--line); }
+.a-cs-track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--rose); }
+.a-cs-track b {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: var(--rose);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px var(--cs-card);
+}
+.a-cs-time-foot { display: flex; justify-content: space-between; gap: var(--sp-2); flex-wrap: wrap; font-size: var(--fs-xs); letter-spacing: 0.06em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.a-cs-remain { color: var(--rose-ink); font-weight: 700; }
+
+/* 文面：送る吹き出し（相手の画面にこう届く） */
+.a-cs-send { display: flex; flex-direction: column; gap: var(--sp-2); }
+.a-cs-send-top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding-right: 10px; }
+.a-cs-bubble {
+  position: relative;
+  align-self: flex-end;
+  max-width: 94%;
+  margin: var(--sp-1) 10px var(--sp-1) 0;
+  padding: 14px 18px;
+  border-radius: 22px;
+  background: var(--rose-soft);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 1.0625rem;
+  line-height: 1.8;
+  letter-spacing: 0.02em;
+}
+/* 吹き出しのしっぽ（右下。送ったメッセージの形） */
+.a-cs-bubble::before, .a-cs-bubble::after { content: ""; position: absolute; bottom: 0; height: 20px; }
+.a-cs-bubble::before { right: -7px; width: 20px; background: var(--rose-soft); border-bottom-left-radius: 16px 14px; }
+.a-cs-bubble::after { right: -10px; width: 10px; background: var(--cs-card); border-bottom-left-radius: 10px; }
+.a-cs-send-foot { display: flex; justify-content: flex-end; padding-right: 12px; margin-top: calc(-1 * var(--sp-1)); }
+.a-cs-send-foot .a-cs-inline { line-height: 2; }
+/* コピー：吹き出しの右上の小さな札（見た目は 32px、押せる範囲は 44px。U24） */
+.a-cs-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 44px;
+  min-height: 44px;
+  margin: calc(-1 * var(--sp-2)) 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+}
+.a-cs-copy-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 14px 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.a-cs-copy-ic { display: inline-flex; }
+.a-cs-copy-ic .a-ic { width: 16px; height: 16px; }
+.a-cs-copy:hover .a-cs-copy-pill { border-color: var(--field); background: #fff; }
+.a-cs-copy.is-done .a-cs-copy-pill { background: var(--rose-soft); border-color: var(--rose); color: var(--rose-ink); font-weight: 700; }
+.a-cs-copy:focus-visible { outline: none; }
+.a-cs-copy:focus-visible .a-cs-copy-pill { outline: 2px solid var(--rose-ink); outline-offset: 2px; }
+.a-cs-dont { font-size: var(--fs-sm); line-height: 1.85; color: var(--ink-2); }
+.a-cs-stop { color: var(--cs-stop); font-weight: 700; }
+
+/* 待つ一手：待つ間に／やること */
+.a-cs-send.is-wait { gap: var(--sp-3); }
+.a-cs-donow { display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-base); line-height: 1.85; color: var(--ink); }
+.a-cs-links { display: flex; flex-direction: column; gap: var(--sp-2); }
+.a-cs-links > div:not([class]) { display: flex; }
+.a-cs-later-draft, .a-cs-urge { display: flex; flex-direction: column; gap: var(--sp-2); }
+.a-cs-links > .a-cs-urge, .a-cs-links > .a-cs-later-draft { margin: var(--sp-1) 0 var(--sp-2); }
+.a-cs-urge-input { min-height: 96px; }
+.a-cs-check { display: flex; flex-direction: column; gap: var(--sp-1); }
+.a-cs-level { font-size: var(--fs-sm); color: var(--ink-2); }
+.a-cs-level b { color: var(--ink); }
+.a-cs-level.is-stop b { color: var(--cs-stop); }
+.a-cs-level.is-empty { color: var(--muted); }
+.a-cs-hits { list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-sm); color: var(--ink-2); }
+.a-cs-hits mark { margin-right: 4px; background: none; color: var(--cs-stop); font-weight: 700; }
+.a-cs-copy-all { align-self: flex-start; }
+.a-cs-copy-all .a-ic { width: 18px; height: 18px; }
+
+/* このあと */
+.a-cs-sec { display: flex; flex-direction: column; gap: var(--sp-2); }
+.a-cs-guess { font-size: var(--fs-md); line-height: 1.85; color: var(--ink); }
+.a-cs-guess b { font-weight: 700; }
+.a-cs-tag {
+  display: inline-block;
+  margin-left: 2px;
+  padding: 0 7px;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  color: var(--muted);
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+.a-cs-cond { font-size: var(--fs-sm); line-height: 1.85; color: var(--ink-2); }
+.a-cs-cond b { color: var(--ink); font-weight: 700; }
+
+/* 道のり（4段。いまの段を示す） */
+.a-cs-road { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.a-cs-road li {
+  padding-top: 7px;
+  border-top: 3px solid var(--line);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  word-break: auto-phrase;
+}
+.a-cs-road li[aria-current] { border-top-color: var(--rose); color: var(--rose-ink); font-weight: 700; }
+.a-cs-here { display: block; font-weight: 500; }
+
+/* 確かさ・もっと合わせる */
+.a-cs-conf-line { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.a-cs-conf-line .a-cs-small, .a-cs-conf > .a-cs-small { color: var(--muted); }
+.a-cs-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.a-cs-pill-btn:hover { border-color: var(--field); background: #fff; }
+.a-cs-pill-btn[aria-expanded="true"] { background: var(--rose-soft); border-color: var(--rose); color: var(--rose-ink); }
+.a-cs-variants { list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-sm); line-height: 1.8; color: var(--ink-2); }
+.a-cs-refine { display: flex; flex-direction: column; gap: var(--sp-4); }
+.a-cs-refine-q { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+/* カードの上の「読み取った内容」（閉じると1行）とカードの下 */
+.a-cs-readline { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-1); margin-bottom: calc(-1 * var(--sp-2)); }
+.a-cs-readline-btn { color: var(--ink-2); font-size: var(--fs-sm); }
+.a-cs-readline-panel { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-1); }
+.a-cs-readline-panel p { font-size: var(--fs-md); line-height: 1.9; color: var(--ink-2); }
+.a-cs-readline-panel .a-link { font-size: var(--fs-sm); }
+.a-cs-foot { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); padding-top: var(--sp-2); text-align: center; }
+
+/* 安全のカード */
+.a-cs-card.is-safety { display: flex; flex-direction: column; gap: var(--sp-4); background: var(--cs-safety); border-color: transparent; box-shadow: none; }
+.a-cs-res { list-style: none; display: flex; flex-direction: column; gap: var(--sp-4); }
+.a-cs-res li { display: flex; flex-direction: column; }
+.a-cs-res-name { font-weight: 700; letter-spacing: 0.08em; }
+.a-cs-tel {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 44px;
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--rose-ink);
+  font-variant-numeric: tabular-nums;
+}
+.a-cs-steps { padding-left: 1.2em; display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-md); line-height: 1.85; }
+
+/* ---------------------------------------------------------------- 6. 続き（往復）。仕様 §11（決定 U30）
+   上に「いまの状況」の帯、中にやりとり（自分＝右の吹き出し・灰青の地／アプリ＝左の吹き出し・明るい面と細い線）、下に続きの操作。
+   吹き出しは「送る文面の吹き出し」（くすんだ赤の薄い地・しっぽつき）と見分けがつくよう、地の色と角の形を変える */
+
+/* いまの状況（たたむと1行） */
+.a-cs-status { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+.a-cs-status-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 12px 6px 16px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+.a-cs-status-label { flex: none; font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0.1em; color: var(--rose-ink); }
+.a-cs-status-one {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+.a-cs-status-head > .a-ic { flex: none; margin-left: auto; color: var(--ink-2); transition: rotate var(--dur) var(--ease); }
+.a-cs-status-head[aria-expanded="true"] > .a-ic { rotate: 180deg; }
+.a-cs-status-panel { display: flex; flex-direction: column; gap: var(--sp-3); padding: 0 16px 14px; }
+.a-cs-status-lines { list-style: none; display: flex; flex-direction: column; gap: 2px; font-family: var(--sans); font-weight: 400; font-size: var(--fs-md); line-height: 1.8; letter-spacing: 0.02em; color: var(--ink); }
+.a-cs-status-lines li { position: relative; padding-left: 14px; }
+.a-cs-status-lines li::before { content: ""; position: absolute; left: 0; top: 0.9em; width: 6px; height: 1.5px; background: var(--line-strong); }
+.a-cs-status-fix { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-3); }
+.a-cs-status-edit { display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; }
+
+/* やりとり */
+.a-cs-thread { list-style: none; display: flex; flex-direction: column; gap: var(--sp-3); }
+.a-cs-thread-card + .a-cs-msg, .a-cs-msg + .a-cs-thread-card { margin-top: var(--sp-3); }
+.a-cs-msg { display: flex; flex-direction: column; gap: var(--sp-2); }
+.a-cs-msg.is-me { align-items: flex-end; }
+.a-cs-msg.is-app { align-items: flex-start; }
+.a-cs-msg-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 86%;
+  padding: 10px 16px 11px;
+  border-radius: 18px;
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: var(--fs-md);
+  line-height: 1.85;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+.is-me > .a-cs-msg-bubble { background: var(--slate-soft); color: var(--ink); border-bottom-right-radius: 6px; }
+.is-app > .a-cs-msg-bubble { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+.a-cs-msg-text { white-space: pre-wrap; }
+.a-cs-msg-label { font-family: var(--serif); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.1em; line-height: 1.6; color: var(--muted); }
+.is-me .a-cs-msg-label { color: var(--slate-ink); }
+.a-cs-msg-bubble.is-check .a-cs-msg-label { color: var(--rose-ink); }
+/* 吹き出しの下の選択肢（待っている問だけ） */
+.a-cs-msg-opts { display: flex; flex-wrap: wrap; gap: var(--sp-2); max-width: 100%; padding-left: 2px; }
+.a-cs-msg-opts.is-group { flex-direction: column; align-items: flex-start; }
+.a-cs-msg-opts .a-note { margin-bottom: calc(-1 * var(--sp-1)); }
+.a-cs-skip { font-size: var(--fs-sm); }
+
+/* たたんだ前のカード（見出しだけ） */
+.a-cs-past { border: 1px solid var(--line); border-radius: var(--r-card); background: rgb(252 250 247 / 0.55); }
+.a-cs-past-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 14px 12px 20px;
+  border: 0;
+  border-radius: var(--r-card);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+.a-cs-past-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.a-cs-past-title { font-size: var(--fs-md); line-height: 1.6; letter-spacing: 0.04em; color: var(--ink-2); word-break: auto-phrase; }
+.a-cs-past-side { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-sm); letter-spacing: 0.06em; color: var(--rose-ink); }
+.a-cs-past-side .a-ic { transition: rotate var(--dur) var(--ease); }
+.a-cs-past-btn[aria-expanded="true"] .a-ic { rotate: 180deg; }
+.a-cs-past-body { padding: 0 6px 6px; }
+.a-cs-past-body .a-cs-card { box-shadow: none; border-color: var(--line); }
+
+/* 続きの操作（3つのボタン・あと n 回・相談を終える／貼る欄・書く欄／終える／上限） */
+.a-cs-fu { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-2); padding: var(--sp-2) var(--sp-5) var(--sp-4); }
+.a-cs-acts .a-row { min-height: 56px; }
+.a-cs-fu-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.a-cs-acts + .a-cs-fu-foot { margin-top: calc(-1 * var(--sp-2)); }
+.a-cs-left { font-size: var(--fs-sm); letter-spacing: 0.08em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.a-cs-fu-foot .a-link { font-size: var(--fs-sm); }
+.a-cs-fu-q { display: block; padding-top: var(--sp-3); font-size: var(--fs-lg); font-weight: 500; line-height: 1.6; letter-spacing: 0.08em; color: var(--ink); }
+.a-cs-fu-input { min-height: 120px; }
+.a-cs-fu-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.a-cs-fu-row .a-link { font-size: var(--fs-sm); }
+.a-cs-fu-meta { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); padding-top: var(--sp-1); text-align: center; }
+.a-cs-fu-wait { padding-top: var(--sp-3); }
+.a-cs-fu-home { align-self: center; font-size: var(--fs-sm); }
+.a-cs-fu .a-cs-safety-line { margin-top: var(--sp-3); }
+
+/* 入力の画面の上：前の続き */
+.a-cs-resume {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-card);
+  background: var(--rose-soft);
+}
+.a-cs-resume-h { display: flex; flex-direction: column; gap: 2px; }
+.a-cs-resume-h .a-cs-label { color: var(--rose-ink); }
+.a-cs-resume-text { font-size: var(--fs-lg); line-height: 1.6; letter-spacing: 0.04em; color: var(--ink); word-break: auto-phrase; overflow-wrap: anywhere; }
+.a-cs-resume .a-note { color: var(--ink-2); }
+.a-cs-resume-btns { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding-top: var(--sp-1); }
+
+/* ---------------------------------------------------------------- 履歴の詳細（読むだけのカード） */
+.a-cs-saved { margin-top: var(--sp-2); }
+.a-cs-saved-accept { font-size: var(--fs-lg); line-height: 1.95; letter-spacing: 0.06em; color: var(--ink); word-break: auto-phrase; }
+.a-cs-card.is-saved .a-cs-headline { font-size: var(--fs-xl); }
+.a-cs-card.is-saved .a-cs-big { font-size: var(--fs-2xl); }
+.a-cs-card.is-saved .a-cs-later-draft { margin-top: var(--sp-1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .a-cs-card.is-enter { animation: none; }
+  .a-cs-option:active { transform: none; }
+  .a-cs-status-head > .a-ic, .a-cs-past-side .a-ic { transition: none; }
+}

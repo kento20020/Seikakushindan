@@ -4,7 +4,7 @@
 //         既定は index.html の <html data-ui-default="…">（DEFAULT_UI と同じ値にしておく。tests/ui_flags.test.mjs で確かめる）
 //   dev … ?dev=1 のときだけ true。開発・検証用の表示（クラス dev-only）を出す（機能は消さず、利用者向けの既定では隠すだけ）
 //   fb  … ?fb=1 のときだけ true（テスト協力モード。三択の開始画面にチェックを出す）
-//   sw  … 三択の質問カードのスワイプの形。"card"（今の形。既定）・"a"（回答をまとめて）・"b"（向きの側だけ）・"c"（触った回答だけ）。
+//   sw  … 三択の質問カードのスワイプの形。"c"（触った回答だけ。既定。決定 U28）・"card"（カードごと。前の既定）・"a"（回答をまとめて）・"b"（向きの側だけ）。
 //         ?sw= が無い・知らない値なら既定。中身は js/ui/swipe_variants.js（カードの data-sw は js/ui/three.js が描くときに付ける）
 //
 // 実際に <html> へ data-ui・data-dev を付けるのは index.html の先頭の小さなスクリプト（CSS より前に走らせて、ちらつかせないため）。
@@ -13,7 +13,7 @@
 export const UI_VERSIONS = ["v1", "v2"];
 export const DEFAULT_UI = "v1";
 export const SWIPE_VARIANTS = ["card", "a", "b", "c"];
-export const DEFAULT_SWIPE = "card";
+export const DEFAULT_SWIPE = "c";   // 決定 U28（2026-10-17）。前の形に戻すときは "card"（?sw=card でいつでも開ける）
 
 /**
  * @param {string} search  location.search（"?ui=v2&dev=1" など。先頭の ? は無くてもよい）

@@ -33,9 +33,10 @@ test("swipePart：c はつかんだ回答だけ（逆向きでもその回答）
   assert.equal(swipePart("c", x("right")), "right");
 });
 
-test("swipePart：知らない形は card と同じ", () => {
-  assert.equal(swipePart("zz", x("left", "left")), "card");
-  assert.equal(swipePart(undefined, x("right")), "card");
+test("swipePart：知らない形は既定（c）と同じ", () => {
+  assert.equal(swipePart("zz", x("left", "right")), "right");
+  assert.equal(swipePart(undefined, x("right")), "right");
+  assert.equal(swipeAllows("zz", "right", "left"), false);
 });
 
 test("swipeAllows：c で回答をつかんだときの逆向きだけ無効", () => {
