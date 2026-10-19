@@ -1,7 +1,8 @@
-// アプリとして使う（PWA。Android 中心）。仕様：docs/app-screens.md §15
+// アプリとして使う（PWA。Android・iPhone）。仕様：docs/app-screens.md §15（iPhone は §15.10。決定 U35・U37）
 //   initPwa()          … main.js が起動時に1回呼ぶ。service worker（app/sw.js）を登録し、インストールの案内に要るできごとを受け取る
 //   installState(env)  … 今の状態を返す（DOM なし。テストできる形）
-//   currentInstallState() / promptInstall() … マイページ（mypage.js）の「アプリとして使う」が使う
+//   isIos(env)         … iPhone・iPad・iPod か（DOM なし。iPad の Safari は Mac の UA なので、指で触れる点の数で見分ける）
+//   currentInstallState() / currentPlatform() / promptInstall() … マイページ（mypage.js）の「アプリとして使う」が使う
 //   PWA_EVENT          … 状態が変わったら window に出すできごと（detail.reason："prompt" | "installed" | "dismissed"）
 // 対応していない・失敗しても、画面はふつうに動く（console.error は出さない）
 export const PWA_EVENT = "a-pwa-change";
@@ -9,14 +10,26 @@ export const PWA_EVENT = "a-pwa-change";
 // アプリの中のブラウザ（LINE・Instagram・Facebook・TikTok・カカオトーク、Android の WebView）。ここからはホーム画面に追加できない
 const IN_APP_RE = /\sLine\/|FBAN|FBAV|FB_IAB|Instagram|BytedanceWebview|musical_ly|KAKAOTALK|;\s?wv\)/;
 const IOS_RE = /iPhone|iPad|iPod/;
+// iPhone・iPad の Safari 以外のブラウザ（Chrome・Firefox・Edge・Opera）。iOS 16.4 から、どれも共有ボタンからホーム画面に追加できる
+const IOS_OTHER_RE = /CriOS|FxiOS|EdgiOS|OPiOS/;
+
+/**
+ * iPhone・iPad・iPod か（DOM なし）
+ *   ua に iPhone・iPad・iPod を含む、または Macintosh で touch（指で触れる点の数）が 2 以上（iPad の Safari は Mac の UA を名のる）
+ */
+export function isIos({ ua = "", touch = 0 } = {}) {
+  const s = String(ua || "");
+  return IOS_RE.test(s) || (/Macintosh/.test(s) && touch > 1);
+}
 
 /**
  * インストールの状態（上から順に当てはめる）
- *   "installed" … ホーム画面のアプリとして開いている（standalone）
+ *   "installed" … ホーム画面のアプリとして開いている（standalone）。iPhone のホーム画面のアプリもここ
  *   "added"     … この画面から追加し終わった（このタブはブラウザのまま）
  *   "prompt"    … ボタンで追加できる（Chrome の beforeinstallprompt を受け取った）
- *   "line"      … LINE などアプリの中のブラウザ
- *   "ios"       … iPhone・iPad（共有ボタンから追加）。iPad の Safari は Mac の UA なので、touch（指で触れる点の数）で見分ける
+ *   "line"      … LINE などアプリの中のブラウザ（iPhone でも）
+ *   "ios-other" … iPhone・iPad の Safari 以外のブラウザ（UA に CriOS・FxiOS・EdgiOS・OPiOS）。共有ボタンから追加（iOS 16.4 から）
+ *   "ios"       … iPhone・iPad の Safari（共有ボタンから追加）。iPad の Safari は Mac の UA なので、isIos と同じく touch で見分ける
  *   "menu"      … それ以外（Chrome のメニューから）
  */
 export function installState({ standalone = false, added = false, hasPrompt = false, ua = "", touch = 0 } = {}) {
@@ -25,7 +38,7 @@ export function installState({ standalone = false, added = false, hasPrompt = fa
   if (hasPrompt) return "prompt";
   const s = String(ua || "");
   if (IN_APP_RE.test(s)) return "line";
-  if (IOS_RE.test(s) || (/Macintosh/.test(s) && touch > 1)) return "ios";
+  if (isIos({ ua: s, touch })) return IOS_OTHER_RE.test(s) ? "ios-other" : "ios";
   return "menu";
 }
 
@@ -51,6 +64,14 @@ export function currentInstallState() {
     ua: navigator.userAgent,
     touch: navigator.maxTouchPoints || 0,
   });
+}
+
+/** 今の端末："ios"（iPhone・iPad。ホーム画面のアプリと Safari で保存が別）| "other"（Android・PC など） */
+export function currentPlatform() {
+  try {
+    if (typeof navigator === "undefined") return "other";
+    return isIos({ ua: navigator.userAgent, touch: navigator.maxTouchPoints || 0 }) ? "ios" : "other";
+  } catch { return "other"; }
 }
 
 function notify(reason) {

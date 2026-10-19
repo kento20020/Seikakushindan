@@ -152,6 +152,23 @@ export function runProfile3(i, sub) {
 export function sessionJSON() { return store3.session ? store3.session.toJSON() : null; }
 
 /**
+ * 別の入れ物（iPhone の Safari とホーム画面のアプリ）から移した診断に置き換える（app/js/transfer.js の applyTransfer が使う。docs/app-screens.md §15.3）
+ *   json   … Session3.toJSON() の形。読めなければ投げる（そのときは今の診断を変えない）
+ *   source … 結果の出どころ（形が違えば「あなたの回答」）
+ *   テスト協力の記録（fb）と練習カードは null。テスト協力モード（fbMode）とサブ画面（sub）はそのまま。保存して知らせる
+ */
+export function adopt3(json, source) {
+  const session = Session3.fromJSON(json);
+  const src = source && typeof source === "object" && !Array.isArray(source) && typeof source.type === "string" ? { ...source } : { type: "session", name: "あなたの回答" };
+  store3.session = session; store3.source = src; store3.fb = null; store3.practice = null;
+  store3.result = session.isDone() ? build(session, src) : null;
+  store3.screen = "start";
+  if (!store3.qvFromUrl) store3.qv = resolveVersion({ saved: session.config?.version });   // restore3 と同じ決め方（URL の ?qv= があればそのまま）
+  persist(); emit();
+  return true;
+}
+
+/**
  * 受け付ける形：
  *   1. 三択版のセッション（type: "seikaku16-three-session"）
  *   2. 三択版の結果JSON（type: "seikaku16-three-result"。session ごと復元）

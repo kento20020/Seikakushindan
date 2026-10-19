@@ -136,7 +136,7 @@
 ### 4.9 マイページ（画像なし）
 - アカウント：「ログインしていません」＋「アカウントを作成」（→ `#account`）
 - 診断：「結果を見る」「もう一度診断する」。どの状態でも「診断結果の絵を見る」（→ `#images`。§14）
-- アプリとして使う：ホーム画面に追加する案内（状態ごとの文と［ホーム画面に追加する］。§15.3）
+- アプリとして使う：ホーム画面に追加する案内（状態ごとの文と［ホーム画面に追加する］。iPhone は追加の手順と、Safari とアプリのあいだで診断を移す引き継ぎのコード。§15.3）
 - この端末の記録：「すべて消す」（確かめてから）
 - 小さく「試作の画面です」と、今の画面（`../#three`）へのリンク
 
@@ -197,13 +197,15 @@ app/js/images.js            診断結果の絵の一覧（#images。§14）
 app/js/diagnose.js, result.js
 app/js/consult.js
 app/js/pwa.js               アプリとして使う（service worker の登録とインストールの案内。§15）
+app/js/transfer.js          iPhone の Safari ↔ ホーム画面のアプリの診断の引き継ぎ（DOM なし。§15.3・§15.10）
 app/manifest.webmanifest    マニフェスト（§15）
 app/sw.js                   service worker（効く範囲は app/ の下。§15.5）
-app/img/pwa/                アイコン（仮。元の SVG と書き出した PNG。§15.7）
+app/img/pwa/                アイコン（仮。元の SVG と書き出した PNG。§15.7）。splash/ は iPhone の起動画面（§15.10）
 ```
 
 ### 6.2 使い回す仕組み（**中身の JS は直さない**）
 - 診断：`js/ui/three_store.js`（`restore3`・`start3`・`answer3`・`swap3`・`skip3`・`back3`・`practice3`・`practicePending3`・`onChange3`・`store3`）。保存は今の画面と同じキー（`seikaku16:three:v1`）なので、どちらの画面で答えても続きと結果が共通
+  - 例外：iPhone の診断の引き継ぎ（§15.3。決定 U37）のために、`adopt3(json, source)`（移した診断に置き換える）を**足した**。今ある関数と保存の形は変えていない
 - スワイプ：`js/ui/swipe.js` の `attachSwipe`（`target`・`allow`）と `js/ui/swipe_variants.js` の `swipePart("c", …)`・`swipeAllows("c", …)`
 - 結果の本文：`js/data/patterns*.js`（今の `three.js` の `patternCard` と同じ値）、`js/ui/labels.js`、`js/ui/result.js` の `byRole`、場面例 `js/data/scenes_v2.js`（`three_version.js` の `scenesFor`）
 - 傾向の絵：`js/data/type_images.js`（`TYPE_IMAGES`・`isReady`・`heroTendency`・`domainTendencies3`）
@@ -215,6 +217,7 @@ app/img/pwa/                アイコン（仮。元の SVG と書き出した P
 - `addRecord({ kind: "diagnosis"|"consult", at, title, sub, data })` → id。同じ診断結果は2回足さない
 - `removeRecord(id)`、`clearRecords()`
 - `getMarks(key)`・`setMarks(key, marks)`：結果の「違う」の印とありそう／なさそう（key は結果ごと）
+- `validItem(x)`：記録の形が正しいか（診断の引き継ぎ `transfer.js` も使う。U37 で export にした）
 - localStorage が使えないときも画面は動く（記録しないだけ）。どこにも送らない
 
 ### 6.4 そのほかの決まり
@@ -433,15 +436,22 @@ app/img/pwa/                アイコン（仮。元の SVG と書き出した P
 - 見た目：`app/css/app.css` の `a-im-`（軸の色はカードに `--axis`・`--axis-deep` で渡す）
 - テスト：`tests/app_local.test.mjs`（24枠の並び・ready の絵があること・ready でない枠は file が null・印・今の画面の16枠。数は書かず、`mid` が null かどうかから導く。U36 からは、まんなかの絵が8軸ともあること・まんなかの軸ではいちばん上もまんなかの絵になることも確かめる）
 
-## 15. アプリとして使う（PWA。Android）（2026-10-19。決定 U35）
+## 15. アプリとして使う（PWA。Android・iPhone）（2026-10-19。決定 U35・U37）
 
-持ち主の依頼「PWA で使えるようにする。Android 用。どうしようもない箇所は言って」。
+持ち主の依頼「PWA で使えるようにする。Android 用。どうしようもない箇所は言って」（U35）、続けて「今度はiPhoneでもPWAができるようにして。」（U37。iPhone の分は §15.10 にまとめた）。
 
 ### 15.1 何ができるか
 - Android の Chrome で、新しい画面（`app/`）を**ホーム画面に追加（インストール）**できる。ホーム画面のアイコンから開くと、アドレスバーの無いアプリの形（standalone・縦向き）で開く。上の帯の色は地と同じ `#ECE6DE`
 - アイコンを長押しすると「相談する」「診断」「診断結果」へ直に行ける（ショートカット。`./#consult`・`./#diagnose`・`./#result`）
 - 一度開いた画面は端末に保存され、**つながらないときも開ける**（診断・結果・相談の判定は、もともと端末の中だけで動く）。開いたことのない画面は「インターネットにつながっていません」と出る（真っ白にはならない）
 - 診断の結果・相談の履歴の保存は今までどおり端末の中（localStorage）。**Android では、ホーム画面のアプリと Chrome で同じ保存を使う**（どちらで答えても続きと結果が共通）
+
+**iPhone でできること（U37）**
+- Safari（と、iOS 16.4 からは Chrome・Edge・Firefox などのブラウザ）の共有ボタンから、**ホーム画面に追加**できる。アイコン（180×180）と名前「16次元診断」が出て、開くとアドレスバーの無いアプリの形で開く。マイページに手順を出す（§15.2・§15.3）
+- 開くあいだの**起動画面**は、地の色 `#ECE6DE` に仮のアイコン（iPhone の縦向き12種の大きさ。§15.10）
+- 上の帯は `default`（帯の文字は黒）
+- service worker は Android と同じ（一度開いた画面はつながらないときも開ける）
+- **ホーム画面のアプリと Safari で保存が別**（変えられない）。その代わり、マイページの「Safari とアプリのあいだで診断を移す」で、**引き継ぎのコード**（1行の文字列）をコピーして貼り付けると、診断（結果か途中の回答）と診断の記録・結果の印を移せる。**相談の履歴は移らない**
 
 ### 15.2 入れ方
 **Android（Chrome）**
@@ -451,10 +461,22 @@ app/img/pwa/                アイコン（仮。元の SVG と書き出した P
 3. 確かめの画面で「インストール」→ ホーム画面にアイコン「16次元診断」が出る
 - LINE・Instagram などのアプリの中で開いたときは追加できない。右上のメニューから Chrome で開き直す
 
-**iPhone（Safari）**
-1. Safari で開く → 共有ボタン →「ホーム画面に追加」
-- iPhone には［ホーム画面に追加する］のボタンを出せない（ブラウザが仕組みを持っていない）。マイページには手順の文だけを出す
-- **保存が Safari と別**になる（Safari で診断した結果は、ホーム画面のアプリには出ない）
+**iPhone（Safari）**（U37。iPhone には［ホーム画面に追加する］のボタンを出せないので、マイページには手順だけを出す）
+1. Safari で https://kento20020.github.io/Seikakushindan/app/ を開く
+2. 共有ボタン（四角に上向きの矢印）を押す
+   - **iOS 26**：アドレスバーの「…」から「共有」に進むことがある
+   - それより前：画面の下（または上）の共有ボタン
+3. 一覧の「ホーム画面に追加」を押す（見当たらないときは、下にずらすか「さらに表示」）
+4. **iOS 26**：「Webアプリとして開く」のスイッチ（既定でオン）をオンのまま「追加」。それより前の iPhone はスイッチが無く、そのまま「追加」
+5. ホーム画面のアイコン「16次元診断」から開くと、アプリの形で開く
+- 表示の名前（「…」「共有」「ホーム画面に追加」「Webアプリとして開く」「さらに表示」）は、英語の表示と出典からの推定を含む。**日本語の表示は実機で確かめる**（§15.8）
+
+**iPhone（Chrome・Edge・Firefox など。iOS 16.4 から）**
+1. そのブラウザで開く → 共有ボタン（Chrome はアドレスバーの右。見当たらなければメニューの「共有」）
+2. 「ホーム画面に追加」→「追加」（iOS 26 では「Webアプリとして開く」はオンのまま）
+- iOS 16.4 より前の iPhone では、Safari で開いて追加する
+
+**iPhone の保存は Safari（ブラウザ）と別**：Safari で診断した結果は、ホーム画面のアプリには出ない。Safari のマイページで［引き継ぎのコードをコピーする］→ アプリのマイページで［Safari の診断を引き継ぐ］に貼り付けて［読み込む］（§15.3）
 
 ### 15.3 マイページの「アプリとして使う」（`app/js/mypage.js` の `appSection`）
 「診断」と「この端末の記録」の間。状態は `app/js/pwa.js` の `installState`（DOM なし。上から順に当てはめる）。
@@ -464,27 +486,51 @@ app/img/pwa/                アイコン（仮。元の SVG と書き出した P
 | installed | ホーム画面のアプリとして開いている（standalone） | ホーム画面のアプリとして開いています。（右に「追加済み」） |
 | added | この画面から追加し終わった（このタブはブラウザのまま） | ホーム画面に追加しました。次からは、ホーム画面のアイコンから開けます。（右に「追加済み」） |
 | prompt | Chrome が「追加できる」と知らせてきた（`beforeinstallprompt`） | ホーム画面に追加すると、アプリのように開けます。＋主ボタン［ホーム画面に追加する］。追加し終わったらトースト「ホーム画面に追加しました」 |
-| line | LINE などアプリの中のブラウザ（UA に ` Line/`・Instagram・FBAN・TikTok・`; wv)` など） | LINE などのアプリの中の画面からは追加できません。右上のメニューから Chrome（iPhone は Safari）で開き直してください。 |
-| ios | iPhone・iPad（iPad の Safari は Mac の UA ＋指で触れることで見分ける） | 共有ボタン → 『ホーム画面に追加』で追加できます。ホーム画面のアプリと Safari では、診断の結果などの保存が別になります。 |
+| line | LINE などアプリの中のブラウザ（UA に ` Line/`・Instagram・FBAN・TikTok・`; wv)` など。iPhone でも） | LINE などのアプリの中の画面からは追加できません。右上のメニューから Chrome（iPhone は Safari）で開き直してください。 |
+| ios-other | iPhone・iPad の Safari 以外のブラウザ（iOS の UA に `CriOS`・`FxiOS`・`EdgiOS`・`OPiOS`。U37） | このブラウザの共有ボタンから、ホーム画面に追加できます。＋手順（下） |
+| ios | iPhone・iPad の Safari（iPad の Safari は Mac の UA ＋指で触れることで見分ける） | Safari の共有ボタンから、ホーム画面に追加できます。＋手順（下）（U37 で文を替えた。前は「共有ボタン → 『ホーム画面に追加』で追加できます。ホーム画面のアプリと Safari では、診断の結果などの保存が別になります。」） |
 | menu | それ以外（ボタンがまだ来ていない Android の Chrome・PC など） | Chrome のメニュー（︙）から『アプリをインストール』か『ホーム画面に追加』を選んでください。 |
 
-- どの状態でも下に小さく「Android では、ホーム画面のアプリと Chrome で、診断の結果などはこの端末の中で共有されます。」
+- 状態は上から順に当てはめる：installed → added → prompt → line → ios-other → ios → menu。iPhone のホーム画面のアプリは installed
+- **iPhone の手順（ios・ios-other。U37）**：番号つきの `<ol>`（`role="list"`）で3つ。共有ボタンは iOS の共有の形（四角に上向きの矢印）の小さな絵（`app/js/ui.js` の `icon("share-ios")`。読み上げは「四角に上向きの矢印の絵」）
+  - ios（Safari）：1 画面の「…」か、共有ボタン［絵］を押す。「…」のときは、続けて「共有」を押す／2 「ホーム画面に追加」を押す（見当たらないときは、下にずらすか「さらに表示」を押す）／3 「Webアプリとして開く」はオンのまま、「追加」を押す（スイッチが出ないときは、そのまま「追加」）
+  - ios-other：1 共有ボタン［絵］を押す（Chrome はアドレスバーの右。見当たらないときは、メニューの「共有」）／2・3 は Safari と同じ。注「iOS 16.4 より前の iPhone では、Safari で開いて追加してください。」
+  - 手順の下に「ホーム画面のアイコン『16次元診断』から開くと、アプリの形で開きます。」
+- **下の小さな注は端末で分ける**（`pwa.js` の `currentPlatform`／`isIos`）
+  - iPhone・iPad：「iPhone では、ホーム画面のアプリと Safari で、診断の結果などの保存が別です。」（ios-other のときは「ホーム画面のアプリとブラウザ（Safari・Chrome など）で」）
+  - それ以外（Android・PC）：今までどおり「Android では、ホーム画面のアプリと Chrome で、診断の結果などはこの端末の中で共有されます。」
+- **Safari とアプリのあいだで診断を移す（U37）**：iPhone・iPad のときだけ、手順の下に小さなカード（`a-pwa-move`。ios-other の題は「ブラウザとアプリのあいだで診断を移す」）
+  - ブラウザの側（ios・ios-other）：診断の結果か途中の回答か診断の記録があれば、［引き継ぎのコードをコピーする］。押すとクリップボードに書いてトースト「コピーしました。ホーム画面のアプリのマイページで貼り付けてください」。書けないときは、読むだけの欄にコードを出して選んだ状態にし、「コピーできませんでした。上の欄を長押しして『すべてを選択』→『コピー』を押してください。」。何も無いときは注「診断をすると、ここからアプリに移せます。」だけ
+    - コードはマイページを開いたときに先に作っておく（押してからすぐクリップボードに書くため。Safari は、押したあと時間をおくと書かせないことがある）
+  - ホーム画面のアプリの側（installed）：［Safari の診断を引き継ぐ］→ 欄（ラベル「引き継ぎのコード」）と［読み込む］。読めたら、この端末のアプリに診断（結果か途中）があるときだけ「この端末のアプリの診断を、貼り付けた診断に置き換えますか？」と確かめ、入れたらトースト「診断を引き継ぎました」→ 結果があれば `#result`、無ければ `#mypage`。読めないときはその場に「コードを読めませんでした。Safari でコピーし直して、もう一度貼り付けてください。」（貼り直すと消える。console.error は出さない）
+  - どちらにも小さな注「コードには診断の回答が入っています。人に送らないでください。相談の履歴は移りません。」
+  - 移す物と形は `app/js/transfer.js`（§15.10 の「引き継ぎのコード」）
+- iPhone で line のとき（LINE の中）は、手順も引き継ぎも出さない（Safari で開き直してもらう）
+- Android の振る舞い（prompt のボタン・added・トースト・節だけの描き直し・リスナーの片付け）は U37 で変えていない
 - 状態が変わったら（ボタンが後から使えるようになった・追加し終わった・断った）この節だけ描き直す。マイページを離れたら知らせを受けない（render の片付けの関数でリスナーを外す）
-- ホームには何も足さない
+- ホームには何も足さない（iPhone の案内も、引き継ぎもマイページだけ）
 - added は仕様に無かった状態で、作ってみて足した（追加し終わってもブラウザのタブのままなので、menu の文に戻ると分かりにくいため）
 
 ### 15.4 ファイル
 ```
 app/manifest.webmanifest   名前・色・表示の形・アイコン・ショートカット。URL はすべて相対（公開先 /Seikakushindan/app/ でも手元 /app/ でも動く）
 app/sw.js                  service worker（効く範囲は app/ の下。§15.5）
-app/js/pwa.js              登録（initPwa）・インストールの案内（installState・currentInstallState・promptInstall・PWA_EVENT）
+app/js/pwa.js              登録（initPwa）・インストールの案内（installState・currentInstallState・promptInstall・PWA_EVENT）、iPhone か（isIos・currentPlatform。U37）
+app/js/transfer.js         iPhone の診断の引き継ぎ（makeTransferCode・readTransferCode・applyTransfer・hasTransferable。DOM なし。U37）
 app/js/main.js             起動時に initPwa()。画面を読めなかったとき、つながっていなければ「インターネットにつながっていません」と出し、どちらでも「ホームへ戻る」を置く（アプリにはブラウザの「戻る」が無いため）
-app/js/mypage.js           節「アプリとして使う」（§15.3）。見た目は app/css/app.css の a-pwa-
-app/index.html             <link rel="manifest">・<link rel="apple-touch-icon">・apple-mobile-web-app-title
+app/js/mypage.js           節「アプリとして使う」（§15.3）。iPhone の手順と引き継ぎのカードも。見た目は app/css/app.css の a-pwa-
+app/js/ui.js               アイコン share-ios（iPhone の共有の形。U37）
+app/index.html             <link rel="manifest">・<link rel="apple-touch-icon" sizes="180x180">・apple-mobile-web-app-title、
+                           iPhone の meta（mobile-web-app-capable・apple-mobile-web-app-capable・apple-mobile-web-app-status-bar-style）と
+                           起動画面の <link rel="apple-touch-startup-image"> 12本（U37。§15.10）
+js/ui/three_store.js       adopt3（移した診断に置き換える。U37 で足した。今ある関数は変えていない）
+app/js/local.js            validItem を export に（U37）
 app/img/pwa/icon.svg, icon-maskable.svg   アイコンの元（仮）
 app/img/pwa/*.png          書き出したアイコン（any 96・192・512、maskable 96・192・512、apple-touch-icon 180）
-tools/make_pwa_icons.mjs   SVG → PNG の書き出しの道具（Playwright。CI では動かさない）
-tests/app_pwa.test.mjs     マニフェスト・アイコンの大きさ・sw.js の殻・installState のテスト
+app/img/pwa/splash/*.png   iPhone の起動画面 12枚（splash-<幅>x<高さ>.png。U37。合わせて約 240KB。sw.js の殻には入れない）
+tools/make_pwa_icons.mjs   SVG → PNG の書き出しの道具（アイコンと起動画面。Playwright。CI では動かさない）
+tests/app_pwa.test.mjs     マニフェスト・アイコンの大きさ・sw.js の殻・installState と isIos・iPhone の meta・起動画面12本（画素・縦向き・重なり）のテスト
+tests/app_transfer.test.mjs  引き継ぎのコードの往復・入れない物・読めない物・重ならないこと のテスト（U37）
 ```
 
 ### 15.5 service worker の方針（`app/sw.js`）
@@ -512,6 +558,11 @@ tests/app_pwa.test.mjs     マニフェスト・アイコンの大きさ・sw.js
   NODE_PATH=$(npm root -g) node tools/make_pwa_icons.mjs
   ```
   （Playwright が要る。書き出したあと、maskable の絵が円の外にはみ出していないかを調べて知らせる）。そのあと `app/sw.js` の `VERSION` を1つ上げる
+- **iPhone の起動画面**（U37）：アイコンの `icon.svg` を替えたら、起動画面も書き出し直す（引数なしで両方、`splash` で起動画面だけ、`icons` でアイコンだけ）
+  ```sh
+  NODE_PATH=$(npm root -g) node tools/make_pwa_icons.mjs splash
+  ```
+  道具が出す `<link rel="apple-touch-startup-image">` の行が `app/index.html` と同じかを見る（機種を足したときは道具の表 `SPLASH` と index.html の両方を直す。テストが本数・画素・重なりを確かめる）。iPhone は起動画面とアイコンを、ホーム画面に追加したときに取り込むので、**入れ終わった iPhone では、消して追加し直すまで古いまま**のことがある
 - 入れ終わった端末のアイコンと名前は、Chrome がしばらくしてから（アプリを開いたときに確かめて）新しくする。すぐには変わらない
 - マニフェストに `id` は書かない：Chrome は `id` をオリジンの根（`https://kento20020.github.io/`）から読むため、`"./"` と書くと kento20020.github.io 全体を指してしまう。書かなければ `start_url`（`/Seikakushindan/app/`）がそのまま id になる（Chromium で確かめた）。**入れたあとに `start_url` を変えると、別のアプリとして扱われる**
 
@@ -522,7 +573,12 @@ tests/app_pwa.test.mjs     マニフェスト・アイコンの大きさ・sw.js
 | Google Play に並べる（TWA） | オリジンの根に `https://kento20020.github.io/.well-known/assetlinks.json` を置く必要があり、このリポジトリ（`/Seikakushindan/` の下）からは置けない | 別のリポジトリ `kento20020.github.io` を作ってそこに置く（または独自ドメインの根）。Play のデベロッパー登録 25 ドル、個人のアカウントはテスター12人で14日の非公開テストが要る |
 | `app/` の外（今の画面 `../#three`）をアプリの中で開く | アプリの範囲（scope）は `app/` の下だけ | そのままでよい。範囲の外へのリンクは、アプリの上に URL の帯が付いた形（Chrome のカスタムタブ）か、ブラウザのタブで開く |
 | 実機の Android での確認 | 手元は Chromium で「インストールできる条件」と動きを確かめただけ | 持ち主に頼む：ホーム画面への追加、アイコンの切り抜き（丸・角丸）、長押しのショートカット、機内モードでホーム・結果・相談が開くか、Chrome とアプリで結果が共通か |
-| iPhone での案内のボタン | iPhone（Safari）は `beforeinstallprompt` を持っていない | 手順の文だけ出す（§15.3）。保存が Safari と別になるのも変えられない。長押しのショートカットも出ない |
+| iPhone での案内のボタン | iPhone（Safari もほかのブラウザも）は `beforeinstallprompt` を持っていない | 手順の文だけ出す（§15.3）。長押しのショートカットも出ない（iPhone はマニフェストの shortcuts を使わない） |
+| iPhone の保存を Safari と共通にする | iPhone はホーム画面のアプリと Safari（ほかのブラウザも）で保存が別。WebKit は仕様どおりとしている（§15.10） | 変えられない。**引き継ぎのコードで、診断を手で移すだけ**（§15.3）。移すのは1回ずつで、そのあとはまた別々に保存する |
+| 相談の履歴を iPhone のアプリに移す | 相談は自由に書いた文なので、コード（クリップボード）に入れない | 移さない。本番はログイン（Website のアプリ）で端末をまたいで使う形になる |
+| iPad の起動画面・横向きの起動画面 | 作っていない（iPhone の縦向き12種だけ。iPad は大きさが多く、試作では使う人が少ない） | 要るときに道具の表 `SPLASH` に足す。無い端末は、起動のあいだ白か地の色の画面になるだけ |
+| iPhone の通知（Web Push） | iPhone でもホーム画面のアプリなら通知を受けられる（iOS 16.4 から）が、送る側のサーバーが要る。GitHub Pages ではできない | 通知（プッシュ）の行と同じ。本番の Website のアプリで作る |
+| 実機の iPhone での確認 | 手元は Chromium で、iPhone の UA と standalone のまねをして確かめただけ（Safari の共有シート・起動画面・上の帯は動かせない） | 持ち主に頼む：Safari（iOS 26 なら「…」→「共有」）とChrome からの追加と、日本語の表示の名前（「ホーム画面に追加」「Webアプリとして開く」「さらに表示」）、アイコンの見え方、起動画面が出るか（白い画面にならないか）、上の帯の色と文字が読めるか、引き継ぎ（Safari でコピー → アプリで貼り付け → 同じ結果）、機内モードでアプリが開くか |
 
 ### 15.9 確かめたこと（2026-10-19。Chromium・Playwright）
 - `Page.getAppManifest`：エラーなし（id・start_url・scope はどれも `/app/`、表示は standalone、アイコン4つ・ショートカット3つ）
@@ -533,6 +589,73 @@ tests/app_pwa.test.mjs     マニフェスト・アイコンの大きさ・sw.js
 - マイページの節：Android の Chrome は prompt（にせのできごとで押す → 追加し終わる → added とトーストも）、PC は menu、LINE の UA は line、iPhone の UA は ios、standalone のまねは installed
 - 上下の安全な余白（端末の帯）を入れて撮っても、上の「←」・下のタブ・下の固定ボタンは崩れない（standalone だけの CSS は足していない）
 - スマホ 390×844・PC 1280×900 で横スクロールなし、コンソールのエラーなし。今までの確認（全画面・診断・相談・今の画面 `/#three`）も変わらず通る
+
+**iPhone（U37。2026-10-19。Chromium・Playwright で UA と standalone をまねた）**
+- テスト：`tests/app_pwa.test.mjs`（meta・起動画面12本の画素と縦向きと重なり・installState の ios / ios-other / line / installed・isIos）、`tests/app_transfer.test.mjs`（往復・入れない物・読めない物・重ならない）。全部のテストが通る（UTC でも）
+- マイページの節：iPhone の Safari の UA は ios（手順3つ・共有の絵・iPhone の注・引き継ぎのカード）、iPhone の Chrome（CriOS）は ios-other（Chrome の手順・16.4 の注）、standalone のまねは installed（アプリの側の引き継ぎ）、Android の Chrome・PC は今までどおり（Android の注。手順・引き継ぎは出ない）
+- 引き継ぎの往復：1つ目の入れ物（iPhone の Safari のまね）で診断を最後まで答える → ［引き継ぎのコードをコピーする］でクリップボードにコード（約4,000字。トースト）→ 2つ目の入れ物（standalone のまね。途中の診断あり）で［Safari の診断を引き継ぐ］→ 貼り付け（前後と途中に改行・空白を入れて）→［読み込む］→ 置き換えの確かめ → トースト → `#result` に同じ結果（結果の key・主軸の見出しが同じ、診断の記録は1件）。読み込み直しても同じ。壊れたコードは「コードを読めませんでした…」
+- クリップボードが使えないときは、読むだけの欄にコードが出て、全部が選ばれた状態になる
+- スマホ 390×844・PC 1280×900 で横スクロールなし、コンソールのエラーなし（この環境で届かない Google Fonts の読み込みの失敗だけ）。今までの画面（ホーム・診断・結果・相談・履歴・`#images`・アカウント・今の画面 `/#three`・`/?dev=1#three`）も横スクロール・エラーなし
+- 起動画面・上の帯・共有シート・保存が別なことは Chromium では確かめられない（§15.8 の実機の確認）
+
+### 15.10 iPhone（2026-10-19。決定 U37）
+
+持ち主の依頼「今度はiPhoneでもPWAができるようにして。」。U35（Android）の作りはそのままに、iPhone の分を足した。
+
+**`app/index.html` の head に足した物と理由**
+| 足した物 | 理由 |
+| --- | --- |
+| `<meta name="mobile-web-app-capable" content="yes">` と `<meta name="apple-mobile-web-app-capable" content="yes">` | ホーム画面から開いたとき、アドレスバーの無い形にする古い書き方（今の iPhone はマニフェストの `display: standalone` でも同じになる）。起動画面（`apple-touch-startup-image`）はこの形のときに使う決まりなので残す。**2つとも書く**：`apple-` だけだと Chrome が古い書き方だと知らせ、`mobile-` だけだと古い iPhone が読まない |
+| `<meta name="apple-mobile-web-app-status-bar-style" content="default">` | 上の帯（時刻・電池）の文字を黒にする。`black-translucent` は画面が帯の下まで広がり、帯の文字が白になるので、明るい地 `#ECE6DE` の上では読めない。`black` は黒い帯で、地の色と合わない。帯の地が `#ECE6DE` にそろうか白になるかは iOS の版によるので、実機で見る |
+| `apple-touch-icon` に `sizes="180x180"` | iPhone のホーム画面のアイコンの大きさ（`apple-touch-icon.png` は 180×180。maskable の絵から作った物で、iPhone が角を丸める） |
+| `<link rel="apple-touch-startup-image">` 12本 | 起動画面。**端末の大きさと倍率がちょうど合う media の1枚しか使われない**（無いと、起動のあいだ白か地の色の画面）。iPhone の縦向きだけ |
+
+**起動画面の表**（`app/img/pwa/splash/splash-<幅>x<高さ>.png`。作り方は §15.7、表は `tools/make_pwa_icons.mjs` の `SPLASH`）。地は `#ECE6DE` を端まで、真ん中に仮のアイコン（`icon.svg`）を短い辺の 28%、高さの 45% の位置に。日本語の文字は入れない（フォントが無い環境で豆腐になるため）。1枚 10〜25KB、12枚で約 240KB
+| CSS の幅×高さ | 倍率 | PNG の画素 | 主な機種（目安） |
+| --- | --- | --- | --- |
+| 440×956 | 3 | 1320×2868 | iPhone 16 Pro Max・17 Pro Max |
+| 402×874 | 3 | 1206×2622 | iPhone 16 Pro・17・17 Pro |
+| 430×932 | 3 | 1290×2796 | iPhone 14 Pro Max・15 Plus・15 Pro Max・16 Plus |
+| 420×912 | 3 | 1260×2736 | iPhone Air |
+| 393×852 | 3 | 1179×2556 | iPhone 14 Pro・15・15 Pro・16 |
+| 428×926 | 3 | 1284×2778 | iPhone 12 Pro Max・13 Pro Max・14 Plus |
+| 390×844 | 3 | 1170×2532 | iPhone 12・12 Pro・13・13 Pro・14・16e |
+| 375×812 | 3 | 1125×2436 | iPhone X・XS・11 Pro・12 mini・13 mini |
+| 414×896 | 3 | 1242×2688 | iPhone XS Max・11 Pro Max |
+| 414×896 | 2 | 828×1792 | iPhone XR・11 |
+| 414×736 | 3 | 1242×2208 | iPhone 6s Plus・7 Plus・8 Plus |
+| 375×667 | 2 | 750×1334 | iPhone 6s・7・8・SE（第2・第3世代） |
+
+media の形：`screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)`。iPad・横向きは作っていない（§15.8）
+
+**iPhone の保存の事実**
+- ホーム画面のアプリと Safari は、保存（localStorage・IndexedDB・service worker の保存など）が**別**。WebKit は仕様どおりの振る舞いとしている（出典3）。Safari 以外のブラウザから追加したアプリも同じく別
+- Safari で開くサイトは、**Safari を使った日で数えて7日のあいだ、そのサイトを触らないと、スクリプトの保存（localStorage・IndexedDB・service worker の保存など）が消されることがある**。ホーム画面のアプリは Safari の外なので、アプリを使った日で別に数える（出典4）。つまり Safari だけで使っていると、しばらく開かないうちに診断の結果が消えることがある
+- そのため、マイページに引き継ぎのコードを置いた（§15.3）。ログインで端末をまたいで保存するのは本番（Website のアプリ）の役目
+
+**引き継ぎのコード（`app/js/transfer.js`）**
+- 中身：`{ t: "seikaku16-move", v: 1, session, source, records, marks }`
+  - `session`・`source`：今の診断（`js/ui/three_store.js` の保存 `seikaku16:three:v1` のうちこの2つだけ。1問以上答えたときだけ）
+  - `records`：`app/js/local.js` の記録のうち kind が "diagnosis" のもの（日時 `at` は元のまま）
+  - `marks`：その結果の key の印（「違う」の印・ありそう／なさそう）
+  - **入れない物**：相談の記録・相談の下書き（`seikaku16:app:consult-draft` など。自由に書いた文なので）、テスト協力の記録（fb・fbMode）、5択版の保存（`seikaku16:v1`）
+- 形：JSON → UTF-8 → 縮める（`CompressionStream("deflate")`。iOS 16.4 から）→ base64url → 頭に `S16Z-`。縮められない環境では縮めずに頭に `S16-`（どちらも読める）
+  - 大きさ：ふつうの診断1回（80問）で、**縮めて約4,000字**（縮めないと約25,000字。2万字を超えるので縮めた）
+  - `deflate-raw` ではなく `deflate`（zlib の形）にしたのは、確かめの数（Adler-32）が付いていて、途中の1文字が変わったコードも「読めない」にできるため（`deflate-raw` では、変わったまま読めてしまうことがあった）
+- 読むとき：前後・途中の空白と改行を取り除き、頭の文字・base64url・縮めた物（戻すと 40万バイトを超えるなら止める）・JSON・中身の形（`Session3.fromJSON` で読めて結果まで作れる、記録は local.js の `validItem` を満たす診断の記録だけ、印は200字以下の key と中身）を確かめる。だめなら `{ ok: false }`（例外を外に出さない）。コードの長さの上限は 20万字
+- 入れるとき：診断は置き換える（`adopt3`：テスト協力の記録と練習カードは消し、テスト協力モードとサブ画面はそのまま。設問の版は、URL の `?qv=` が無ければ移した診断の版に合わせる〔`restore3` と同じ決め方〕）。記録は結果の key が同じものを足さない（2回入れても増えない）。印はこの端末にまだ無い key だけ（ある印は上書きしない）
+- コードはどこにも送らない（端末のクリップボードと画面の欄を通るだけ）。ただし中身は診断の回答なので、人に送らないよう注を出す
+
+**iOS 26 の変化**
+- 共有シートでホーム画面に追加したサイトは、**既定で Web アプリとして開く**。追加の画面に「Webアプリとして開く」（英語の表示は Open as Web App）のスイッチがあり、既定でオン（出典2）。マニフェストが無いサイトも同じ。オフにするとブックマークのように Safari で開く
+- Safari の見た目が変わり、共有ボタンがアドレスバーの「…」の中に入ることがある（「…」→「共有」。出典2）。マイページの手順はどちらでも分かるように書いた
+- 日本語の表示の名前は、手元では確かめられないので、実機で確かめる（§15.8）
+
+**出典**（2026-10-19 時点。内容は変わることがある。4 はこの日に本文を読んで確かめた）
+1. WebKit「Web Push for Web Apps on iOS and iPadOS」（iOS 16.4。Safari 以外のブラウザからもホーム画面に追加できるようになったこと、ホーム画面のアプリの通知）：https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/
+2. iOS 26 の「Webアプリとして開く」と「…」→「共有」：heise online https://heise.de/-10749652 、iThinkDiff https://www.ithinkdiff.com/add-web-app-bookmark-iphone-home-screen-ios-26/
+3. ホーム画面のアプリと Safari の保存が別（WebKit のバグ 181849。仕様どおりとして閉じられている）：https://bugs.webkit.org/show_bug.cgi?id=181849
+4. Safari の7日の決まり（使わないサイトのスクリプトの保存を消す。ホーム画面のアプリは使った日で数える）：WebKit「Full Third-Party Cookie Blocking and More」https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/
 
 ## 9. 記録
 
@@ -550,6 +673,7 @@ tests/app_pwa.test.mjs     マニフェスト・アイコンの大きさ・sw.js
 | 2026-10-18 | 往復を作った（サブエージェント）。§11.7 に作ってみて決めたこと。確かめ：テスト（`tests/app_followup.test.mjs` 23件ほか全部、UTC でも）、スマホ・PC で ①送った→まだ来ない ②返事を貼る→答え合わせ→新しいカード ③読めない返事→1問 ④もう少し話したい ⑤危ない言葉 ⑥10往復 ⑦相談を終える ⑧読み込み直し ⑨履歴の詳細。横スクロール・コンソールエラーなし |
 | 2026-10-18 | 試作を作った（土台・診断・相談をサブエージェント3人で）。確かめ：スマホ 390×844・PC 1280×900 で全画面に横スクロールとコンソールエラーが無い。診断は今の画面と保存が共通で、最後まで答えると結果 → ホームが診断後の形 → 履歴に1件。相談の一手は `poc/card/` と同じ（例文12件×答え方3通り）。今の画面（`/#three`）は変わっていない |
 | 2026-10-19 | アプリとして使う（PWA。Android）§15 を作った（サブエージェント）。決定 U35。マニフェスト・service worker（network-first）・マイページの節・仮のアイコンと書き出しの道具。確かめ：テスト全部（UTC でも）、Chromium で `getInstallabilityErrors` が空、service worker が画面を受け持つ、サーバーを止めてもホーム・結果・相談などが開く、マイページの節が状態どおり（Android・PC・LINE・iPhone・standalone のまね）、スマホ・PC で横スクロール・コンソールエラーなし、今までの確認も通る |
+| 2026-10-19 | iPhone でも PWA に（サブエージェント）。決定 U37。§15 を Android・iPhone に広げ、§15.10 を足した。`app/index.html` に iPhone の meta と起動画面12本（`app/img/pwa/splash/`。`tools/make_pwa_icons.mjs` で書き出す。約 240KB）、`pwa.js` に ios-other と `isIos`・`currentPlatform`、マイページに iPhone の手順（Safari・ほかのブラウザ）と端末で分けた注、**Safari とアプリのあいだで診断を移す引き継ぎのコード**（`app/js/transfer.js`。縮めて約4,000字。相談は移さない）。`three_store.js` に `adopt3`、`local.js` の `validItem` を export に。確かめ：テスト全部（UTC でも。`tests/app_transfer.test.mjs` を足した）、Chromium で iPhone の Safari・Chrome の UA と standalone のまね・Android・PC のマイページ、引き継ぎの往復（同じ結果）、スマホ・PC で横スクロール・コンソールエラーなし、今までの画面も。実機の iPhone での確認は持ち主に頼む（§15.8） |
 | 2026-10-19 | まんなか（50:50）の軸の絵を入れた（サブエージェント）。決定 U36。持ち主が送った横長の8枚並び（題は 25:75）を切り出して `app/img/axes/<軸>-mid.jpg` の8枚にし（`tools/make_axis_mid.sh`）、`app/js/axis_art.js` の `mid` に alt つきで書いた。これで24枠すべてに絵がある。8つの軸の行のまんなかは番号の丸からまんなかの絵に、主軸の軸がまんなかなら結果とホームのいちばん上もまんなかの絵に（§13.3）。ホームの上の絵の切り取りに、左へリボンが伸びるまんなかの7枚（4-mid 以外）を足した（`app/css/app.css`。題と重ならないように）。`#images` の文（節の前置き・代わりの説明）を今の状態に。確かめ：テスト全部（UTC でも）。スマホ 390×844・PC 1280×900 で `#images` が24枠すべて絵あり・「24枠のうち 24枠（準備中はありません）」・壊れた絵なし、サンプル P5（まんなかの軸が2つ）で軸 1・2 の行にまんなかの絵、主軸の軸（6）をまんなかにした結果で結果・ホームのいちばん上が 6-mid・`#images` の「いちばん上の絵」の印も 6-mid、まんなかの8枚それぞれをホームの上に置いて題と重ならないこと、横スクロールなし、コンソールエラーなし（この環境で読めない Google Fonts の読み込みの失敗だけ） |
 
 ## 10. 作ってみて、仕様に足したこと・変えたこと（2026-10-18 持ち主が了承「それ以外はよい」）
