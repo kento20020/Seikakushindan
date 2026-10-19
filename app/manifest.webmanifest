@@ -1,0 +1,49 @@
+{
+  "name": "16次元診断",
+  "short_name": "16次元診断",
+  "description": "恋人との喧嘩での動き方を測る16次元診断と、次の一手を一緒に考える相談",
+  "lang": "ja",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ECE6DE",
+  "theme_color": "#ECE6DE",
+  "categories": ["lifestyle"],
+  "icons": [
+    { "src": "img/pwa/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "img/pwa/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "img/pwa/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "img/pwa/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "相談する",
+      "short_name": "相談",
+      "url": "./#consult",
+      "icons": [
+        { "src": "img/pwa/icon-96.png", "sizes": "96x96", "type": "image/png", "purpose": "any" },
+        { "src": "img/pwa/icon-maskable-96.png", "sizes": "96x96", "type": "image/png", "purpose": "maskable" }
+      ]
+    },
+    {
+      "name": "診断",
+      "short_name": "診断",
+      "url": "./#diagnose",
+      "icons": [
+        { "src": "img/pwa/icon-96.png", "sizes": "96x96", "type": "image/png", "purpose": "any" },
+        { "src": "img/pwa/icon-maskable-96.png", "sizes": "96x96", "type": "image/png", "purpose": "maskable" }
+      ]
+    },
+    {
+      "name": "診断結果",
+      "short_name": "診断結果",
+      "url": "./#result",
+      "icons": [
+        { "src": "img/pwa/icon-96.png", "sizes": "96x96", "type": "image/png", "purpose": "any" },
+        { "src": "img/pwa/icon-maskable-96.png", "sizes": "96x96", "type": "image/png", "purpose": "maskable" }
+      ]
+    }
+  ]
+}

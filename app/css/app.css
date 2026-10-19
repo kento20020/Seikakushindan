@@ -940,6 +940,12 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 .a-data-row p { font-size: var(--fs-md); letter-spacing: 0.06em; color: var(--ink-2); }
 .a-foot { margin-top: var(--sp-10); text-align: center; }
 .a-foot .a-note + .a-note { margin-top: var(--sp-1); }
+/* アプリとして使う（§15。mypage.js の appSection） */
+.a-pwa-text { display: flex; align-items: flex-start; gap: var(--sp-2); font-size: var(--fs-md); line-height: 1.9; letter-spacing: 0.06em; color: var(--ink-2); }
+.a-pwa-text:focus { outline: none; }
+.a-pwa-text > .a-ic { flex: none; margin-top: 0.3em; color: var(--rose); }
+.a-pwa-btn { margin-top: var(--sp-4); padding-left: var(--sp-5); padding-right: var(--sp-5); }   /* → が無いので左右を詰める（390px 幅で1行に） */
+.a-pwa-note { margin-top: var(--sp-3); }
 
 /* ======================================================================
    画面：診断結果の絵の一覧（#images。docs/app-screens.md §14。app/js/images.js）
@@ -1039,6 +1045,7 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 .a-pending .a-note { margin-top: var(--sp-3); }
 .a-pending .a-btn { margin-top: var(--sp-6); }
 .a-error { margin-top: var(--sp-6); padding: var(--sp-5); border-radius: var(--r-md); background: var(--rose-soft); color: var(--rose-ink); }
+.a-error-home { margin-top: var(--sp-2); }
 
 /* ---------------------------------------------------------------- PC（中央の列の外まで地を敷く。中身は 480px の列） */
 @media (max-width: 419px) {

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- 16次元診断のアイコン（仮）。any 用（角を少し丸めた正方形。そのまま見せる場所：PC・タスクの一覧など）
+       PNG は tools/make_pwa_icons.mjs で書き出す。差し替え方：docs/app-screens.md §15 -->
+  <rect width="512" height="512" rx="96" fill="#A15E58"/>
+  <text x="248" y="236" text-anchor="middle" dominant-baseline="central"
+        font-family="'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif" font-weight="700"
+        font-size="292" letter-spacing="-4" fill="#F8F3EE">16</text>
+</svg>
