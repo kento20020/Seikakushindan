@@ -1,4 +1,4 @@
-/* app/css/app.css — 新しい画面（app/）の色・文字・形・部品と、ホーム・アカウント・履歴・マイページ・診断結果の絵の一覧の画面。
+/* app/css/app.css — 新しい画面（app/）の色・文字・形・部品と、ホーム・アカウント・履歴・マイページ・診断結果の絵の一覧・診断結果の一覧の画面。
    仕様：docs/app-screens.md §5（色・文字・形）。今の画面の css/ は読まない。ダークモードは作らない。
    診断の画面は app/css/diagnose.css、相談の画面は app/css/consult.css に足す（このファイルの変数と部品を使う）。
 
@@ -1064,6 +1064,147 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 .a-im-state.is-pending { color: var(--rose-ink); }
 .a-im-file { margin-top: 2px; font-family: var(--sans); font-weight: 400; font-size: var(--fs-xs); line-height: 1.5; letter-spacing: 0; color: var(--muted); }
 .a-im-foot { margin-top: var(--sp-8); }
+
+/* ======================================================================
+   画面：診断結果の一覧（#types。8つの軸 × 3つの型のタイプ図鑑。docs/app-screens.md §16。app/js/types.js）
+     軸の色は、目次のボタンと軸の節（.a-ty-axis）に --axis（絵の色）・--axis-deep（点の色）をインラインで渡す。無ければ墨系の中立色
+     スマホ：型のカードは縦に並べ、左に小さな絵・右に文、下に「この型に近い見出し」
+     PC（960px 以上）：この画面だけ中央の列を広げ（1040px）、カードを3列にする（上に絵・下に文）
+     あなたの型：「あなたの型」の印（文字とアイコン）と、カードの輪（色だけに頼らない）
+   ====================================================================== */
+.a-ty { --axis: var(--muted); --axis-deep: var(--muted); }
+.a-ty-intro { margin-top: var(--sp-2); max-width: 720px; }
+.a-ty-how { margin-top: var(--sp-3); }
+.a-ty-legend {
+  margin-top: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.a-ty-legend-text { font-size: var(--fs-md); line-height: 1.8; letter-spacing: 0.06em; color: var(--ink); word-break: auto-phrase; }
+.a-ty-legend-list { list-style: none; display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); }
+.a-ty-legend-list li { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); font-size: var(--fs-sm); line-height: 1.7; color: var(--ink-2); word-break: auto-phrase; }
+.a-ty-legend-none { margin-top: var(--sp-3); }
+
+/* 目次（軸へ移るボタン） */
+.a-ty-toc { margin-top: var(--sp-6); }
+.a-ty-toc-list { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
+.a-ty-toc-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 44px;
+  height: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  text-align: left;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.a-ty-toc-btn:hover { background: var(--surface-2); border-color: var(--field); }
+.a-ty-toc-num { flex: none; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.a-ty-toc-name { min-width: 0; word-break: auto-phrase; }
+.a-ty-dot { flex: none; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--axis-deep); }
+
+/* 軸の節 */
+.a-ty-axes { display: flex; flex-direction: column; gap: var(--sp-8); margin-top: var(--sp-8); }
+.a-ty-axis { scroll-margin-top: var(--sp-4); }
+.a-ty-axis-head { margin-bottom: var(--sp-3); }
+.a-ty-axis-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.1em;
+  word-break: auto-phrase;
+}
+.a-ty-axis-name .a-ty-dot { width: 12px; height: 12px; }
+.a-ty-axis-num { flex: none; font-variant-numeric: tabular-nums; }
+.a-ty-axis-ends { margin-top: 2px; padding-left: 22px; font-size: var(--fs-sm); line-height: 1.7; letter-spacing: 0.06em; color: var(--muted); }
+.a-ty-grid { list-style: none; display: flex; flex-direction: column; gap: var(--sp-3); }
+
+/* 型のカード */
+.a-ty-card {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--sp-4);
+  row-gap: var(--sp-3);
+  padding: var(--sp-4);
+}
+.a-ty-card.is-yours { box-shadow: 0 0 0 2px var(--rose-ink), var(--shadow); }
+.a-ty-pic { width: 100%; background: var(--surface-2); }
+.a-ty-pic-none {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 1.5px dashed var(--axis);
+  border-radius: var(--r-md);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.1em;
+  color: var(--ink-2);
+}
+.a-ty-body { min-width: 0; }
+.a-ty-marks { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-bottom: var(--sp-2); }
+.a-ty-marks .a-badge { padding: 2px 10px; font-size: var(--fs-xs); letter-spacing: 0.04em; }
+.a-ty-name { font-size: var(--fs-lg); font-weight: 500; line-height: 1.5; letter-spacing: 0.06em; color: var(--ink); word-break: auto-phrase; }
+.a-ty-side { font-size: var(--fs-sm); letter-spacing: 0.06em; color: var(--ink-2); }
+.a-ty-ratio {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 0 8px;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  font-size: var(--fs-xs);
+  line-height: 1.75;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.a-ty-lead { margin-top: var(--sp-2); font-size: var(--fs-md); line-height: 1.85; letter-spacing: 0.04em; color: var(--ink-2); word-break: auto-phrase; }
+.a-ty-near { grid-column: 1 / -1; padding-top: var(--sp-3); border-top: 1px solid var(--line); }
+.a-ty-near-h { font-size: var(--fs-xs); line-height: 1.6; letter-spacing: 0.12em; color: var(--muted); }
+.a-ty-near-list { list-style: none; display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.a-ty-near-list li {
+  position: relative;
+  padding-left: 1em;
+  font-size: var(--fs-sm);
+  line-height: 1.75;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  word-break: auto-phrase;
+}
+.a-ty-near-list li::before {
+  content: "";
+  position: absolute;
+  left: 0.1em;
+  top: 0.78em;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--axis-deep);
+}
+.a-ty-foot { margin-top: var(--sp-10); }
+
+@media (max-width: 359px) {
+  /* とても狭い画面では絵を小さくして、右の文の幅を取る */
+  .a-ty-card { grid-template-columns: 76px minmax(0, 1fr); column-gap: var(--sp-3); }
+}
+@media (min-width: 960px) {
+  body[data-route="types"] .a-shell { max-width: calc(1040px + 2 * var(--gutter)); }
+  .a-ty-toc-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .a-ty-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); }
+  .a-ty-card { grid-template-columns: minmax(0, 1fr); align-content: start; padding: var(--sp-5); }
+  .a-ty-foot { max-width: calc(var(--col) + 2 * var(--gutter)); }
+}
 
 /* 仮の画面（準備中） */
 .a-pending { padding: var(--sp-8) 0; text-align: center; }

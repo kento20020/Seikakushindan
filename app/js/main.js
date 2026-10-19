@@ -4,7 +4,7 @@
 //   export function render(root, route) { ... }   root は空の <main>。中身を足して返す
 //     片付けの関数を返してよい（画面を替えるときに呼ぶ。document や window に付けたものを外す）。Promise を返してもよい
 //   route = { key, name, parts, params, hash }
-//     key    … 画面の名前（"home" "diagnose" "diagnose/q" "result" "consult" "account" "history" "mypage" "images"）
+//     key    … 画面の名前（"home" "diagnose" "diagnose/q" "result" "consult" "account" "history" "mypage" "images" "types"）
 //     name   … ハッシュの1つ目（"diagnose" など）。parts … "/" で分けた全部、params … 2つ目から（"#history/abc" → ["abc"]）
 //   画面を替えたら、先頭へスクロールし、焦点を見出しへ移す（root の [data-focus]、無ければ最初の h1）
 //   下のタブはホーム・履歴・マイページだけ（main.js が出す）。ほかの画面は ui.js の topBar で「← 題」を出す
@@ -24,6 +24,7 @@ const ROUTES = {
   history: { load: () => import("./history.js"), tab: "history", title: "履歴" },
   mypage: { load: () => import("./mypage.js"), tab: "mypage", title: "マイページ" },
   images: { load: () => import("./images.js"), title: "診断結果の絵" },   // 診断結果の絵の一覧（§14）
+  types: { load: () => import("./types.js"), title: "診断結果の一覧" },   // 診断結果の一覧（8軸×3のタイプ図鑑。§16）
 };
 
 /** "#history/abc" → { key: "history", name: "history", parts: ["history","abc"], params: ["abc"], hash } */
