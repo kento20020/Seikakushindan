@@ -6,13 +6,16 @@
 //     状態が変わったら（追加のボタンが使えるようになった・追加し終わった）この節だけ描き直す
 //     iPhone（§15.10。決定 U37）：Safari・ほかのブラウザで追加の手順（<ol>）。下の注は端末で分ける（iPhone は保存が別）。
 //     iPhone のときだけ、手順の下に「Safari とアプリのあいだで診断を移す」（app/js/transfer.js の引き継ぎのコード）
+//     カードのいちばん下に、どの状態でも「ホーム画面で使うのをやめるには」（<details>。§15.11。決定 U39）。
+//       今の端末（pwa.js の currentDevice：iPhone・Android・パソコン）の手順を先に、ほかの端末は「ほかの端末」の下に
 //   この端末の記録：「すべて消す」（確かめてから。app/ の履歴と結果の印、診断の回答と結果。今の画面と共通の保存も消える）
+//   お問い合わせ（§17。決定 U39）：「お問い合わせ・不具合の報告」（→ #contact。Google フォームへ送る画面）
 //   小さく「試作の画面です」と、今の画面（../#three）へのリンク
 import { h, icon, eyebrow, sectionHead, rowLink, toast, go } from "./ui.js";
 import { loadRecords, clearAll } from "./local.js";
 import { store3, restore3, discard3 } from "../../js/ui/three_store.js";
 import { diagnosisState } from "./home.js";
-import { PWA_EVENT, currentInstallState, currentPlatform, promptInstall } from "./pwa.js";
+import { PWA_EVENT, currentInstallState, currentPlatform, currentDevice, promptInstall } from "./pwa.js";
 import { hasTransferable, makeTransferCode, readTransferCode, applyTransfer } from "./transfer.js";
 
 export function render(root) {
@@ -23,7 +26,9 @@ export function render(root) {
     const old = root.querySelector("[data-pwa-section]");
     if (!old) return;
     const hadFocus = old.contains(document.activeElement);
+    const wasOpen = !!old.querySelector("[data-pwa-stop]")?.open;   // 「やめるには」を開いていたら、開いたままにする
     const next = appSection();
+    if (wasOpen) next.querySelector("[data-pwa-stop]")?.setAttribute("open", "");
     old.replaceWith(next);
     if (hadFocus) next.querySelector("[data-pwa-text]")?.focus({ preventScroll: true });
     if (e?.detail?.reason === "installed") toast("ホーム画面に追加しました");
@@ -87,8 +92,52 @@ function appSection() {
         ? h("button", { type: "button", class: "a-btn a-btn-block a-pwa-btn", onclick: addToHome }, "ホーム画面に追加する")
         : null,
       steps ? iosSteps(state) : null,
-      h("p", { class: "a-note a-pwa-note" }, ios ? (state === "ios-other" ? NOTE["ios-other"] : NOTE.ios) : NOTE.android)),
+      h("p", { class: "a-note a-pwa-note" }, ios ? (state === "ios-other" ? NOTE["ios-other"] : NOTE.ios) : NOTE.android),
+      stopBox(state)),
     move ? moveBox(state) : null);
+}
+
+// ---------------------------------------------------------------- ホーム画面で使うのをやめるには（§15.11。決定 U39）
+//   持ち主の依頼「ホームで使うのを辞める方法も教えて」→ マイページにも載せる。どの状態でも出す（閉じておく）
+//   ボタンの名前（「Appを削除」「ブックマークを削除」「アンインストール」「アプリ情報」など）は、実機では確かめていない。
+//   出典と英語の表示からの推定で、OS の版・端末で変わる。持ち主に実機で見てもらう（§15.8 と同じ。docs/app-screens.md §15.11）
+const STOP_TITLE = { ios: "iPhone（iOS）", android: "Android", other: "パソコン（Chrome・Edge）" };
+function stopLines(dev, state) {
+  if (dev === "ios") {
+    // ios-other（Safari 以外のブラウザで見ている）のときは「Safari」を「ブラウザ」に
+    const kept = state === "ios-other"
+      ? "ブラウザで開いたときの記録は別に残るので、消したいときはブラウザで開いて「すべて消す」を押してください。"
+      : "Safari で開いたときの記録は別に残るので、消したいときは Safari で開いて「すべて消す」を押してください。";
+    return [
+      "ホーム画面のアイコンを長押しして「Appを削除」（iOS の版によっては「ブックマークを削除」）→「削除」。",
+      `アイコンを消すと、ホーム画面のアプリの中の記録も消えます。${kept}`,
+      // 引き継ぎ（§15.3）は Safari → アプリの向きだけ。アプリの中の診断は Safari に移せないことを、アプリの側でだけ添える
+      state === "installed" ? "アプリの中の診断は、Safari には移せません（移せるのは Safari からアプリへだけです）。" : null,
+    ];
+  }
+  if (dev === "android") {
+    return [
+      "ホーム画面のアイコンを長押しして「アンインストール」（端末によっては「アプリ情報」→「アンインストール」）。",
+      "アイコンを消しても、記録は Chrome の中に残ります。消したいときは、先に「すべて消す」を押してください。",
+    ];
+  }
+  return ["アプリの窓の右上のメニュー（︙）→「アンインストール」。"];
+}
+
+function stopBox(state) {
+  const here = currentDevice();
+  const others = ["ios", "android", "other"].filter((d) => d !== here);
+  const block = (dev, tag) => h("div", { class: "a-pwa-stop-dev", "data-device": dev },
+    h(tag, { class: "a-pwa-stop-h" }, STOP_TITLE[dev]),
+    h("ul", { class: "a-pwa-stop-list" }, stopLines(dev, dev === here ? state : null).filter(Boolean).map((t) => h("li", null, t))));
+  return h("details", { class: "a-pwa-stop", "data-pwa-stop": "" },
+    h("summary", null, h("span", null, "ホーム画面で使うのをやめるには"), icon("chevron-down", { size: 18 })),
+    h("div", { class: "a-pwa-stop-body" },
+      h("p", { class: "a-pwa-sub a-pwa-stop-first" }, "記録も消したいときは、先にこのページの「この端末の記録」→「すべて消す」を押してください。"),
+      block(here, "h3"),
+      h("h3", { class: "a-pwa-stop-other" }, "ほかの端末"),
+      others.map((d) => block(d, "h4")),
+      h("p", { class: "a-note a-pwa-stop-last" }, "やめても、ブラウザでいつでも開けます。")));
 }
 
 // ---------------------------------------------------------------- Safari とアプリのあいだで診断を移す（§15.3。app/js/transfer.js）
@@ -237,6 +286,13 @@ function view() {
           h("p", null, `履歴 ${count}件`),
           h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm", disabled: !hasData, onclick: clearEverything }, "すべて消す")),
         h("p", { class: "a-note", style: { marginTop: "12px" } }, "どこにも送っていません。消すと元に戻せません。"))),
+
+    // お問い合わせ（§17。決定 U39）
+    h("section", { "aria-labelledby": "a-me-contact" },
+      sectionHead("お問い合わせ", { id: "a-me-contact" }),
+      h("div", { class: "a-card a-rows-card" },
+        h("div", { class: "a-rows" },
+          rowLink({ href: "#contact", ic: "chat", text: "お問い合わせ・不具合の報告" })))),
 
     h("footer", { class: "a-foot" },
       h("p", { class: "a-note" }, "試作の画面です"),

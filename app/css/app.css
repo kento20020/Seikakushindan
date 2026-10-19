@@ -1,4 +1,4 @@
-/* app/css/app.css — 新しい画面（app/）の色・文字・形・部品と、ホーム・アカウント・履歴・マイページ・診断結果の絵の一覧・診断結果の一覧の画面。
+/* app/css/app.css — 新しい画面（app/）の色・文字・形・部品と、ホーム・アカウント・履歴・マイページ・診断結果の絵の一覧・診断結果の一覧・お問い合わせの画面。
    仕様：docs/app-screens.md §5（色・文字・形）。今の画面の css/ は読まない。ダークモードは作らない。
    診断の画面は app/css/diagnose.css、相談の画面は app/css/consult.css に足す（このファイルの変数と部品を使う）。
 
@@ -971,6 +971,135 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 .a-pwa-label { display: block; margin-top: var(--sp-4); margin-bottom: var(--sp-2); font-size: var(--fs-md); letter-spacing: 0.08em; color: var(--ink); }
 .a-pwa-code { min-height: 120px; font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 1rem; line-height: 1.5; letter-spacing: 0; word-break: break-all; overflow-wrap: anywhere; }
 .a-pwa-error { margin-top: var(--sp-3); font-size: var(--fs-md); line-height: 1.8; letter-spacing: 0.06em; color: var(--rose-ink); word-break: auto-phrase; }
+/* ホーム画面で使うのをやめるには（§15.11。<details>。閉じておく。開くと今の端末の手順が先、ほかの端末はそのあと） */
+.a-pwa-stop { margin-top: var(--sp-4); border-top: 1px solid var(--line); }
+.a-pwa-stop > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-height: 48px;
+  padding-top: var(--sp-2);
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--fs-md);
+  letter-spacing: 0.08em;
+  color: var(--rose-ink);
+  word-break: auto-phrase;
+}
+.a-pwa-stop > summary::-webkit-details-marker { display: none; }
+.a-pwa-stop > summary .a-ic { flex: none; transition: transform var(--dur) var(--ease); }
+.a-pwa-stop[open] > summary .a-ic { transform: rotate(180deg); }
+.a-pwa-stop > summary:focus-visible { outline-offset: 2px; border-radius: var(--r-md); }
+.a-pwa-stop-body { padding-bottom: var(--sp-1); }
+.a-pwa-stop-body > .a-pwa-stop-first { margin-top: var(--sp-1); }
+.a-pwa-stop-dev { margin-top: var(--sp-4); }
+.a-pwa-stop-h { font-size: var(--fs-md); font-weight: 700; line-height: 1.6; letter-spacing: 0.08em; color: var(--ink); }
+.a-pwa-stop-other {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--line-strong);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.a-pwa-stop-other + .a-pwa-stop-dev { margin-top: var(--sp-2); }
+.a-pwa-stop-list { list-style: none; display: flex; flex-direction: column; gap: var(--sp-1); margin-top: var(--sp-1); }
+.a-pwa-stop-list li {
+  position: relative;
+  padding-left: 1em;
+  font-size: var(--fs-md);
+  line-height: 1.85;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  word-break: auto-phrase;
+}
+.a-pwa-stop-list li::before {
+  content: "";
+  position: absolute;
+  left: 0.1em;
+  top: 0.82em;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.a-pwa-stop-last { margin-top: var(--sp-4); }
+
+/* ======================================================================
+   画面：お問い合わせ（#contact。docs/app-screens.md §17。app/js/contact.js）
+     欄は1枚のカード（form.a-card）の中に縦に並べる。種類はラジオを丸いチップの形で（選んだら薄い赤の地と ✓。色だけに頼らない）
+     だめな欄：枠をくすんだ赤にし、下に文（.a-ct-error）。送れなかったときの文もボタンの上に同じ形で
+   ====================================================================== */
+.a-ct-intro { margin-top: var(--sp-2); }
+.a-ct-notes { list-style: none; display: flex; flex-direction: column; gap: 2px; margin-top: var(--sp-3); }
+.a-ct-notes li { position: relative; padding-left: 1em; }
+.a-ct-notes li::before {
+  content: "";
+  position: absolute;
+  left: 0.1em;
+  top: 0.8em;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.a-ct-slot { margin-top: var(--sp-6); }
+.a-ct-form { display: flex; flex-direction: column; gap: var(--sp-6); }
+.a-ct-field { min-width: 0; margin: 0; padding: 0; border: 0; }
+.a-ct-label {
+  display: block;
+  padding: 0;
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  word-break: auto-phrase;
+}
+.a-ct-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.a-ct-chip { position: relative; display: inline-flex; max-width: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.a-ct-chip > input { position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: 0; opacity: 0; }
+.a-ct-chip-face {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 7px 16px;
+  border: 1px solid var(--field);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.a-ct-chip-face > span { min-width: 0; }
+.a-ct-chip-face .a-ic { display: none; flex: none; width: 16px; height: 16px; stroke-width: 2; }
+.a-ct-chip:hover .a-ct-chip-face { background: #fff; }
+.a-ct-chip > input:checked + .a-ct-chip-face { background: var(--rose-soft); border-color: var(--rose); color: var(--rose-ink); font-weight: 700; }
+.a-ct-chip > input:checked + .a-ct-chip-face .a-ic { display: block; }
+.a-ct-chip > input:focus-visible + .a-ct-chip-face { outline: 2px solid var(--rose-ink); outline-offset: 3px; }
+.a-ct-kinds.is-invalid .a-ct-chip-face { border-color: var(--rose-ink); }
+.a-ct-count.is-over { color: var(--rose-ink); font-weight: 700; }
+.a-ct-body { min-height: 168px; }
+.a-ct-body[aria-invalid="true"], .a-ct-reply[aria-invalid="true"] { border-color: var(--rose-ink); box-shadow: inset 0 0 0 1px var(--rose-ink); }
+.a-ct-error { margin-top: var(--sp-2); font-size: var(--fs-md); line-height: 1.8; letter-spacing: 0.06em; color: var(--rose-ink); word-break: auto-phrase; }
+.a-ct-error[hidden] { display: none; }
+.a-ct-device { align-items: flex-start; margin-top: calc(-1 * var(--sp-2)); }
+.a-ct-device .a-check-box { margin-top: 0.15em; }
+.a-ct-device-val { color: var(--muted); word-break: auto-phrase; }
+.a-ct-off { margin-bottom: calc(-1 * var(--sp-3)); color: var(--ink-2); }
+.a-ct-msg:empty { display: none; }
+.a-ct-msg { margin-bottom: calc(-1 * var(--sp-3)); }
+.a-ct-msg > .a-ct-error { margin-top: 0; }
+.a-ct-send { padding-left: var(--sp-5); padding-right: var(--sp-5); }
+.a-ct-done { display: flex; flex-direction: column; gap: var(--sp-3); }
+.a-ct-done-h { display: flex; align-items: flex-start; gap: var(--sp-2); font-size: var(--fs-lg); font-weight: 500; line-height: 1.6; letter-spacing: 0.08em; color: var(--ink); word-break: auto-phrase; }
+.a-ct-done-h > .a-ic { flex: none; margin-top: 0.25em; color: var(--rose); }
+.a-ct-done .a-btn { margin-top: var(--sp-3); }
 
 /* ======================================================================
    画面：診断結果の絵の一覧（#images。docs/app-screens.md §14。app/js/images.js）

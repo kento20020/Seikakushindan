@@ -3,6 +3,8 @@
 //   installState(env)  … 今の状態を返す（DOM なし。テストできる形）
 //   isIos(env)         … iPhone・iPad・iPod か（DOM なし。iPad の Safari は Mac の UA なので、指で触れる点の数で見分ける）
 //   currentInstallState() / currentPlatform() / promptInstall() … マイページ（mypage.js）の「アプリとして使う」が使う
+//   deviceKind(env) / currentDevice() / currentStandalone() … 端末の種類（"ios" | "android" | "other"）とホーム画面のアプリか。
+//     マイページの「ホーム画面で使うのをやめるには」の並びと、お問い合わせ（contact.js）の端末の種類が使う（決定 U39）
 //   PWA_EVENT          … 状態が変わったら window に出すできごと（detail.reason："prompt" | "installed" | "dismissed"）
 // 対応していない・失敗しても、画面はふつうに動く（console.error は出さない）
 export const PWA_EVENT = "a-pwa-change";
@@ -72,6 +74,29 @@ export function currentPlatform() {
     if (typeof navigator === "undefined") return "other";
     return isIos({ ua: navigator.userAgent, touch: navigator.maxTouchPoints || 0 }) ? "ios" : "other";
   } catch { return "other"; }
+}
+
+/**
+ * 端末の種類（DOM なし）："ios"（iPhone・iPad。isIos と同じ見分け方）| "android"（UA に Android）| "other"（パソコンなど）
+ *   currentPlatform は "ios" | "other" の2つだけなので、Android とパソコンを分けたいときはこちら（U39）
+ */
+export function deviceKind({ ua = "", touch = 0 } = {}) {
+  const s = String(ua || "");
+  if (isIos({ ua: s, touch })) return "ios";
+  return /Android/i.test(s) ? "android" : "other";
+}
+
+/** 今の端末の deviceKind。iPhone かどうかは currentPlatform と同じ */
+export function currentDevice() {
+  try {
+    if (typeof navigator === "undefined") return "other";
+    return deviceKind({ ua: navigator.userAgent, touch: navigator.maxTouchPoints || 0 });
+  } catch { return "other"; }
+}
+
+/** ホーム画面のアプリとして開いているか（standalone・fullscreen・iPhone の navigator.standalone） */
+export function currentStandalone() {
+  return typeof window !== "undefined" && isStandalone();
 }
 
 function notify(reason) {
