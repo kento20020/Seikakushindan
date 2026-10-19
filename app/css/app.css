@@ -739,12 +739,14 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   mask-image: var(--img-fade);
   mask-composite: intersect;
 }
-/* 絵ごとの切り取り（§13：軸の絵の16枚のどれが上に来ても、題「今日はこちらから」と人物の頭・リボンが重ならないように）
+/* 絵ごとの切り取り（§13：軸の絵の24枚のどれが上に来ても、題「今日はこちらから」と人物の頭・リボンが重ならないように）
    絵は枠の右上に置く（枠の幅に対する割合なので、スマホと PC で同じ見え方。PC は枠が広いぶん絵も大きい）
    --hw＝絵の幅  --hr＝右へのはみ出し（負の値）  --ht＝上からの位置（枠の高さに対する割合）。絵の左・上・下の縁は絵の側でもぼかす（--img-fade）
-   既定で人物の頭が題の右に来る。左へリボンが伸びている絵（1-a・1-b・2-b・6-a・6-b・7-a・8-a・8-b）は、少し右へ寄せる */
+   既定で人物の頭が題の右に来る。左へリボンが伸びている絵（1-a・1-b・2-b・6-a・6-b・7-a・8-a・8-b、まんなかは 4-mid 以外。U36）は、少し右へ寄せる */
 .a-home-pic[data-key="1-a"], .a-home-pic[data-key="1-b"], .a-home-pic[data-key="2-b"], .a-home-pic[data-key="6-a"],
-.a-home-pic[data-key="6-b"], .a-home-pic[data-key="7-a"], .a-home-pic[data-key="8-a"], .a-home-pic[data-key="8-b"] { --hr: -27%; }
+.a-home-pic[data-key="6-b"], .a-home-pic[data-key="7-a"], .a-home-pic[data-key="8-a"], .a-home-pic[data-key="8-b"],
+.a-home-pic[data-key="1-mid"], .a-home-pic[data-key="2-mid"], .a-home-pic[data-key="3-mid"], .a-home-pic[data-key="5-mid"],
+.a-home-pic[data-key="6-mid"], .a-home-pic[data-key="7-mid"], .a-home-pic[data-key="8-mid"] { --hr: -27%; }
 .a-home-pic[data-key="7-a"] { --ht: 8%; }   /* 頭が絵の上の端に近いので、少し下げる */
 /* とても狭い画面（320px など）は題の右があまり空かないので、絵を小さくして右上へ寄せる */
 @media (max-width: 359px) {

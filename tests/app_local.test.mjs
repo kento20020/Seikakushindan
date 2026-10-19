@@ -264,7 +264,7 @@ test("見出しの半角の引用符を「」にする（jpQuotes）：置き換
 // ---------------------------------------------------------------- axis_art.js（軸の絵。§13）
 const appFile = (f) => new URL(`../app/${f}`, import.meta.url);
 
-test("軸の絵の一覧：8軸それぞれに色と a・b の絵（ファイルがある）。まんなかはまだ無い。B 側は紺", () => {
+test("軸の絵の一覧：8軸それぞれに色と a・mid・b の絵（ファイルがある。まんなかは U36）。B 側は紺", () => {
   const colors = { 1: ["#2E9A8F", "#2E9188"], 2: ["#D9A23A", "#A47D38"], 3: ["#4F86CC", "#4E84C9"], 4: ["#C06A92", "#BD6990"],
     5: ["#9468B6", "#9468B6"], 6: ["#DB7A45", "#BF6D42"], 7: ["#7F9545", "#768A43"], 8: ["#DE675F", "#D0625B"] };
   assert.deepEqual(Object.keys(AXIS_ART).map(Number), [1, 2, 3, 4, 5, 6, 7, 8]);
@@ -273,17 +273,17 @@ test("軸の絵の一覧：8軸それぞれに色と a・b の絵（ファイル
     assert.equal(t.color, color, `軸${d} の色`);
     assert.equal(t.deep, deep, `軸${d} の点の色`);
     assert.equal(t.name, DOMAINS[d].name);
-    for (const side of ["a", "b"]) {
+    for (const side of ["a", "mid", "b"]) {
       assert.equal(t[side].file, `img/axes/${d}-${side}.jpg`);
       assert.ok(existsSync(appFile(t[side].file)), `${t[side].file} がある`);
       assert.match(t[side].alt, /人の絵/, `軸${d}-${side} の alt`);
     }
-    assert.equal(t.mid, null, `軸${d} のまんなかはまだ無い`);
+    assert.equal(new Set([t.a.alt, t.mid.alt, t.b.alt]).size, 3, `軸${d}：3枚の alt は別の文`);
   }
   assert.equal(NAVY, "#22315A");
 });
 
-test("axisArt：A の割合が 50% より多ければ a、少なければ b、ちょうど 50% は mid（絵はまだ無い）、答えなしは null", () => {
+test("axisArt：A の割合が 50% より多ければ a、少なければ b、ちょうど 50% は mid、答えなしは null", () => {
   const at = (states) => ({ states });
   const a = axisArt(2, axisView(at({ 2: { a: 3, b: 1 } }), 2));
   assert.deepEqual(a, { id: "2-a", domain: 2, side: "a", file: "img/axes/2-a.jpg", alt: AXIS_ART[2].a.alt, color: "#D9A23A", deep: "#A47D38" });
@@ -295,7 +295,9 @@ test("axisArt：A の割合が 50% より多ければ a、少なければ b、�
   assert.equal(allA.side, "a");
   const mid = axisArt(1, axisView(at({ 1: { a: 3, b: 3 } }), 1));
   assert.equal(mid.side, "mid");
-  assert.equal(mid.file, null, "まんなかの絵はまだ無い（番号の丸を出す）");
+  assert.equal(mid.id, "1-mid");
+  assert.equal(mid.file, "img/axes/1-mid.jpg", "まんなかの絵");
+  assert.equal(mid.alt, AXIS_ART[1].mid.alt);
   assert.equal(mid.color, "#2E9A8F");
   const none = axisArt(4, axisView(at({ 4: { a: 0, b: 0 } }), 4));
   assert.equal(none.side, null);
@@ -307,7 +309,7 @@ test("axisArt：A の割合が 50% より多ければ a、少なければ b、�
   assert.equal(artSide({ pos: 0.6 }), "b");
   assert.equal(artSide({ pos: 0.5 }), "mid");
   assert.equal(artSide({ pos: null }), null);
-  assert.equal(artOf(5, "mid").file, null);
+  assert.equal(artOf(5, "mid").file, "img/axes/5-mid.jpg");
   assert.equal(artOf(5, "x"), null);
   assert.equal(artOf(0, "a"), null);
 });
@@ -326,16 +328,16 @@ test("heroArt：主軸に合う傾向（16すべてに絵がある前提の hero
     const d = parseInt(pick.key, 10);
     assert.equal(art.domain, d);
     assert.equal(art.tendency, pick.key.endsWith("A") ? DOMAINS[d].a : DOMAINS[d].b, `${name}：傾向の名前`);
-    assert.match(art.file, /^img\/axes\/[1-8]-[ab]\.jpg$/, `${name}：軸の絵`);
+    assert.match(art.file, /^img\/axes\/[1-8]-(a|b|mid)\.jpg$/, `${name}：軸の絵`);
     assert.ok(existsSync(appFile(art.file)), `${name}：${art.file}`);
     assert.ok(art.alt, `${name}：alt`);
     const v = axisView(r, d);
     const side = artSide(v);
-    if (side === "a" || side === "b") {
-      assert.equal(art.side, side, `${name}：●で選ぶ`);
+    if (side) {
+      assert.equal(art.side, side, `${name}：●で選ぶ（まんなかも）`);
       assert.equal(art.bySide, false);
     } else {
-      assert.equal(art.side, pick.key.endsWith("A") ? "a" : "b", `${name}：まんなか・答えなしは傾向の側`);
+      assert.equal(art.side, pick.key.endsWith("A") ? "a" : "b", `${name}：答えなしは傾向の側`);
       assert.equal(art.bySide, true);
     }
     if (!isReady(TYPE_IMAGES[pick.key])) other++;
@@ -345,16 +347,18 @@ test("heroArt：主軸に合う傾向（16すべてに絵がある前提の hero
   assert.equal(heroArt({}), null);
 });
 
-test("heroArt：その軸の●がまんなか・答えなしなら、主軸に合う傾向の側の絵", () => {
+test("heroArt：その軸の●がまんなかならその軸の mid の絵、答えなしなら主軸に合う傾向の側の絵", () => {
   const { r } = results[0];
   const base = heroArt(r);
   const d = base.domain;
   const lead = base.key.endsWith("A") ? "a" : "b";
   const tie = heroArt({ ...r, states: { ...r.states, [d]: { ...r.states[d], a: 2, b: 2 } } });
   assert.equal(tie.key, base.key);
-  assert.equal(tie.side, lead);
-  assert.equal(tie.file, `img/axes/${d}-${lead}.jpg`);
-  assert.equal(tie.bySide, true);
+  assert.equal(tie.side, "mid");
+  assert.equal(tie.id, `${d}-mid`);
+  assert.equal(tie.file, `img/axes/${d}-mid.jpg`);
+  assert.equal(tie.bySide, false);
+  assert.equal(tie.tendency, base.tendency, "傾向の名前は主軸に合う傾向のまま");
   const none = heroArt({ ...r, states: { ...r.states, [d]: { ...r.states[d], a: 0, b: 0 } } });
   assert.equal(none.side, lead);
   assert.equal(none.bySide, true);
@@ -380,7 +384,7 @@ test("ホームの絵：診断前・途中は 4-b と 5-a（同じ絵にしな�
 });
 
 // ---------------------------------------------------------------- 診断結果の絵の一覧（#images。§14）
-// 数（24・16 など）は書かない。AXIS_ART の mid が null かどうかから導く（まんなかの絵が届いて埋まっても壊れないように）
+// 数（24・16 など）は書かない。AXIS_ART の mid が null かどうかから導く（絵が増えたり減ったりしても壊れないように）
 test("絵の一覧の24枠：軸の順・各軸は a → mid → b、ready の枠の絵はある、ready でない枠は file が null", () => {
   const slots = axisArtSlots();
   const domains = Object.keys(AXIS_ART).map(Number);
@@ -427,13 +431,17 @@ test("絵の一覧の印：8つの軸の行に選ばれる枠（artSide）と、
       if (art.bySide) assert.equal(m.hero, `${art.domain}-${art.key.endsWith("A") ? "a" : "b"}`, `${name}：代わりの側の枠`);
     }
   }
-  // まんなかの軸は "<軸>-mid" に印が付き、いちばん上は代わりの側
+  // まんなかの軸は "<軸>-mid" に印が付き、いちばん上もその枠（まんなかの絵が無い軸なら代わりの側）
   const { r } = results[0];
   const d = heroArt(r).domain;
   const tie = { ...r, states: { ...r.states, [d]: { ...r.states[d], a: 2, b: 2 } } };
   const m = slotMarks(tie);
   assert.ok(m.picked.includes(`${d}-mid`));
   if (AXIS_ART[d].mid == null) assert.notEqual(m.hero, `${d}-mid`, "まんなかの絵が無いあいだは、いちばん上は代わりの側");
+  else {
+    assert.equal(m.hero, `${d}-mid`, "まんなかの絵があれば、いちばん上はその軸の mid");
+    assert.equal(m.art.bySide, false);
+  }
 });
 
 test("今の画面の傾向の絵の16枠：軸の順・A → B、ready の枠の絵はある、ready でない枠は file が null", () => {
