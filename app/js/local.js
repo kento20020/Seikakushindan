@@ -22,7 +22,8 @@ function storage() {
 const empty = () => ({ v: 1, items: [], marks: {} });
 const isObj = (x) => !!x && typeof x === "object" && !Array.isArray(x);
 
-function validItem(x) {
+/** 記録の形が正しいか（id・kind・読める日時 at）。読み出しと、診断の引き継ぎ（app/js/transfer.js）で使う */
+export function validItem(x) {
   return isObj(x) && typeof x.id === "string" && KINDS.includes(x.kind) && typeof x.at === "string" && !Number.isNaN(Date.parse(x.at));
 }
 

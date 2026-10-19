@@ -4,13 +4,16 @@
 //     どの状態でも「診断結果の絵を見る」（→ #images。§14）
 //   アプリとして使う（§15）：ホーム画面に追加する案内。状態（pwa.js の installState）ごとに文とボタンを替える。
 //     状態が変わったら（追加のボタンが使えるようになった・追加し終わった）この節だけ描き直す
+//     iPhone（§15.10。決定 U37）：Safari・ほかのブラウザで追加の手順（<ol>）。下の注は端末で分ける（iPhone は保存が別）。
+//     iPhone のときだけ、手順の下に「Safari とアプリのあいだで診断を移す」（app/js/transfer.js の引き継ぎのコード）
 //   この端末の記録：「すべて消す」（確かめてから。app/ の履歴と結果の印、診断の回答と結果。今の画面と共通の保存も消える）
 //   小さく「試作の画面です」と、今の画面（../#three）へのリンク
 import { h, icon, eyebrow, sectionHead, rowLink, toast, go } from "./ui.js";
 import { loadRecords, clearAll } from "./local.js";
 import { store3, restore3, discard3 } from "../../js/ui/three_store.js";
 import { diagnosisState } from "./home.js";
-import { PWA_EVENT, currentInstallState, promptInstall } from "./pwa.js";
+import { PWA_EVENT, currentInstallState, currentPlatform, promptInstall } from "./pwa.js";
+import { hasTransferable, makeTransferCode, readTransferCode, applyTransfer } from "./transfer.js";
 
 export function render(root) {
   restore3();
@@ -35,13 +38,45 @@ const APP_TEXT = {
   added: "ホーム画面に追加しました。次からは、ホーム画面のアイコンから開けます。",
   prompt: "ホーム画面に追加すると、アプリのように開けます。",
   line: "LINE などのアプリの中の画面からは追加できません。右上のメニューから Chrome（iPhone は Safari）で開き直してください。",
-  ios: "共有ボタン → 『ホーム画面に追加』で追加できます。ホーム画面のアプリと Safari では、診断の結果などの保存が別になります。",
+  ios: "Safari の共有ボタンから、ホーム画面に追加できます。",
+  "ios-other": "このブラウザの共有ボタンから、ホーム画面に追加できます。",
   menu: "Chrome のメニュー（︙）から『アプリをインストール』か『ホーム画面に追加』を選んでください。",
 };
 
+// 節の下の小さな注（端末で分ける。§15.3）
+const NOTE = {
+  android: "Android では、ホーム画面のアプリと Chrome で、診断の結果などはこの端末の中で共有されます。",
+  ios: "iPhone では、ホーム画面のアプリと Safari で、診断の結果などの保存が別です。",
+  "ios-other": "iPhone では、ホーム画面のアプリとブラウザ（Safari・Chrome など）で、診断の結果などの保存が別です。",
+};
+
+/** 共有ボタンの絵（iOS の共有の形：四角に上向きの矢印）。文の中に小さく置く */
+const shareMark = () => h("span", { class: "a-pwa-share", role: "img", "aria-label": "（四角に上向きの矢印の絵）" }, icon("share-ios", { size: 18 }));
+
+// 追加の手順（§15.2）。iOS 26 は「…」→「共有」のことがあり、追加の画面に「Webアプリとして開く」のスイッチ（既定でオン）がある
+const STEP_ADD = "「ホーム画面に追加」を押す（見当たらないときは、下にずらすか「さらに表示」を押す）";
+const STEP_DONE = "「Webアプリとして開く」はオンのまま、「追加」を押す（スイッチが出ないときは、そのまま「追加」）";
+function iosSteps(state) {
+  const first = state === "ios"
+    ? ["画面の「…」か、共有ボタン", shareMark(), "を押す。「…」のときは、続けて「共有」を押す"]
+    : ["共有ボタン", shareMark(), "を押す（Chrome はアドレスバーの右。見当たらないときは、メニューの「共有」）"];
+  return [
+    h("ol", { class: "a-pwa-steps", role: "list" },
+      h("li", null, first),
+      h("li", null, STEP_ADD),
+      h("li", null, STEP_DONE)),
+    h("p", { class: "a-pwa-sub" }, "ホーム画面のアイコン『16次元診断』から開くと、アプリの形で開きます。"),
+    state === "ios-other" ? h("p", { class: "a-note a-pwa-note" }, "iOS 16.4 より前の iPhone では、Safari で開いて追加してください。") : null,
+  ];
+}
+
 function appSection() {
   const state = currentInstallState();
+  const ios = currentPlatform() === "ios";
   const done = state === "installed" || state === "added";
+  const steps = state === "ios" || state === "ios-other";
+  // 引き継ぎ（§15.3）：iPhone で、ブラウザの側（ios・ios-other）とホーム画面のアプリの側（installed）
+  const move = ios && (steps || state === "installed");
   return h("section", { "aria-labelledby": "a-me-app", "data-pwa-section": state },
     sectionHead("アプリとして使う", { id: "a-me-app", aside: done ? "追加済み" : null }),
     h("div", { class: "a-card a-pwa-card" },
@@ -51,7 +86,106 @@ function appSection() {
       state === "prompt"
         ? h("button", { type: "button", class: "a-btn a-btn-block a-pwa-btn", onclick: addToHome }, "ホーム画面に追加する")
         : null,
-      h("p", { class: "a-note a-pwa-note" }, "Android では、ホーム画面のアプリと Chrome で、診断の結果などはこの端末の中で共有されます。")));
+      steps ? iosSteps(state) : null,
+      h("p", { class: "a-note a-pwa-note" }, ios ? (state === "ios-other" ? NOTE["ios-other"] : NOTE.ios) : NOTE.android)),
+    move ? moveBox(state) : null);
+}
+
+// ---------------------------------------------------------------- Safari とアプリのあいだで診断を移す（§15.3。app/js/transfer.js）
+const MOVE_NOTE = "コードには診断の回答が入っています。人に送らないでください。相談の履歴は移りません。";
+const READ_ERROR = "コードを読めませんでした。Safari でコピーし直して、もう一度貼り付けてください。";
+
+function moveBox(state) {
+  const app = state === "installed";
+  const title = state === "ios-other" ? "ブラウザとアプリのあいだで診断を移す" : "Safari とアプリのあいだで診断を移す";
+  const box = h("div", { class: "a-card a-pwa-move", "data-pwa-move": app ? "app" : "browser" },
+    h("h3", { class: "a-pwa-move-h" }, title));
+  if (app) appSide(box);
+  else browserSide(box, state);
+  return box;
+}
+
+/** ブラウザの側：［引き継ぎのコードをコピーする］。コードは先に作っておく（押してからすぐクリップボードに書けるように） */
+function browserSide(box, state) {
+  if (!hasTransferable()) {
+    box.append(h("p", { class: "a-note a-pwa-note" }, "診断をすると、ここからアプリに移せます。"));
+    return;
+  }
+  let code = null;
+  const ready = makeTransferCode().then((c) => (code = c), () => null);
+  const where = state === "ios-other" ? "このブラウザ" : "Safari ";
+  const slot = h("div", { class: "a-pwa-manual-slot" });
+  const copy = async (e) => {
+    const btn = e.currentTarget;
+    let c = code;
+    if (!c) { btn.disabled = true; c = await ready; btn.disabled = false; }
+    if (!c) { slot.replaceChildren(h("p", { class: "a-pwa-error", role: "alert" }, "コードを作れませんでした。マイページを開き直して、もう一度押してください。")); return; }
+    let copied = false;
+    try {
+      if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(c); copied = true; }
+    } catch { copied = false; }
+    if (copied) { slot.replaceChildren(); toast("コピーしました。ホーム画面のアプリのマイページで貼り付けてください"); return; }
+    showManual(slot, c);
+  };
+  box.append(
+    h("p", { class: "a-pwa-sub" }, `${where}の診断は、ホーム画面のアプリには出ません。コードをコピーして、アプリのマイページで貼り付けると移せます。`),
+    // 文が長いので絵は付けない（390px 幅で1行に収める）
+    h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm a-btn-block a-pwa-btn", "data-pwa-copy": "", onclick: copy }, "引き継ぎのコードをコピーする"),
+    slot,
+    h("p", { class: "a-note a-pwa-note" }, MOVE_NOTE));
+}
+
+/** コピーできなかったとき：読むだけの欄にコードを出して選んだ状態にする */
+function showManual(slot, code) {
+  const id = "a-pwa-manual";
+  const area = h("textarea", { id, class: "a-textarea a-pwa-code", readonly: "", rows: "4", spellcheck: "false", autocapitalize: "off", autocomplete: "off", "aria-describedby": `${id}-help` });
+  area.value = code;
+  slot.replaceChildren(
+    h("label", { class: "a-pwa-label", for: id }, "引き継ぎのコード"),
+    area,
+    h("p", { class: "a-pwa-sub", id: `${id}-help` }, "コピーできませんでした。上の欄を長押しして『すべてを選択』→『コピー』を押してください。"));
+  try {
+    area.focus({ preventScroll: true });
+    area.select();
+    area.setSelectionRange(0, code.length);
+  } catch { /* 選べなくても欄は出ている */ }
+}
+
+/** ホーム画面のアプリの側：［Safari の診断を引き継ぐ］→ 欄と［読み込む］ */
+function appSide(box) {
+  const form = h("div", { class: "a-pwa-form" });
+  const open = () => {
+    const id = "a-pwa-paste";
+    const area = h("textarea", { id, class: "a-textarea a-pwa-code", rows: "4", spellcheck: "false", autocapitalize: "off", autocomplete: "off", autocorrect: "off" });
+    const msg = h("div", { class: "a-pwa-msg" });
+    area.addEventListener("input", () => msg.replaceChildren());   // 貼り直したら前の「読めませんでした」を消す
+    const load = async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      const res = await readTransferCode(area.value);
+      btn.disabled = false;
+      if (!res.ok) { msg.replaceChildren(h("p", { class: "a-pwa-error", role: "alert" }, READ_ERROR)); return; }
+      msg.replaceChildren();
+      const state = diagnosisState();
+      if (res.data.session && (state === "done" || state === "mid")
+        && !window.confirm("この端末のアプリの診断を、貼り付けた診断に置き換えますか？")) return;
+      const out = applyTransfer(res.data);
+      if (!out.ok) { msg.replaceChildren(h("p", { class: "a-pwa-error", role: "alert" }, "この端末に入れられませんでした。もう一度押してください。")); return; }
+      toast("診断を引き継ぎました");
+      go(store3.result ? "#result" : "#mypage");
+    };
+    form.replaceChildren(
+      h("label", { class: "a-pwa-label", for: id }, "引き継ぎのコード"),
+      area,
+      msg,
+      h("button", { type: "button", class: "a-btn a-btn-sm a-btn-block a-pwa-btn", "data-pwa-load": "", onclick: load }, "読み込む"));
+    area.focus({ preventScroll: false });
+  };
+  box.append(
+    h("p", { class: "a-pwa-sub" }, "Safari（または Chrome など）で診断したときは、そちらのマイページで「引き継ぎのコード」をコピーして、ここに貼り付けると移せます。"),
+    form,
+    h("p", { class: "a-note a-pwa-note" }, MOVE_NOTE));
+  form.append(h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm a-btn-block a-pwa-btn", "data-pwa-open": "", onclick: open }, "Safari の診断を引き継ぐ"));
 }
 
 async function addToHome(e) {

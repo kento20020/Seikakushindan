@@ -948,6 +948,29 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 .a-pwa-text > .a-ic { flex: none; margin-top: 0.3em; color: var(--rose); }
 .a-pwa-btn { margin-top: var(--sp-4); padding-left: var(--sp-5); padding-right: var(--sp-5); }   /* → が無いので左右を詰める（390px 幅で1行に） */
 .a-pwa-note { margin-top: var(--sp-3); }
+/* iPhone の手順（§15.3・§15.10。番号はくすんだ赤の薄い丸。list-style を消すと Safari が一覧と読まないので ol に role="list"） */
+.a-pwa-steps { list-style: none; counter-reset: a-step; display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-4); }
+.a-pwa-steps > li { position: relative; counter-increment: a-step; padding-left: 36px; font-size: var(--fs-md); line-height: 1.85; letter-spacing: 0.06em; color: var(--ink); word-break: auto-phrase; }
+.a-pwa-steps > li::before {
+  content: counter(a-step);
+  position: absolute; left: 0; top: 0.2em;
+  display: grid; place-items: center;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--rose-soft);
+  color: var(--rose-ink);
+  font-size: var(--fs-sm); font-weight: 700; line-height: 1; letter-spacing: 0;
+}
+.a-pwa-share { display: inline-grid; place-items: center; vertical-align: -0.2em; margin: 0 0.2em; color: var(--rose-ink); }
+.a-pwa-share > .a-ic { width: 18px; height: 18px; }
+.a-pwa-sub { margin-top: var(--sp-3); font-size: var(--fs-md); line-height: 1.85; letter-spacing: 0.06em; color: var(--ink-2); word-break: auto-phrase; }
+/* Safari とアプリのあいだで診断を移す（§15.3。app/js/transfer.js） */
+.a-pwa-move { margin-top: var(--sp-3); }
+.a-pwa-move-h { font-size: var(--fs-lg); font-weight: 500; line-height: 1.6; letter-spacing: 0.08em; word-break: auto-phrase; }
+.a-pwa-move-h + .a-pwa-sub { margin-top: var(--sp-2); }
+.a-pwa-label { display: block; margin-top: var(--sp-4); margin-bottom: var(--sp-2); font-size: var(--fs-md); letter-spacing: 0.08em; color: var(--ink); }
+.a-pwa-code { min-height: 120px; font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 1rem; line-height: 1.5; letter-spacing: 0; word-break: break-all; overflow-wrap: anywhere; }
+.a-pwa-error { margin-top: var(--sp-3); font-size: var(--fs-md); line-height: 1.8; letter-spacing: 0.06em; color: var(--rose-ink); word-break: auto-phrase; }
 
 /* ======================================================================
    画面：診断結果の絵の一覧（#images。docs/app-screens.md §14。app/js/images.js）
