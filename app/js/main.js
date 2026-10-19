@@ -9,7 +9,9 @@
 //   画面を替えたら、先頭へスクロールし、焦点を見出しへ移す（root の [data-focus]、無ければ最初の h1）
 //   下のタブはホーム・履歴・マイページだけ（main.js が出す）。ほかの画面は ui.js の topBar で「← 題」を出す
 //   知らないハッシュはホーム
+//   起動時に pwa.js の initPwa()（service worker の登録とインストールの案内。§15）
 import { tabBar } from "./ui.js";
+import { initPwa } from "./pwa.js";
 
 const SITE = "16次元診断";
 const ROUTES = {
@@ -56,10 +58,24 @@ function errorView(err) {
   box.setAttribute("role", "alert");
   const h1 = document.createElement("h1");
   h1.className = "a-h1";
-  h1.textContent = "画面を表示できませんでした";
   const p = document.createElement("p");
-  p.textContent = `読み込みなおすと直ることがあります。（${err?.message || err}）`;
-  box.append(h1, p);
+  // つながっていないとき（アプリとして開いて、まだ端末に保存していない画面へ移ったときなど）は、そう伝える
+  if (navigator.onLine === false) {
+    h1.textContent = "インターネットにつながっていません";
+    p.textContent = "この画面はまだ端末に保存されていないため、開けませんでした。つながってから、もう一度開いてください。";
+  } else {
+    h1.textContent = "画面を表示できませんでした";
+    p.textContent = `読み込みなおすと直ることがあります。（${err?.message || err}）`;
+  }
+  // ホーム画面のアプリにはブラウザの「戻る」が無いので、ホームへのリンクを置く
+  const home = document.createElement("p");
+  home.className = "a-error-home";
+  const a = document.createElement("a");
+  a.className = "a-link a-link-tap";
+  a.href = "#home";
+  a.textContent = "ホームへ戻る";
+  home.append(a);
+  box.append(h1, p, home);
   return box;
 }
 
@@ -109,3 +125,4 @@ try {
 } catch { /* 無視 */ }
 window.addEventListener("hashchange", () => { trackDepth(); show(); });
 show();
+initPwa();
