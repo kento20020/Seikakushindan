@@ -1,11 +1,13 @@
 // node tests/app_contact.test.mjs
-// 新しい画面（app/）の「お問い合わせ」（#contact。docs/app-screens.md §17。決定 U39）の DOM の無い部分（app/js/contact_form.js）
+// 新しい画面（app/）の「お問い合わせ」（#contact。docs/app-screens.md §17。決定 U39・U40）の DOM の無い部分（app/js/contact_form.js）
 //  - isConfigured：既定（空）は false。Google フォームの formResponse と entry.数字 4つがそろったときだけ true
+//  - contactMode：既定は "mail"（フォームが空でアドレスがある）。フォームが入れば "form"。どちらも無ければ "off"
+//  - buildMail：件名・本文（CRLF）・mailto: の URL（encodeURIComponent。空白は "+" にしない）
 //  - validate：種類・内容（空・1,000字まで・前後の空白）・返事の連絡先（任意。書いたらメールの形）
 //  - deviceLabel：端末の種類の文。pwa.js の deviceKind（ios・android・other）
 //  - buildBody：entry ごとの中身。内容は前後の空白を除く。返事の連絡先と端末は、あるときだけ
 import assert from "node:assert/strict";
-import { CONTACT_FORM, CONTACT_KINDS, BODY_MAX, isConfigured, countChars, validate, deviceLabel, buildBody } from "../app/js/contact_form.js";
+import { CONTACT_FORM, CONTACT_MAIL, CONTACT_KINDS, BODY_MAX, isConfigured, contactMode, countChars, validate, deviceLabel, buildBody, buildMail } from "../app/js/contact_form.js";
 import { deviceKind } from "../app/js/pwa.js";
 
 let fail = 0, pass = 0;
@@ -50,6 +52,19 @@ test("送り先の形が違うときは送れない", () => {
   assert.equal(isConfigured(withFields({ device: "entry.111" })), false, "重なり");
   assert.equal(isConfigured(null), false);
   assert.equal(isConfigured({ action: ACTION }), false);
+});
+
+// ---------------------------------------------------------------- 送り方
+test("送り方：既定はメール。フォームが入ればフォームが先。どちらも無ければ送れない", () => {
+  assert.equal(CONTACT_MAIL, "bokuhagbpt@gmail.com");
+  assert.equal(contactMode(), "mail");
+  assert.equal(contactMode(CONTACT_FORM, CONTACT_MAIL), "mail");
+  assert.equal(contactMode(CFG), "form");
+  assert.equal(contactMode(CFG, ""), "form");
+  for (const bad of ["", "  ", "bokuhagbpt", "me@example", "a b@example.com", "me@example.com?cc=x@y.jp", "me@example.com#x", "x@y.jp,z@w.jp", "a%3Fb@example.com", null]) {
+    assert.equal(contactMode(CONTACT_FORM, bad), "off", String(bad));
+  }
+  assert.equal(contactMode(withAction("https://docs.google.com/forms/d/e/abc/viewform"), ""), "off", "形の違うフォーム＋アドレスなし");
 });
 
 // ---------------------------------------------------------------- 送る前の確かめ
@@ -104,6 +119,27 @@ test("送る中身：entry ごと。内容は前後の空白を除き、返事�
   assert.deepEqual([...min.keys()], ["entry.111", "entry.222"]);
   assert.equal(buildBody({ kind: "その他", body: "x" }, CFG).has("entry.444"), false, "端末を渡さない（チェックを外した）");
   assert.match(all.toString(), /^entry\.111=%E3%81%86/, "UTF-8 でフォームの形に");
+});
+
+// ---------------------------------------------------------------- メールの中身
+test("メールの中身：件名・本文（CRLF）・mailto: の URL", () => {
+  const m = buildMail({ kind: "うまく動かない", body: "\n  結果が 出ません。\n2行目  \n", device: "iPhone・ホーム画面のアプリ" });
+  assert.equal(m.subject, "16次元診断（試作）のお問い合わせ：うまく動かない");
+  assert.equal(m.text, "種類：うまく動かない\r\n端末：iPhone・ホーム画面のアプリ\r\n\r\n結果が 出ません。\r\n2行目");
+  assert.ok(m.href.startsWith("mailto:bokuhagbpt@gmail.com?subject="), m.href.slice(0, 60));
+  assert.ok(m.href.includes("%0D%0A") && !/%0A/.test(m.href.replace(/%0D%0A/g, "")), "改行は %0D%0A だけ");
+  assert.ok(!m.href.includes("+") && m.href.includes("%20"), "空白は %20（+ にしない）");
+  const q = m.href.slice(m.href.indexOf("?") + 1).split("&");
+  assert.deepEqual(q.map((kv) => kv.split("=")[0]), ["subject", "body"]);
+  assert.equal(decodeURIComponent(q[0].slice("subject=".length)), m.subject);
+  assert.equal(decodeURIComponent(q[1].slice("body=".length)), m.text);
+  // 端末の文が空なら「端末：」の行を出さない。内容は前後の空白を除く
+  const n = buildMail({ kind: "その他", body: "  x  ", device: "" });
+  assert.equal(n.text, "種類：その他\r\n\r\nx");
+  assert.equal(buildMail({ kind: "その他", body: "x" }).text, "種類：その他\r\n\r\nx", "端末を渡さない");
+  // 1,000字の日本語でも href は約 9,000〜10,000字（docs/app-screens.md §17）
+  const long = buildMail({ kind: "ご意見・ご要望", body: "あ".repeat(BODY_MAX), device: "Android・ブラウザ" }).href.length;
+  assert.ok(long > 9000 && long < 10000, String(long));
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

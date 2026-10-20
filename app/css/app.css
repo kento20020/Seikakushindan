@@ -1030,6 +1030,7 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
    画面：お問い合わせ（#contact。docs/app-screens.md §17。app/js/contact.js）
      欄は1枚のカード（form.a-card）の中に縦に並べる。種類はラジオを丸いチップの形で（選んだら薄い赤の地と ✓。色だけに頼らない）
      だめな欄：枠をくすんだ赤にし、下に文（.a-ct-error）。送れなかったときの文もボタンの上に同じ形で
+     メールで送るとき（決定 U40）は、欄の代わりに出す案内 .a-ct-mail（下のほう）
    ====================================================================== */
 .a-ct-intro { margin-top: var(--sp-2); }
 .a-ct-notes { list-style: none; display: flex; flex-direction: column; gap: 2px; margin-top: var(--sp-3); }
@@ -1100,6 +1101,39 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 .a-ct-done-h { display: flex; align-items: flex-start; gap: var(--sp-2); font-size: var(--fs-lg); font-weight: 500; line-height: 1.6; letter-spacing: 0.08em; color: var(--ink); word-break: auto-phrase; }
 .a-ct-done-h > .a-ic { flex: none; margin-top: 0.25em; color: var(--rose); }
 .a-ct-done .a-btn { margin-top: var(--sp-3); }
+/* メールのアプリを開いたあとの案内（送り方が "mail" のとき。§17.3。決定 U40）
+     上：封筒と「メールのアプリが開きます。」・［もう一度メールのアプリを開く］
+     線の下：開かないとき（宛先と［アドレスをコピー］、件名と本文の読むだけの欄と［文をコピー］）
+     線の下：［入力に戻る］と、文字リンクの形の［書いた物を消してマイページへ戻る］
+     宛先と文は、長くても枠の中で折り返す（320px でも横スクロールを出さない） */
+.a-ct-mail { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.a-ct-mail-h { display: flex; align-items: flex-start; gap: var(--sp-2); font-size: var(--fs-lg); font-weight: 500; line-height: 1.6; letter-spacing: 0.08em; color: var(--ink); word-break: auto-phrase; }
+.a-ct-mail-h > .a-ic { flex: none; margin-top: 0.25em; color: var(--rose); }
+.a-ct-mail-lead { margin-top: var(--sp-2); font-size: var(--fs-md); line-height: 1.85; letter-spacing: 0.06em; color: var(--ink-2); word-break: auto-phrase; }
+.a-ct-mail .a-btn { padding-left: var(--sp-5); padding-right: var(--sp-5); letter-spacing: 0.08em; }
+.a-ct-mail .a-btn > .a-ic { width: 20px; height: 20px; }
+.a-ct-mail-fallback, .a-ct-mail-foot { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; padding-top: var(--sp-5); border-top: 1px solid var(--line); }
+.a-ct-mail-sub { font-size: var(--fs-md); font-weight: 700; line-height: 1.6; letter-spacing: 0.08em; color: var(--ink); word-break: auto-phrase; }
+.a-ct-mail-how { margin-top: calc(-1 * var(--sp-2)); }
+.a-ct-mail-label { margin-top: var(--sp-2); margin-bottom: calc(-1 * var(--sp-1)); }
+.a-ct-mail-addr {
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.a-ct-mail-text { min-height: 200px; font-size: 1rem; line-height: 1.7; overflow-wrap: anywhere; }
+.a-ct-mail-msg:empty { display: none; }
+.a-ct-mail-manual { margin-top: calc(-1 * var(--sp-1)); color: var(--ink-2); }
+.a-ct-mail-clear-row { text-align: center; font-size: var(--fs-md); line-height: 1.6; letter-spacing: 0.06em; }
 
 /* ======================================================================
    画面：診断結果の絵の一覧（#images。docs/app-screens.md §14。app/js/images.js）
