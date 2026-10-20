@@ -50,6 +50,27 @@
 .a-cs-intro { display: flex; flex-direction: column; gap: var(--sp-2); padding-top: var(--sp-3); }
 .a-cs-title { margin-bottom: var(--sp-1); }
 .a-cs-intro .a-lead { font-size: var(--fs-md); letter-spacing: 0.08em; }
+/* 書き方の例（見出しの2つの文の下。決定 U41 の1）。小さな文の箱：何を書くか（左）と例（右）。狭い幅でも横にはみ出さない */
+.a-cs-guide {
+  margin-top: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.a-cs-guide-h, .a-cs-guide-list, .a-cs-guide-foot { word-break: auto-phrase; }
+.a-cs-guide-h { margin-bottom: var(--sp-2); color: var(--ink-2); font-weight: 700; letter-spacing: 0.04em; }
+.a-cs-keep { display: inline-block; }
+/* 左の列は6字ほど（「今どうなって／いるか」は狭い幅で2行に）。右の例に幅を残す */
+.a-cs-guide-list { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px var(--sp-3); margin: 0; }
+.a-cs-guide-row { display: contents; }
+.a-cs-guide-row dt { max-width: 6.4em; color: var(--ink-2); line-height: 1.6; }
+.a-cs-guide-row dd { margin: 0; min-width: 0; line-height: 1.6; }
+.a-cs-guide-foot { margin-top: var(--sp-3); padding-top: var(--sp-2); border-top: 1px solid var(--line); }
 .a-cs-form { padding: var(--sp-5) var(--sp-4) var(--sp-4); }
 @media (min-width: 400px) { .a-cs-form { padding-left: var(--sp-5); padding-right: var(--sp-5); } }
 .a-cs-form-head {
@@ -106,6 +127,9 @@
   text-align: left;
 }
 .a-cs-example:hover { border-color: var(--line-strong); background: #fff; }
+/* 例文の小さな題（U41 の2。例文の全文の上に1行） */
+.a-cs-example-label { display: block; margin-bottom: 2px; font-family: var(--serif); font-weight: 700; font-size: var(--fs-sm); letter-spacing: 0.06em; color: var(--rose-ink); }
+.a-cs-example-text { display: block; }
 .a-cs-field { position: relative; }
 .a-cs-text { min-height: 200px; padding-bottom: 40px; }
 .a-cs-count {

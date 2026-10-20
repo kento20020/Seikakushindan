@@ -20,7 +20,7 @@ import { readText } from "../../js/consult/extract.js";
 import { nextQuestion, applyAnswer } from "../../js/consult/needed.js";
 import { applyPatch } from "../../js/consult/context.js";
 import { isLateNight } from "../../js/consult/timefmt.js";
-import { READ_CASES } from "../../tests/fixtures/consult_read_cases.mjs";
+import { CONSULT_EXAMPLES } from "./consult_examples.js";
 import * as M from "../../poc/card/model.js";
 import * as F from "./consult_followup.js";
 import { liveCard, safetyCardView, safetyLine, snapshotOf, savedView, bubbleView, pastCardView } from "./consult_card.js";
@@ -29,8 +29,14 @@ export const MAX_CHARS = 2000;
 const DRAFT_KEY = "seikaku16:app:consult-draft";
 /** 読み込み直したときに続きから開くための印（このタブの間だけ。ほかの画面へ移ったら消す） */
 const ACTIVE_KEY = "seikaku16:app:consult-active";
-/** 「例文を見る」で出す例（tests/fixtures/consult_read_cases.mjs の id。送ったのに返事が来ない／相手からきつい言葉／謝りたい） */
-const EXAMPLE_IDS = ["P1", "P2", "P5"];
+/** 入力の画面の「書き方の例」（決定 U41 の1）：[何を書くか, 例]。「|」は狭い幅で折り返してよい所（文節の切れ目。表示には出ない） */
+const GUIDE_ROWS = [
+  ["いつ・どこで", "（例：|昨日の夜|23時ごろ、|LINEで）"],
+  ["何があったか", "（例：|私が|「いつも直前に決めるよね」と|送ったら、|「じゃあもういいよ」と|返ってきた）"],
+  ["今どうなって|いるか", "（例：|既読のまま|2時間、|返事がない）"],
+  ["今の気持ち", "（例：|不安、|腹が立つ、|悲しい）"],
+  ["どうしたいか", "（例：|今夜のうちに|仲直りしたい、|謝りたい、|少し落ち着きたい）"],
+];
 const TITLE_CHARS = 32;
 
 const draftStore = {
@@ -590,10 +596,10 @@ export function render(root) {
     ta.addEventListener("input", () => { sync(); draftStore.set(ta.value); });
     sync();
 
-    const examples = EXAMPLE_IDS.map(id => READ_CASES.find(c => c.id === id)).filter(Boolean);
+    // 例文（app/js/consult_examples.js。決定 U41 の2）。ボタンの中に、小さな題（あれば）と例文の全文
     const list = h("div", { class: "a-cs-examples", id: "a-cs-examples", hidden: !S.examplesOpen },
       h("p", { class: "a-note" }, "選ぶと、入力欄に入ります。"),
-      h("ul", { class: "a-cs-example-list" }, examples.map(c => h("li", null,
+      h("ul", { class: "a-cs-example-list" }, CONSULT_EXAMPLES.map(c => h("li", null,
         h("button", { type: "button", class: "a-cs-example", onclick: () => {
           const cur = ta.value.trim();
           if (cur && cur !== c.text && !window.confirm("書いた文を、この例文に入れ替えますか？")) return;
@@ -602,7 +608,9 @@ export function render(root) {
           draftStore.set(ta.value);
           setOpen(false);
           ta.focus();
-        } }, c.text)))));
+        } },
+          c.label ? h("span", { class: "a-cs-example-label" }, c.label, h("span", { class: "a-sr" }, "：")) : null,
+          h("span", { class: "a-cs-example-text" }, c.text))))));
     const exBtn = h("button", { type: "button", class: "a-cs-ex-btn", "aria-controls": "a-cs-examples", onclick: () => setOpen(!S.examplesOpen) },
       h("span", null, "例文を見る"), icon("chevron-right", { size: 18 }));
     function setOpen(open) {
@@ -618,7 +626,8 @@ export function render(root) {
         h("div", { class: "a-cs-intro" },
           h("h1", { class: "a-h1 a-cs-title", tabindex: "-1", "data-focus": true }, "なんでも相談する"),
           h("p", { class: "a-lead" }, "今の気持ちや出来事を自由に書いてください。"),
-          h("p", { class: "a-lead" }, "あなたの状況に合わせて、", h("br"), "客観的な視点と具体的なアドバイスをお伝えします。")),
+          h("p", { class: "a-lead" }, "あなたの状況に合わせて、", h("br"), "客観的な視点と具体的なアドバイスをお伝えします。"),
+          guideView()),
         h("section", { class: "a-card a-cs-form", "aria-labelledby": "a-cs-label" },
           h("div", { class: "a-cs-form-head" },
             h("label", { class: "a-cs-label-main", id: "a-cs-label", for: "a-cs-text" }, icon("pencil"), h("span", null, "相談内容")),
@@ -629,6 +638,17 @@ export function render(root) {
       ],
       dock: submit,
     };
+  }
+  /** 入力の画面の「書き方の例」（見出しの2つの文の下。決定 U41 の1）。小さな箱に、何を書くかと例の表、下に一言 */
+  function guideView() {
+    // 文節のまとまり（途中で折り返さない。幅が足りなければ中でも折り返す）
+    const keep = (...parts) => parts.map(t => h("span", { class: "a-cs-keep" }, t));
+    return h("div", { class: "a-cs-guide" },
+      h("p", { class: "a-cs-guide-h", id: "a-cs-guide-h" }, keep("たとえば、こんなことを書くと", "伝わりやすくなります")),
+      h("dl", { class: "a-cs-guide-list", "aria-labelledby": "a-cs-guide-h" }, GUIDE_ROWS.map(([what, ex]) =>
+        h("div", { class: "a-cs-guide-row" }, h("dt", null, keep(...what.split("|"))), h("dd", null, keep(...ex.split("|")))))),
+      h("p", { class: "a-cs-guide-foot" },
+        keep("相手の言葉は「」で", "そのまま書くと、", "読み取りやすくなります。", "全部そろっていなくても", "大丈夫です。", "足りないところは、", "あとで少しだけ聞きます。")));
   }
   /** 入力の画面の上：「前の続き：（書いた文の冒頭）」［続きから］［新しく相談する］ */
   function offerView(rec) {

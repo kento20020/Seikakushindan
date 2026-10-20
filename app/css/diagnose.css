@@ -9,7 +9,10 @@
                   .a-dg-kicker／.a-dg-stem（W の場面）＋ .a-dg-ask／.a-dg-prompt（X の問い）／.a-dg-pair > .a-dg-ans.a-dg-ans-left|right
                   .a-dg-ans：.a-dg-ans-dot（丸い矢印）＋ .a-dg-ans-text（縦線つきの文）。.is-hot（つかんで動かしている）・.a-dg-moving（前面）
                   .a-dg-badge（上・下のときの「問題を変える」「戻る」）
-                .a-dg-hint（手のアイコンと案内）／.a-dg-swap（問題を変える｜残り n 回）／.a-dg-foot（戻る・中断）
+                .a-dg-hint（手のアイコンと案内の1行）／.a-dg-sep（細い短い線）／.a-dg-swap（問題を変える｜残り n 回）／.a-dg-foot（戻る・中断）
+              目立たせ方（決定 U41 の4。目線は 問い → 回答2枚 → ほか）：1 問い（「この場面で」は小さな札、場面の文がいちばん大きく、
+                「取りやすいのはどちら？」は文字の色・太字ですぐ下に）／2 回答2枚／3 ほか（上の題と数・案内・問題を変える・中断）は薄く小さく。
+                薄い文字は --muted（地・面の上で 4.5:1 以上）より薄くしない
                 入る動き：.a-dg-enter-left|right（左右で答えた直後）／-bottom（問題を変えた直後）／-top（戻った直後）
    結果       .a-dg-res > .a-dg-hero（主軸の絵と傾向の名前）
               .a-dg-cards > .a-dg-pc.a-dg-pc-main|support|contra|shape（左の帯）
@@ -59,7 +62,7 @@
   box-shadow: inset 0 0 0 1px var(--line);
   color: var(--ink-2);
 }
-/* 回答の丸（左＝くすんだ赤・右＝灰青）を小さく重ねる */
+/* 回答の丸（上の回答＝くすんだ赤の →・下の回答＝灰青の ←。決定 U41 の6）を小さく重ねる */
 .a-dg-how-pair { position: relative; background: transparent; box-shadow: none; }
 .a-dg-how-pair > span {
   position: absolute;
@@ -69,8 +72,8 @@
   border-radius: 50%;
   color: #fff;
 }
-.a-dg-dot-l { left: 0; top: 4px; background: var(--rose); }
-.a-dg-dot-r { right: 0; bottom: 4px; background: var(--slate); box-shadow: 0 0 0 2px var(--surface); }
+.a-dg-dot-top { right: 0; top: 4px; background: var(--rose); }
+.a-dg-dot-bottom { left: 0; bottom: 4px; background: var(--slate); box-shadow: 0 0 0 2px var(--surface); }
 
 .a-dg-note { margin-top: var(--sp-4); }
 .a-dg-actions { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-6); }
@@ -81,12 +84,16 @@
    質問（#diagnose/q。画像3）
    ====================================================================== */
 .a-dg-count {
-  font-size: var(--fs-base);
-  letter-spacing: 0.14em;
-  color: var(--ink-2);
+  font-size: var(--fs-md);
+  letter-spacing: 0.1em;
+  color: var(--muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+/* 上の題「診断」は質問より目立たせない（U41 の4） */
+.a-dg-q .a-top-title { font-size: var(--fs-md); color: var(--muted); }
+.a-dg-q .a-top-title::before, .a-dg-q .a-top-title::after { background: var(--line-strong); opacity: 1; }
+.a-dg-q .a-top-back { color: var(--ink-2); }
 
 .a-dg-progress {
   height: 6px;
@@ -132,8 +139,9 @@
   align-items: center;
   justify-content: center;
   gap: var(--sp-2);
-  font-size: var(--fs-md);
-  letter-spacing: 0.16em;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  letter-spacing: 0.1em;
   color: var(--muted);
   text-align: center;
 }
@@ -153,14 +161,20 @@
   text-wrap: balance;
   word-break: auto-phrase;
 }
-.a-dg-prompt { font-size: clamp(1.3rem, 6vw, 1.625rem); line-height: 1.55; letter-spacing: 0.08em; }
-.a-dg-stem, .a-dg-prompt-practice { font-size: clamp(1.1875rem, 5.2vw, 1.375rem); line-height: 1.7; letter-spacing: 0.08em; }
+/* 問いの字間は文として読める程度に（U41 の4。前は 0.08〜0.12em で字がばらけて見えた） */
+.a-dg-prompt { font-size: clamp(1.3rem, 6vw, 1.625rem); line-height: 1.55; letter-spacing: 0.04em; }
+.a-dg-stem, .a-dg-prompt-practice { font-size: clamp(1.1875rem, 5.2vw, 1.375rem); line-height: 1.7; letter-spacing: 0.04em; }
+/* 「取りやすいのはどちら？」：場面の文のすぐ下に、文字の色・太字で（灰色の添え書きに見せない） */
 .a-dg-ask {
-  margin-top: var(--sp-2);
+  margin-top: var(--sp-1);
   text-align: center;
-  font-size: var(--fs-base);
-  letter-spacing: 0.12em;
-  color: var(--ink-2);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  text-wrap: balance;
+  word-break: auto-phrase;
 }
 .a-dg-prompt:focus, .a-dg-stem:focus { outline: none; }
 
@@ -168,10 +182,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  margin-top: var(--sp-5);
+  margin-top: var(--sp-6);
 }
 
-/* 回答のカード（上＝左の回答：丸・縦線・文／下＝右の回答：文・縦線・丸） */
+/* 回答のカード（決定 U41 の6：上＝選択肢 left〔.a-dg-ans-left〕：文・縦線・右に丸「→」／下＝選択肢 right〔.a-dg-ans-right〕：左に丸「←」・縦線・文） */
 .a-dg-ans {
   position: relative;
   display: flex;
@@ -191,23 +205,24 @@
   font-size: 1.0625rem;
   font-weight: 500;
   line-height: 1.85;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-align: left;
   transform-origin: 50% 85%;
   touch-action: none;
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), opacity 0.15s var(--ease);
 }
-/* 角の薄い円（画像のとおり。左は赤、右は灰青） */
+/* 角の薄い円（上のカードは赤で左上、下のカードは灰青で右下。丸の反対の角）。文と張り合わないよう薄く（U41 の4・6） */
 .a-dg-ans::before {
   content: "";
   position: absolute;
   z-index: 0;
   width: 210px; height: 210px;
   border-radius: 50%;
+  opacity: 0.45;
   pointer-events: none;
 }
-.a-dg-ans-left::before { top: -118px; right: -86px; background: rgb(240 224 219 / 0.7); }
-.a-dg-ans-right::before { bottom: -124px; left: -96px; background: rgb(227 229 234 / 0.75); }
+.a-dg-ans-left::before { top: -118px; left: -86px; background: rgb(240 224 219 / 0.7); }
+.a-dg-ans-right::before { bottom: -124px; right: -96px; background: rgb(227 229 234 / 0.75); }
 .a-dg-ans > * { position: relative; z-index: 1; }
 .a-dg-ans:hover { border-color: var(--line-strong); }
 .a-dg-ans:active { box-shadow: 0 1px 2px rgb(74 52 40 / 0.06); }
@@ -233,8 +248,8 @@
   align-items: center;
   word-break: auto-phrase;
 }
-.a-dg-ans-left .a-dg-ans-text { padding-left: 20px; border-left: 1px solid #E6CFCA; }
-.a-dg-ans-right .a-dg-ans-text { padding-right: 20px; border-right: 1px solid #D5D8E0; }
+.a-dg-ans-left .a-dg-ans-text { padding-right: 20px; border-right: 1px solid #E6CFCA; }
+.a-dg-ans-right .a-dg-ans-text { padding-left: 20px; border-left: 1px solid #D5D8E0; }
 
 /* 前に選んだ回答（戻ったとき） */
 .a-dg-ans.is-picked { border-color: var(--rose); box-shadow: 0 0 0 1px var(--rose), var(--shadow); }
@@ -259,7 +274,8 @@
 .a-dg-ans.is-hot.a-dg-ans-left { border-color: var(--rose); }
 .a-dg-ans.is-hot.a-dg-ans-right { border-color: var(--slate-ink); }
 .a-dg-qcard.is-ready .a-dg-ans.is-hot .a-dg-ans-dot { transform: scale(1.08); box-shadow: 0 0 0 6px rgb(255 255 255 / 0.7); }
-.a-dg-qcard[data-swipe="left"] .a-dg-ans-right, .a-dg-qcard[data-swipe="right"] .a-dg-ans-left { opacity: 0.55; }
+/* 選ばない方を薄く（右へ＝上の回答を選ぶので下を、左へ＝下の回答を選ぶので上を。U41 の6） */
+.a-dg-qcard[data-swipe="right"] .a-dg-ans-right, .a-dg-qcard[data-swipe="left"] .a-dg-ans-left { opacity: 0.55; }
 .a-dg-moving { z-index: 2; }
 
 /* 上・下（問題を変える・戻る）のときの印 */
@@ -298,63 +314,65 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
 @keyframes a-dg-in-bottom { from { transform: translateY(48px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes a-dg-in-top { from { transform: translateY(-48px); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* 下の案内・問題を変える・中断 */
-.a-dg-hint { margin-top: var(--sp-5); text-align: center; color: var(--ink-2); }
-.a-dg-hand {
+/* 下の案内・問題を変える・中断（どれも質問より薄く小さく。U41 の4） */
+.a-dg-hint { margin-top: var(--sp-5); text-align: center; }
+.a-dg-hint-text {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: var(--sp-3);
-  color: var(--ink-2);
-}
-.a-dg-hand .a-ic-hand { stroke-width: 1.2; }
-.a-dg-hint-text {
-  margin-top: var(--sp-1);
-  font-size: var(--fs-md);
-  line-height: 1.75;
-  letter-spacing: 0.12em;
+  gap: 2px var(--sp-2);
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+  letter-spacing: 0.06em;
   color: var(--muted);
 }
-.a-dg-kbd { margin-top: var(--sp-2); font-size: var(--fs-xs); line-height: 1.7; letter-spacing: 0.04em; color: var(--muted); }
-.a-dg-q .a-or { margin: var(--sp-3) 0; }
+.a-dg-hand { display: inline-flex; align-items: center; gap: 2px; color: var(--muted); }
+.a-dg-hand .a-ic-hand { stroke-width: 1.4; }
+.a-dg-kbd { margin-top: var(--sp-1); font-size: var(--fs-xs); line-height: 1.7; letter-spacing: 0.04em; color: var(--muted); }
+/* 前の「または」の区切り：文字を外し、細い短い線だけ */
+.a-dg-sep { width: 56px; height: 1px; margin: var(--sp-4) auto; background: var(--line-strong); }
 
 .a-dg-tools { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); }
+/* 問題を変える｜残り n 回：枠だけの小さめのボタン（高さ 44px）。数は主の色にしない */
 .a-dg-swap {
-  width: min(100%, 340px);
-  min-height: 58px;
+  min-height: 44px;
   gap: 0;
-  padding: 8px 24px;
-  border-color: #C9ABA5;
-  background: rgb(252 250 247 / 0.7);
-}
-.a-dg-swap:hover { border-color: var(--rose); background: var(--surface-2); }
-.a-dg-swap > .a-ic { width: 26px; height: 26px; margin-right: 14px; color: var(--ink); }
-.a-dg-swap-label { font-size: var(--fs-lg); font-weight: 700; letter-spacing: 0.14em; }
-.a-dg-swap-left {
-  margin-left: 18px;
-  padding-left: 18px;
-  border-left: 1px solid var(--line-strong);
-  font-size: var(--fs-md);
-  letter-spacing: 0.08em;
+  padding: 6px 20px;
+  border-color: var(--line-strong);
+  background: transparent;
   color: var(--ink-2);
+  font-size: var(--fs-md);
+}
+.a-dg-swap:hover { border-color: var(--field); background: var(--surface-2); color: var(--ink); }
+.a-dg-swap > .a-ic { width: 18px; height: 18px; margin-right: 8px; color: currentColor; }
+.a-dg-swap-label { font-size: var(--fs-md); font-weight: 500; letter-spacing: 0.08em; }
+.a-dg-swap-left {
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line-strong);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.06em;
+  color: var(--muted);
   white-space: nowrap;
 }
-.a-dg-swap-left b { margin: 0 2px; font-size: 1.5rem; font-weight: 500; line-height: 1; color: var(--rose-ink); font-variant-numeric: tabular-nums; }
+.a-dg-swap-left b { margin: 0 1px; font-size: var(--fs-sm); font-weight: 500; color: inherit; font-variant-numeric: tabular-nums; }
 .a-dg-skipnote { max-width: 340px; text-align: center; }
 .a-dg-practice-note { margin-top: var(--sp-4); text-align: center; }
 
+/* 戻る・中断：小さな薄い文字のリンク（下線は薄い線の色。中断は 390px で1行） */
 .a-dg-foot {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--sp-1);
-  margin-top: var(--sp-4);
-  font-size: var(--fs-md);
-  letter-spacing: 0.06em;
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.04em;
   text-align: center;
 }
-.a-dg-foot .a-link { color: var(--ink-2); }
-.a-dg-foot .a-link:hover { color: var(--rose-ink); }
+.a-dg-foot .a-link, .a-dg-foot .a-link:visited { color: var(--muted); text-decoration-color: var(--line-strong); }
+.a-dg-foot .a-link:hover { color: var(--ink-2); text-decoration-color: currentColor; }
 
 /* ======================================================================
    結果（#result。画像6）
@@ -580,7 +598,6 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
    色（§13）：A 側＝その軸の色（●は --axis-deep＝面との比 3 以上、帯は --axis）、B 側＝紺 --navy、まんなか＝墨。
    --axis・--axis-deep は result.js が行ごとに置く（値は app/js/axis_art.js）。
    文字は墨のまま（軸の色は文字には面との比 4.5 が取れないため）。「〜寄り」の前に色の点を添え、文字でも「〜寄り」と出すので色だけに頼らない */
-.a-dg-axes-note { margin-bottom: var(--sp-3); }
 .a-dg-axis-list { list-style: none; padding-top: var(--sp-1); padding-bottom: var(--sp-1); }
 .a-dg-axis {
   --navy: #22315A;
@@ -741,10 +758,10 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
 @media (max-width: 359px) {
   .a-dg-ans { gap: 14px; padding: 18px 16px; font-size: var(--fs-base); }
   .a-dg-ans-dot { width: 52px; height: 52px; }
-  .a-dg-ans-left .a-dg-ans-text { padding-left: 14px; }
-  .a-dg-ans-right .a-dg-ans-text { padding-right: 14px; }
-  .a-dg-swap { padding: 8px 16px; }
-  .a-dg-swap-left { margin-left: 12px; padding-left: 12px; }
+  .a-dg-ans-left .a-dg-ans-text { padding-right: 14px; }
+  .a-dg-ans-right .a-dg-ans-text { padding-left: 14px; }
+  .a-dg-swap { padding: 6px 16px; }
+  .a-dg-swap-left { margin-left: 10px; padding-left: 10px; }
 }
 
 /* ---------------------------------------------------------------- 動きを減らす設定 */
