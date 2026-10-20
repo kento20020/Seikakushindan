@@ -597,7 +597,6 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
    色（§13）：A 側＝その軸の色（●は --axis-deep＝面との比 3 以上、帯は --axis）、B 側＝紺 --navy、まんなか＝墨。
    --axis・--axis-deep は result.js が行ごとに置く（値は app/js/axis_art.js）。
    文字は墨のまま（軸の色は文字には面との比 4.5 が取れないため）。「〜寄り」の前に色の点を添え、文字でも「〜寄り」と出すので色だけに頼らない */
-.a-dg-axes-note { margin-bottom: var(--sp-3); }
 .a-dg-axis-list { list-style: none; padding-top: var(--sp-1); padding-bottom: var(--sp-1); }
 .a-dg-axis {
   --navy: #22315A;
