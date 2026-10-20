@@ -9,7 +9,7 @@
 //     カードのいちばん下に、どの状態でも「ホーム画面で使うのをやめるには」（<details>。§15.11。決定 U39）。
 //       今の端末（pwa.js の currentDevice：iPhone・Android・パソコン）の手順を先に、ほかの端末は「ほかの端末」の下に
 //   この端末の記録：「すべて消す」（確かめてから。app/ の履歴と結果の印、診断の回答と結果。今の画面と共通の保存も消える）
-//   お問い合わせ（§17。決定 U39）：「お問い合わせ・不具合の報告」（→ #contact。Google フォームへ送る画面）
+//   お問い合わせ（§17。決定 U39・U40）：「お問い合わせ・不具合の報告」（→ #contact。今はメールのアプリで送る画面。Google フォームを入れればフォームへ）
 //   小さく「試作の画面です」と、今の画面（../#three）へのリンク
 import { h, icon, eyebrow, sectionHead, rowLink, toast, go } from "./ui.js";
 import { loadRecords, clearAll } from "./local.js";
