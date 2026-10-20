@@ -62,7 +62,7 @@
   box-shadow: inset 0 0 0 1px var(--line);
   color: var(--ink-2);
 }
-/* 回答の丸（左＝くすんだ赤・右＝灰青）を小さく重ねる */
+/* 回答の丸（上の回答＝くすんだ赤の →・下の回答＝灰青の ←。決定 U41 の6）を小さく重ねる */
 .a-dg-how-pair { position: relative; background: transparent; box-shadow: none; }
 .a-dg-how-pair > span {
   position: absolute;
@@ -72,8 +72,8 @@
   border-radius: 50%;
   color: #fff;
 }
-.a-dg-dot-l { left: 0; top: 4px; background: var(--rose); }
-.a-dg-dot-r { right: 0; bottom: 4px; background: var(--slate); box-shadow: 0 0 0 2px var(--surface); }
+.a-dg-dot-top { right: 0; top: 4px; background: var(--rose); }
+.a-dg-dot-bottom { left: 0; bottom: 4px; background: var(--slate); box-shadow: 0 0 0 2px var(--surface); }
 
 .a-dg-note { margin-top: var(--sp-4); }
 .a-dg-actions { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-6); }
@@ -185,7 +185,7 @@
   margin-top: var(--sp-6);
 }
 
-/* 回答のカード（上＝左の回答：丸・縦線・文／下＝右の回答：文・縦線・丸） */
+/* 回答のカード（決定 U41 の6：上＝選択肢 left〔.a-dg-ans-left〕：文・縦線・右に丸「→」／下＝選択肢 right〔.a-dg-ans-right〕：左に丸「←」・縦線・文） */
 .a-dg-ans {
   position: relative;
   display: flex;
@@ -211,7 +211,7 @@
   touch-action: none;
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), opacity 0.15s var(--ease);
 }
-/* 角の薄い円（画像のとおり。左は赤、右は灰青）。文と張り合わないよう薄く（U41 の4） */
+/* 角の薄い円（上のカードは赤で左上、下のカードは灰青で右下。丸の反対の角）。文と張り合わないよう薄く（U41 の4・6） */
 .a-dg-ans::before {
   content: "";
   position: absolute;
@@ -221,8 +221,8 @@
   opacity: 0.45;
   pointer-events: none;
 }
-.a-dg-ans-left::before { top: -118px; right: -86px; background: rgb(240 224 219 / 0.7); }
-.a-dg-ans-right::before { bottom: -124px; left: -96px; background: rgb(227 229 234 / 0.75); }
+.a-dg-ans-left::before { top: -118px; left: -86px; background: rgb(240 224 219 / 0.7); }
+.a-dg-ans-right::before { bottom: -124px; right: -96px; background: rgb(227 229 234 / 0.75); }
 .a-dg-ans > * { position: relative; z-index: 1; }
 .a-dg-ans:hover { border-color: var(--line-strong); }
 .a-dg-ans:active { box-shadow: 0 1px 2px rgb(74 52 40 / 0.06); }
@@ -248,8 +248,8 @@
   align-items: center;
   word-break: auto-phrase;
 }
-.a-dg-ans-left .a-dg-ans-text { padding-left: 20px; border-left: 1px solid #E6CFCA; }
-.a-dg-ans-right .a-dg-ans-text { padding-right: 20px; border-right: 1px solid #D5D8E0; }
+.a-dg-ans-left .a-dg-ans-text { padding-right: 20px; border-right: 1px solid #E6CFCA; }
+.a-dg-ans-right .a-dg-ans-text { padding-left: 20px; border-left: 1px solid #D5D8E0; }
 
 /* 前に選んだ回答（戻ったとき） */
 .a-dg-ans.is-picked { border-color: var(--rose); box-shadow: 0 0 0 1px var(--rose), var(--shadow); }
@@ -274,7 +274,8 @@
 .a-dg-ans.is-hot.a-dg-ans-left { border-color: var(--rose); }
 .a-dg-ans.is-hot.a-dg-ans-right { border-color: var(--slate-ink); }
 .a-dg-qcard.is-ready .a-dg-ans.is-hot .a-dg-ans-dot { transform: scale(1.08); box-shadow: 0 0 0 6px rgb(255 255 255 / 0.7); }
-.a-dg-qcard[data-swipe="left"] .a-dg-ans-right, .a-dg-qcard[data-swipe="right"] .a-dg-ans-left { opacity: 0.55; }
+/* 選ばない方を薄く（右へ＝上の回答を選ぶので下を、左へ＝下の回答を選ぶので上を。U41 の6） */
+.a-dg-qcard[data-swipe="right"] .a-dg-ans-right, .a-dg-qcard[data-swipe="left"] .a-dg-ans-left { opacity: 0.55; }
 .a-dg-moving { z-index: 2; }
 
 /* 上・下（問題を変える・戻る）のときの印 */
@@ -757,8 +758,8 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
 @media (max-width: 359px) {
   .a-dg-ans { gap: 14px; padding: 18px 16px; font-size: var(--fs-base); }
   .a-dg-ans-dot { width: 52px; height: 52px; }
-  .a-dg-ans-left .a-dg-ans-text { padding-left: 14px; }
-  .a-dg-ans-right .a-dg-ans-text { padding-right: 14px; }
+  .a-dg-ans-left .a-dg-ans-text { padding-right: 14px; }
+  .a-dg-ans-right .a-dg-ans-text { padding-left: 14px; }
   .a-dg-swap { padding: 6px 16px; }
   .a-dg-swap-left { margin-left: 10px; padding-left: 10px; }
 }
