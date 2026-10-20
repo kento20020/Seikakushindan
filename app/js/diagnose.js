@@ -99,7 +99,7 @@ function startView() {
     topBar({ title: "診断" }),
     h("section", { class: "a-dg-intro", "aria-labelledby": "a-dg-title" },
       h("h1", { class: "a-dg-title", id: "a-dg-title", "data-focus": "" }, phrase("左か、右か。"), phrase("迷ったら問題を変える")),
-      h("p", { class: "a-lead a-dg-lead" }, "どの質問も、2つの文のうち自分に近い方を選ぶだけ。")),
+      h("p", { class: "a-lead a-dg-lead" }, "どの質問も、2つの選択肢のうち自分に近い方を選ぶだけ。")),
     h("ul", { class: "a-card a-dg-how", "aria-label": "答え方" },
       h("li", null,
         h("span", { class: "a-dg-how-ic a-dg-how-pair", "aria-hidden": "true" },
