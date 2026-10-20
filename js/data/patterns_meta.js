@@ -214,7 +214,7 @@ export const PATTERN_META = [
 "importance": 2.5,
 "scale": 10.0,
 "contra": false,
-"headline": "\"ちょっと待って\"は早い。本題は遅い。",
+"headline": "\"ちょっと待って\"が出るのは早い。本題は遅い。",
 "cond": {
 "type": "basic",
 "d": 2,
