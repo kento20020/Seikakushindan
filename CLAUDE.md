@@ -1,6 +1,6 @@
 # CLAUDE.md — 16次元診断（引き継ぎメモ）
 
-このリポジトリで作業する Claude Code 向けの引き継ぎです。最終更新 2026-10-20（相談の入力 U14「書いて、足りない分だけ聞く」、Figma は使わない U15、三択のスワイプの形の案 U27、既定は C「触った回答だけ」U28、新しい画面 `app/` U29、診断結果の絵の一覧 `app/#images` U34、新しい画面を Android でインストールできる PWA に U35、まんなかの軸の絵 U36、iPhone でも PWA に U37、診断結果の一覧 `app/#types` U38、お問い合わせ `app/#contact` とホーム画面で使うのをやめる方法 U39、お問い合わせの送り先をメールに U40）。
+このリポジトリで作業する Claude Code 向けの引き継ぎです。最終更新 2026-10-20（相談の入力 U14「書いて、足りない分だけ聞く」、Figma は使わない U15、三択のスワイプの形の案 U27、既定は C「触った回答だけ」U28、新しい画面 `app/` U29、診断結果の絵の一覧 `app/#images` U34、新しい画面を Android でインストールできる PWA に U35、まんなかの軸の絵 U36、iPhone でも PWA に U37、診断結果の一覧 `app/#types` U38、お問い合わせ `app/#contact` とホーム画面で使うのをやめる方法 U39、お問い合わせの送り先をメールに U40、新しい画面の診断を固定24問（v4）に U42）。
 **新しいセッションでは、まず `docs/session-log-2026-10-16.md` の §4（返事待ち）と §9（2026-10-17 の続き）を読んでから始める。**
 詳しい仕様は README.md と docs/ にある。ここは「全体像・決まりごと・今どこまで進んでいて次に何をするか」をまとめる。
 
@@ -45,6 +45,7 @@
 | `?sw=card`・`?sw=a`・`?sw=b`・`?sw=c` | **三択のスワイプの形**（決定 U27・U28）。**c＝指を置いた回答だけが、その側へだけ動く（既定）**／card＝カードごと（前の既定）／a＝回答2枚がひとまとまりで動き、質問文は動かない／b＝左へは左の回答だけ、右へは右の回答だけ。上（問題を変える）・下（戻る）はどの形でもカード全体。既定は `js/ui_flags.js` の `DEFAULT_SWIPE`。詳しくは `docs/swipe-variants.md` |
 | `?dev=1` | **開発・検証用の表示**（設問の版、サンプル、内部の段階名、点数の内訳、5択版との比較、相談の判定・プロンプトなど）。利用者向けの既定では隠す（クラス `dev-only`。機能は消していない。決定 U10）。`?ui=` `?qv=` `?fb=` `?sw=` と組み合わせられる |
 | `app/` | **新しい画面（試作ができた。決定 U29）**。持ち主の画像6枚（`docs/mockups/2026-10-18/`）をもとにしたホーム・診断・結果・相談・アカウント・履歴・マイページ。診断と相談の中身は今の JS を使い回し、見た目だけ新しい（グレージュ・くすんだ赤・明朝）。`app/#images` は診断結果の絵の一覧（絵が無い枠は「準備中」。決定 U34）。`app/#types` は利用者向けの診断結果の一覧（8軸×3のタイプ図鑑。24タイプの絵と短い説明、結果があれば「あなたの型」の印。決定 U38）。Android の Chrome でホーム画面に追加できる PWA（マイページの「アプリとして使う」から。決定 U35）。iPhone も Safari などの共有ボタンから追加できる（手順・起動画面・Safari とアプリのあいだで診断を移す引き継ぎのコード。決定 U37）。マイページに「ホーム画面で使うのをやめるには」と、`app/#contact` のお問い合わせ（今は利用者のメールのアプリで運営者のメール bokuhagbpt@gmail.com へ。決定 U40。`app/js/contact_form.js` に Google フォームを入れればそちらが先。決定 U39）。仕様は `docs/app-screens.md` |
+| `app/?dv=v3`・`app/?dv=v4` | **新しい画面の診断の版**（決定 U42）。**`app/` の新しい診断の既定は固定24問（v4）**。`?dv=v3` で三択 v3（64〜80問）、`?dv=v4` で24問。既定は `app/js/diagnosis_version.js` の `DEFAULT_DIAGNOSIS_VERSION`（`"v3"` にすると80問の三択に戻る）。途中の三択は三択のまま続き、三択の結果は三択の結果の画面で出る。仕様は `docs/diagnosis-v4.md` |
 | `#consult` | 相談（試作）。状況のタップ入力 → 次の一手カード。AI は未接続で、決まった文型で答える |
 | `poc/card/` | **案D の流れと次の一手カード（統合1・統合3）の動く試作**。書く → （兆しがあるときだけ）安全の確認 → こう読み取りました → 足りない問 → カード。`?v=1|3` で並び、`?compare=1` で左右に見比べ（900px 以上）。今の画面には入れていない（別のページ） |
 | `?five=1#diagnose` ほか `#result` `#logic` `#questions` `#design` | 旧版（5択）。コードは残してあるが、表には出していない |
@@ -86,6 +87,8 @@
 | --- | --- |
 | 解釈パターン本文 | `docs/design.md`。`python3 tools/build_patterns.py` で `js/data/patterns_text_*.js` を生成するので、生成物を直接直さない |
 | 三択の設問 | `js/data/questions3.js`（v1）、`js/data/questions3_v2.js`（v2）、`js/data/questions3_v3.js`（v3。v2 を元に W1-1・W3-3・W3-4 の3問を差し替え。変更点は `changesFromV2`）。場面例は `js/data/scenes_v2.js`（v2・v3 共通） |
+| 24問の設問（v4） | `js/data/questions4.js`（24問の全文・固定の出題順・5段階のラベル・「判断できない」・開始画面の文。持ち主の仕様書（2026-10-20）のとおり） |
+| 24問の採点と結果の文（v4） | `js/engine4.js`（`classifyDomain`・主軸と補足・組み合わせ・状態の見出しと本文）。保存と再開は `js/ui/four_store.js`。仕様は `docs/diagnosis-v4.md` |
 | 傾向の絵と一言 | `js/data/type_images.js`。絵は `img/types/<1A〜8B>.jpg`（960×960） |
 | 相談の判定表 | `js/consult/rules.js`（点数）、`js/consult/judge.js`（判定）。仕様は `docs/consult-scoring.md` |
 | 相談の文言 | `js/consult/texts.js`。カードの文型、理由の文型、相手の2択の質問 |
@@ -106,6 +109,8 @@ img/icons.svg                    線のアイコン（<symbol>。js/ui/dom.js �
 js/engine.js, adaptive.js        5択版の判定・可変質問（旧版）
 js/engine3.js, adaptive3.js      三択版の判定・出題の流れ（domainStates3 / domainFlags3 / lowConfDomains3）
 js/three_version.js              三択の設問の版（v1/v2/v3）の切り替え。v3 のロジックは v2 と同じ（logic.id も "v2"）
+js/engine4.js, data/questions4.js, ui/four_store.js  24問版（v4。決定 U42）の採点・設問・保存（キー seikaku16:four:v1）。画面は app/js/diagnose4.js・result4.js
+app/js/diagnosis_version.js      新しい画面の診断の版（DEFAULT_DIAGNOSIS_VERSION＝"v4"、?dv=v3|v4、今の診断の版）
 js/data/questions3*.js           三択の設問（questions3.js＝v1、_v2.js＝v2、_v3.js＝v3）
 js/ui/three*.js, swipe.js        三択の画面（結果画面に type_images の部品）
 js/ui/feedback.js, feedback_*.js テスト協力モード（送信テキスト 16DFB1 形式）、admin.html と js/admin/ が集計（同じ文の設問は版をまたいで1行）
@@ -156,7 +161,8 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 | `type-images.md` | 傾向の絵の16枠と差し替え手順 |
 | `marketing-plan.md` | 集客計画（広がる仕組み → SNS → 検索） |
 | `test-results.md` | テスト結果のまとめ（6人）。一致率、問題のある設問、ロジック変更の影響、次にやること |
-| `decisions.md` | **決定記録**。K1〜K5、D1〜D7、A1〜A7、U1〜U40 |
+| `decisions.md` | **決定記録**。K1〜K5、D1〜D7、A1〜A7、U1〜U42（U41 は別のブランチ） |
+| `diagnosis-v4.md` | 24問版の診断（v4。決定 U42）：三択との違い、問いと順番、画面、採点（状態の表）、結果の表示と文、保存の形、ほかの画面と相談への連携、80問（三択）への戻し方 |
 | `ui-ux.md` | UI/UX 設計（進行中）。戦略・体験・世界観の決定（U1〜U8）、次に決める構造、検証の方法 |
 | `ui-audit.md` | UI の現状分析（撮影・評価・重要度順の改善点）、デザイン方針とトークン案、改善計画（段階0〜3 承認済み。段階0・1 実装済み）。改善前の画面は `ui-audit/before/` |
 | `ui-design-thinking.md` | 相談の体験のデザイン思考。ペルソナ6人、課題と問い、入力・タップの問・カードの順番・待つ間・診断とのつなぎの案をペルソナごとに比較、組み合わせ3案（案A「場面から」を推奨）と試し方。§6 に**採用した案D「書いて、足りない分だけ聞く」**（流れ、要る項目の決め方、試作10件の結果、弱いところ、作るときの形） |
@@ -170,7 +176,8 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
 ## 6. 今どこまで進んでいるか
 
 - **診断**
-  - 三択 v3 が既定（2026-10-16）。v2（2026-10-10）の W1-1・W3-3・W3-4 だけを差し替えた版で、ロジックは v2 と同じ（決定 K5）
+  - **新しい画面 `app/` の新しい診断は固定24問（v4）が既定**（2026-10-20。決定 U42。持ち主の仕様書のとおり。`docs/diagnosis-v4.md`）。三択 v3 は残してあり、`DEFAULT_DIAGNOSIS_VERSION`（`app/js/diagnosis_version.js`）か `?dv=v3` で戻る。今の画面 `/#three` は三択 v3 のまま。v4 は精度を実測したものではなく、まだ誰も受けていない
+  - 三択 v3 が既定（2026-10-16。今の画面 `/#three`。`app/` では `?dv=v3`）。v2（2026-10-10）の W1-1・W3-3・W3-4 だけを差し替えた版で、ロジックは v2 と同じ（決定 K5）
   - 5人テスト（v1）のあと、v2 を1人で確認した。逆側に外した判定は0件。数字のまとめは `docs/test-results.md`、原文は `data/testers/`
   - W1-1 が答えにくい・W3-3・W3-4 は全員 B だった問題は、v3 で差し替え済み（**未検証**。v3 で受けた人はまだいない）
   - 未解決：追加質問で上限の80問に届きやすい、全員が「長い」と回答
@@ -195,6 +202,7 @@ tools/build_patterns.py          docs/design.md → パターン本文 JS
   - Website と残る差：カードへの Website の中身の入れ方、診断の中身（タイプ・全問・短い版）、実在の2人とテスターの回答の公開（D7）、ペルソナ（`docs/session-log-2026-10-16.md` §9）
   - 骨組みはデザインキャンバス（§8）
 - **戻せる地点**
+  - 新しい画面の診断を80問（三択 v3）に戻す：`app/js/diagnosis_version.js` の `DEFAULT_DIAGNOSIS_VERSION` を `"v3"`、その場では `app/?dv=v3`（決定 U42）
   - 三択 v1 だけの状態：コミット `2fc9f11`
   - 設問 v2 だけ：`?qv=v2`、または `DEFAULT_THREE_VERSION` を `"v2"`
   - 設問の版：`?qv=v1`、または `DEFAULT_THREE_VERSION`
