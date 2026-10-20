@@ -5,10 +5,15 @@
 //   診断の欄（下）：診断前／途中（1問以上答えた）は小さな絵（軸の絵 5-a）つきのカード。診断後は文だけのカード（主軸の見出し・1〜2行・主な傾向3つ）
 //   同じ絵は1つの画面に2回出さない（絵が出るのは、上と、診断前・途中のカードだけ。この2つを重ねない）
 //   診断の状態は js/ui/three_store.js（今の画面と同じ保存のキー。どちらで答えても共通）。js/ の中身は直さない
+//   24問版（v4。決定 U42）：今の診断の版（app/js/diagnosis_version.js の currentStatus）で、三択か24問の状態・結果を出す。
+//     v4 の診断後のカード：小さく「今回の回答で目立つ傾向」、大きく冒頭の見出し（主軸の状態の見出し）、その本文、主な傾向（主軸と補足）
+//     診断前のカードの「8〜10分」は、新しく始める診断が v4 のときは「24問」（時間は測っていないので出さない）
 import { h, eyebrow, sectionHead, badge, roundArrow, rowLink, artPic, icon, go } from "./ui.js";
-import { store3, restore3, discard3 } from "../../js/ui/three_store.js";
+import { restore3 } from "../../js/ui/three_store.js";
 import { mainPattern, topTendencies, recordDiagnosis } from "./summary.js";
+import { leadOf4, tendencies4, recordDiagnosis4 } from "./summary4.js";
 import { heroArt, artOf, ART_SIZE, AXIS_ART, NAVY } from "./axis_art.js";
+import { currentStatus, discardCurrent, newDiagnosisVersion } from "./diagnosis_version.js";
 
 // 診断前・途中の絵（軸の絵から2枚。同じ絵にしない。§13.3）
 //   上＝4-b（感情表出の B寄り。胸もとに小さなピンクがのぞく、静かな絵。前の仮の絵 4B と同じ見え方）。候補の先頭が基本で、診断のカードの絵と重なるときだけ次
@@ -30,8 +35,12 @@ export function homePics(state = "before", main = null) {
   return { hero: fallback.find(a => a.id !== diagnose?.id) ?? null, diagnose: has(diagnose) ? diagnose : null };
 }
 
-/** 診断の状態："done"（結果あり）／"mid"（1問以上答えた途中）／"before" */
-export function diagnosisState(s3 = store3) {
+/**
+ * 診断の状態："done"（結果あり）／"mid"（1問以上答えた途中）／"before"
+ *   引数なし：今の診断の版（三択か24問。diagnosis_version.js の currentStatus）。s3 を渡すと三択だけで決める（前からの形）
+ */
+export function diagnosisState(s3) {
+  if (!s3) return currentStatus().state;
   if (s3.result) return "done";
   const s = s3.session;
   try {
@@ -42,17 +51,19 @@ export function diagnosisState(s3 = store3) {
 
 export function render(root) {
   restore3();
-  const state = diagnosisState();
-  const r = store3.result;
+  const st = currentStatus();
+  const state = st.state;
+  const r = st.result;
+  const v4 = st.version === "v4";
   let main = null;
   if (state === "done") {
-    try { recordDiagnosis(r); } catch (err) { console.error(err); }   // 履歴にまだ無ければ足す（同じ結果は足さない）
-    try { main = heroArt(r); } catch (err) { console.error(err); }
+    try { if (v4) recordDiagnosis4(r); else recordDiagnosis(r); } catch (err) { console.error(err); }   // 履歴にまだ無ければ足す（同じ結果は足さない）
+    try { main = heroArt(r); } catch (err) { console.error(err); }   // v4 の結果も受け取る（主軸の領域の絵）
   }
   // 診断の欄と、上・診断のカードの絵を同じ状態で作る（診断後のカードが作れなければ、診断前として出す）
   const build = (s) => {
     const pics = homePics(s, main);
-    return { pics, diag: s === "done" ? doneSection(r) : diagnoseSection(s, pics.diagnose) };
+    return { pics, diag: s === "done" ? (v4 ? doneSection4(r) : doneSection(r)) : diagnoseSection(s, pics.diagnose, s === "mid" ? st.answered : 0) };
   };
   let view;
   try {
@@ -96,16 +107,15 @@ function consultSection() {
 }
 
 // ---------------------------------------------------------------- 診断の欄（診断前・途中）
-function diagnoseSection(state, pic = artOf(...PIC.diagnose)) {
+function diagnoseSection(state, pic = artOf(...PIC.diagnose), answered = 0) {
   const mid = state === "mid";
-  const answered = mid ? store3.session.progress().answered : 0;
   const inner = [
     artPic(pic, { pos: "55% 0%" }),   // 5-a：頭とパズルのピースが入るように（縦長の枠なので左右だけ少し切る）
     h("span", { class: "a-feature-body" },
       mid ? midBadge(answered) : badge("まだ診断していません", { tone: "quiet" }),
       h("span", { class: "a-feature-title" }, mid ? "続きから答える" : "診断をはじめる"),
       h("span", { class: "a-feature-foot" },
-        mid ? h("span") : h("span", { class: "a-feature-meta" }, "8〜10分"),
+        mid ? h("span") : h("span", { class: "a-feature-meta" }, newDiagnosisVersion() === "v4" ? "24問" : "8〜10分"),
         roundArrow())),
   ];
   // 途中のときは、カードの下の行に「最初からやり直す」（カードのリンクの中に入れない）
@@ -128,7 +138,7 @@ function midBadge(n) {
 
 function restart() {
   if (!window.confirm("途中までの回答を消して、最初からやり直しますか？")) return;
-  discard3();
+  discardCurrent();   // 今の版の途中の回答だけを消す（ほかの版の保存は残す）
   go("#diagnose");
 }
 
@@ -153,6 +163,32 @@ function doneSection(r) {
               h("span", { class: "a-trend-name" }, t.name),
               h("span", { class: "a-trend-domain" }, t.domainName))))
             : h("p", { class: "a-note" }, "はっきり片方に寄った軸はありませんでした"),
+          roundArrow())),
+      h("div", { class: "a-rows" },
+        rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" }))));
+}
+
+// ---------------------------------------------------------------- 診断の欄（診断後・24問版。決定 U42）
+//   小さく「今回の回答で目立つ傾向」、大きく冒頭の見出し（summary4.js の leadOf4）、本文、主な傾向（主軸と補足。tendencies4）
+function doneSection4(r) {
+  const lead = leadOf4(r);
+  const top = tendencies4(r);
+  return h("section", { class: "a-home-sec", "aria-labelledby": "a-home-diag" },
+    sectionHead("診断結果", { id: "a-home-diag", aside: "もっとあなたを見る", href: "#result" }),
+    h("div", { class: "a-card a-card-split a-diag-done", "data-dv": "v4" },
+      h("a", { class: "a-card-main a-card-link", href: "#result" },
+        h("p", { class: "a-kicker" }, "今回の回答で目立つ傾向"),
+        h("h3", { class: "a-diag-headline" }, lead?.title || "診断の結果"),
+        lead?.body ? h("p", { class: "a-diag-one" }, lead.body) : null,
+        h("hr", { class: "a-divider" }),
+        h("div", { class: "a-trends" },
+          h("p", { class: "a-trends-label" }, "主な傾向"),
+          top.length
+            ? h("ul", { class: "a-trends-list" }, top.map(t => h("li", { "data-key": t.key },
+              h("span", { class: ["a-dot", t.side === "A" ? "a-dot-a" : "a-dot-b"], "aria-hidden": "true", style: { background: dotColor(t) } }),
+              h("span", { class: "a-trend-name" }, t.name),
+              h("span", { class: "a-trend-domain" }, t.domainName))))
+            : h("p", { class: "a-note" }, "はっきり片方に寄った領域はありませんでした"),
           roundArrow())),
       h("div", { class: "a-rows" },
         rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" }))));

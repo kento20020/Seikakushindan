@@ -10,15 +10,18 @@
 //   下のタブはホーム・履歴・マイページだけ（main.js が出す）。ほかの画面は ui.js の topBar で「← 題」を出す
 //   知らないハッシュはホーム
 //   起動時に pwa.js の initPwa()（service worker の登録とインストールの案内。§15）
+//   診断の版（決定 U42。app/js/diagnosis_version.js）：#diagnose は新しく始める版（?dv= ＞ 既定 v4）、#diagnose/q・#result は今の診断の版で、
+//     v4 なら diagnose4.js・result4.js、v3 なら今までの diagnose.js・result.js を読む
 import { tabBar } from "./ui.js";
 import { initPwa } from "./pwa.js";
+import { currentVersion, newDiagnosisVersion } from "./diagnosis_version.js";
 
 const SITE = "16次元診断";
 const ROUTES = {
   home: { load: () => import("./home.js"), tab: "home", title: "ホーム" },
-  diagnose: { load: () => import("./diagnose.js"), title: "診断" },
-  "diagnose/q": { load: () => import("./diagnose.js"), title: "診断" },
-  result: { load: () => import("./result.js"), title: "診断結果" },
+  diagnose: { load: () => (newDiagnosisVersion() === "v4" ? import("./diagnose4.js") : import("./diagnose.js")), title: "診断" },
+  "diagnose/q": { load: () => (currentVersion() === "v4" ? import("./diagnose4.js") : import("./diagnose.js")), title: "診断" },
+  result: { load: () => (currentVersion() === "v4" ? import("./result4.js") : import("./result.js")), title: "診断結果" },
   consult: { load: () => import("./consult.js"), title: "相談" },
   account: { load: () => import("./account.js"), title: "アカウント" },
   history: { load: () => import("./history.js"), tab: "history", title: "履歴" },

@@ -8,21 +8,26 @@
 //   hasTransferable()               … 移せる物（結果・途中の回答・診断の記録）があるか（マイページのボタンを出すか）
 //
 // 入れる物：三択の診断（js/ui/three_store.js の保存 seikaku16:three:v1 のうち session と source だけ。1問以上答えたときだけ）、
+//   24問の診断（js/ui/four_store.js の保存 seikaku16:four:v1。1問以上答えたときだけ。four。決定 U42）と、そのときだけ今の診断の版（active："v3" | "v4"）、
 //   app/js/local.js の記録のうち kind が "diagnosis" のもの、その結果の key の印（marks：「違う」の印・ありそう／なさそう）
 // 入れない物：相談の記録と下書き（seikaku16:app:consult-draft など。自由に書いた文なので移さない）、
 //   テスト協力の記録（fb・fbMode）、5択版の保存（seikaku16:v1）
 //
-// コードの形：{ t: "seikaku16-move", v: 1, session?, source?, records: [...], marks: {...} } → JSON → UTF-8 →
+// コードの形：{ t: "seikaku16-move", v: 1, session?, source?, four?, active?, records: [...], marks: {...} } → JSON → UTF-8 →
+//   four・active は U42 で足した（前の版のコードにも、前の版のアプリにも、そのまま通じる。前の版は four を読まないだけ）
 //   縮める（CompressionStream の "deflate"＝zlib の形。iOS 16.4 から）→ base64url → 頭に "S16Z-"
 //   縮められない環境では縮めずに base64url → 頭に "S16-"（どちらも読める）
 //   "deflate-raw" ではなく "deflate" にしたのは、zlib の形には中身の確かめの数（Adler-32）が付いていて、
 //   1文字でも変わったコードを「読めない」にできるため（deflate-raw だと、変わったまま読めてしまうことがある）
 //   大きさ：ふつうの診断1回（80問）で、縮めて約4,100字（縮めないと約25,000字）
 //
-// 入れ方（applyTransfer）：診断は置き換える（three_store の adopt3）。記録は結果の key（data.key）が同じものを足さない（at は元のまま）。
+// 入れ方（applyTransfer）：診断は置き換える（three_store の adopt3、24問は four_store の adopt4。入っている版だけ）。
+//   今の診断の版は active（無ければ、24問があれば v4、三択だけなら v3）にする。記録は結果の key（data.key）が同じものを足さない（at は元のまま）。
 //   印はこの端末にまだ無い key だけ入れる（ある印は上書きしない）
 import { store3, restore3, adopt3 } from "../../js/ui/three_store.js";
+import { store4, restore4, adopt4, sanitizeSession4, progress4 } from "../../js/ui/four_store.js";
 import { Session3 } from "../../js/adaptive3.js";
+import { currentVersion, currentResult, setActiveVersion, isDiagnosisVersion } from "./diagnosis_version.js";
 import { loadRecords, addRecord, getMarks, setMarks, validItem, MAX_ITEMS } from "./local.js";
 import { resultKey } from "./summary.js";
 
@@ -56,9 +61,15 @@ function collect() {
       source = cleanSource(store3.source);
     }
   } catch { session = null; source = null; }
+  // 24問の診断（1問以上答えたとき）
+  restore4();
+  let four = null;
+  try {
+    if (store4.session && progress4(store4.session).answered > 0) four = JSON.parse(JSON.stringify(store4.session));
+  } catch { four = null; }
   const records = loadRecords().items.filter(isDiagRecord)
     .map(({ id, kind, at, title, sub, data }) => ({ id, kind, at, title: title ?? "", sub: sub ?? "", data }));
-  if (!session && !records.length) return null;
+  if (!session && !four && !records.length) return null;
   const keys = new Set(records.map(x => x.data.key));
   if (session && store3.result) { try { keys.add(resultKey(store3.result)); } catch { /* 印なしで続ける */ } }
   const marks = {};
@@ -66,7 +77,10 @@ function collect() {
     const m = getMarks(k);
     if (isObj(m)) marks[k] = m;
   }
-  return { t: CODE_TYPE, v: 1, ...(session ? { session, source } : {}), records, marks };
+  // 今の診断の版は、24問の診断を入れるときだけ書く（三択だけのコードは前の版と同じ形のまま）
+  let active = null;
+  if (four) { try { active = currentVersion({ url: null }); } catch { active = null; } }
+  return { t: CODE_TYPE, v: 1, ...(session ? { session, source } : {}), ...(four ? { four } : {}), ...(four && isDiagnosisVersion(active) ? { active } : {}), records, marks };
 }
 
 /** 移せる物（結果・途中の回答・診断の記録）があるか */
@@ -154,15 +168,23 @@ function check(o) {
     session = o.session;
     source = cleanSource(o.source);
   }
+  let four = null;
+  if (o.four != null) {
+    four = sanitizeSession4(o.four);   // 24問の保存の形でなければ、コードごと読めない
+    if (!four) return null;
+  }
+  const active = isDiagnosisVersion(o.active) ? o.active : null;
   const records = o.records == null ? [] : o.records;
   if (!Array.isArray(records) || records.length > MAX_ITEMS || !records.every(isDiagRecord)) return null;
   const marks = o.marks == null ? {} : o.marks;
   if (!isObj(marks)) return null;
   const entries = Object.entries(marks);
   if (entries.length > MAX_MARKS || !entries.every(([k, m]) => k && k.length <= MAX_KEY && isObj(m))) return null;
-  if (!session && !records.length) return null;
+  if (!session && !four && !records.length) return null;
   return {
     ...(session ? { session, source } : {}),
+    ...(four ? { four } : {}),
+    ...(active ? { active } : {}),
     records: records.map(({ id, kind, at, title, sub, data }) => ({
       id, kind, at,
       title: typeof title === "string" ? title : "",
@@ -209,11 +231,21 @@ export function applyTransfer(data) {
   const out = { ok: false, session: false, done: false, records: 0, marks: 0 };
   if (!isObj(data)) return out;
   restore3();   // 先に読んでおく（あとで restore3 が古い保存で上書きしないように）
+  restore4();
   if (data.session) {
     try { adopt3(data.session, data.source); } catch { return out; }
     out.session = true;
   }
-  out.done = !!store3.result;
+  if (data.four) {
+    try { adopt4(data.four); } catch { return out; }
+    out.session = true;
+  }
+  if (out.session) {
+    // 今の診断の版：コードの active（その版が入っていれば）＞ 24問があれば v4 ＞ 三択
+    const want = isDiagnosisVersion(data.active) && ((data.active === "v4" && data.four) || (data.active === "v3" && data.session)) ? data.active : data.four ? "v4" : "v3";
+    setActiveVersion(want);
+  }
+  out.done = !!currentResult({ url: null });
   const have = new Set(loadRecords().items.filter(x => x.kind === "diagnosis").map(x => x.data?.key).filter(Boolean));
   for (const r of Array.isArray(data.records) ? data.records : []) {
     const key = r?.data?.key;

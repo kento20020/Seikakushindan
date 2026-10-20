@@ -14,12 +14,15 @@
 import { h, icon, eyebrow, sectionHead, rowLink, toast, go } from "./ui.js";
 import { loadRecords, clearAll } from "./local.js";
 import { store3, restore3, discard3 } from "../../js/ui/three_store.js";
+import { store4, restore4, discard4 } from "../../js/ui/four_store.js";
 import { diagnosisState } from "./home.js";
+import { currentResult, setActiveVersion } from "./diagnosis_version.js";
 import { PWA_EVENT, currentInstallState, currentPlatform, currentDevice, promptInstall } from "./pwa.js";
 import { hasTransferable, makeTransferCode, readTransferCode, applyTransfer } from "./transfer.js";
 
 export function render(root) {
   restore3();
+  restore4();
   root.append(view());
   // 「アプリとして使う」の節だけ描き直す。画面を離れたら外す
   const onChange = (e) => {
@@ -216,12 +219,12 @@ function appSide(box) {
       if (!res.ok) { msg.replaceChildren(h("p", { class: "a-pwa-error", role: "alert" }, READ_ERROR)); return; }
       msg.replaceChildren();
       const state = diagnosisState();
-      if (res.data.session && (state === "done" || state === "mid")
+      if ((res.data.session || res.data.four) && (state === "done" || state === "mid")
         && !window.confirm("この端末のアプリの診断を、貼り付けた診断に置き換えますか？")) return;
       const out = applyTransfer(res.data);
       if (!out.ok) { msg.replaceChildren(h("p", { class: "a-pwa-error", role: "alert" }, "この端末に入れられませんでした。もう一度押してください。")); return; }
       toast("診断を引き継ぎました");
-      go(store3.result ? "#result" : "#mypage");
+      go(currentResult() ? "#result" : "#mypage");
     };
     form.replaceChildren(
       h("label", { class: "a-pwa-label", for: id }, "引き継ぎのコード"),
@@ -245,7 +248,7 @@ async function addToHome(e) {
 function view() {
   const state = diagnosisState();
   const count = loadRecords().items.length;
-  const hasData = count > 0 || !!store3.session;
+  const hasData = count > 0 || !!store3.session || !!store4.session;
   return h("div", { class: "a-mypage" },
     h("header", { class: "a-page-head" },
       eyebrow("MY PAGE"),
@@ -303,6 +306,8 @@ function clearEverything() {
   if (!window.confirm("この端末に残っている、診断の回答と結果・相談の履歴をすべて消しますか？（元に戻せません）")) return;
   clearAll();
   discard3();
+  discard4();             // 24問版（v4。決定 U42）の診断も消す
+  setActiveVersion(null);
   toast("この端末の記録を消しました");
   go("#mypage");
 }

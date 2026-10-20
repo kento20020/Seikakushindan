@@ -16,6 +16,9 @@
 //                          { ...artOf の形, key: "2B", tendency: "熟考", reason, bySide }。出せなければ null
 //   axisArtSlots()       … 絵の一覧の画面（#images。§14）の24枠。軸の順・各軸は a → mid → b の順。絵が無い枠は ready: false
 //   slotMarks(r)         … 結果 r で選ばれる枠の id（8つの軸の行 picked・一番上の絵 hero）。一覧の画面の印に使う
+//   24問版（v4。r.diagnosisVersion === "v4"。決定 U42）：heroArt・slotMarks は v4 の結果も受け取る。絵の A/B の割り当ては同じで、
+//     選び方だけが違う：場面の問の p が ＋なら a、−なら b、0 なら mid（artSideOfP）。答えがそろっていない領域は絵を出さない（番号の丸）
+//     axisArt4(d, dom) … 8つの領域の1行の絵。heroArt4(r) … 主軸の領域の絵（主軸が無ければ null）
 //
 // 絵を差し替えるときは、app/img/axes/ の同じ名前のファイルを上書きする（絵の中身が変われば、下の alt も直す）。
 //   まんなかの絵（<軸>-mid.jpg）の作り方は tools/make_axis_mid.sh（横長の8枚並びのまとめ画像から切り出す。U36）
@@ -121,6 +124,7 @@ const chosenOf = (r) => (Array.isArray(r?.select?.chosen) ? r.select.chosen.filt
  *   返す形：{ id, domain, side, file, alt, color, deep, key, tendency, reason, bySide }。主軸が無い・選べないときは null
  */
 export function heroArt(r) {
+  if (r?.diagnosisVersion === "v4") return heroArt4(r);
   let pick = null;
   try { pick = r?.profile3 ? heroTendency(r.profile3, chosenOf(r), ALL_READY) : null; } catch { pick = null; }
   if (!pick || !/^[1-8][AB]$/.test(String(pick.key))) return null;
@@ -168,6 +172,7 @@ export function axisArtSlots() {
  */
 export function slotMarks(r) {
   if (!r) return { picked: [], hero: null, art: null };
+  if (r.diagnosisVersion === "v4") return slotMarks4(r);
   const picked = [];
   for (const t of Object.values(AXIS_ART)) {
     let side = null;
@@ -176,5 +181,51 @@ export function slotMarks(r) {
   }
   let art = null;
   try { art = heroArt(r); } catch { art = null; }
+  return { picked, hero: art?.id ?? null, art };
+}
+
+// ---------------------------------------------------------------- 24問版（v4。決定 U42。docs/diagnosis-v4.md §7）
+/** 場面の問の p（−2〜＋2）→ "a"（＋）| "b"（−）| "mid"（0）| null（答えなし・判断できない） */
+export function artSideOfP(p) {
+  if (typeof p !== "number" || !Number.isInteger(p)) return null;
+  return p > 0 ? "a" : p < 0 ? "b" : "mid";
+}
+
+const complete4 = (dom) => !!dom && dom.state !== "incomplete";
+
+/** v4 の8つの領域の1行の絵。答えがそろっていない領域は file が null（番号の丸）。知らない軸なら null */
+export function axisArt4(d, dom) {
+  const t = AXIS_ART[Number(d)];
+  if (!t) return null;
+  const side = complete4(dom) ? artSideOfP(dom.p) : null;
+  if (!side) return { id: null, domain: t.domain, side: null, file: null, alt: null, color: t.color, deep: t.deep };
+  return artOf(t.domain, side);
+}
+
+/**
+ * v4 の結果の一番上・ホームの一番上の絵：主軸の領域の、p で選んだ絵。主軸が無ければ null
+ *   key・tendency は主軸の状態で選ばれた側（状態 1・2・1w は A、3・4・3w は B）。主軸の p は 0 にならないので、mid にはならない
+ */
+export function heroArt4(r) {
+  const d = Number(r?.primaryDomainId);
+  const dom = r?.domains?.[d];
+  if (!AXIS_ART[d] || !complete4(dom)) return null;
+  const art = axisArt4(d, dom);
+  if (!art?.file) return null;
+  const lead = ["1", "2", "1w"].includes(dom.state) ? "A" : "B";
+  const D = DOMAINS[d];
+  return { ...art, key: `${d}${lead}`, tendency: lead === "A" ? D.a : D.b, reason: "主軸の領域（24問）", bySide: false };
+}
+
+/** v4 の結果で選ばれる枠（一覧の画面の印）。答えがそろっている領域だけ */
+export function slotMarks4(r) {
+  const picked = [];
+  for (const t of Object.values(AXIS_ART)) {
+    const dom = r?.domains?.[t.domain];
+    const side = complete4(dom) ? artSideOfP(dom.p) : null;
+    if (side) picked.push(`${t.domain}-${side}`);
+  }
+  let art = null;
+  try { art = heroArt4(r); } catch { art = null; }
   return { picked, hero: art?.id ?? null, art };
 }

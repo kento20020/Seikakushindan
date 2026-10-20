@@ -10,7 +10,8 @@
 //   節「今の画面（../#three）の傾向の絵」：js/data/type_images.js の16枠（軸ごとに A・B）。新しい画面では使っていない
 //   数はどれもデータから数える（絵が届いて枠が埋まれば、数も印も自動で変わる）。見た目は app/css/app.css（a-im-）
 import { h, topBar, sectionHead, badge, rowLink } from "./ui.js";
-import { store3, restore3 } from "../../js/ui/three_store.js";
+import { restore3 } from "../../js/ui/three_store.js";
+import { currentResult, currentVersion } from "./diagnosis_version.js";
 import { DOMAINS } from "../../js/engine3.js";
 import { TYPE_IMAGES, isReady } from "../../js/data/type_images.js";
 import { AXIS_ART, ART_SIZE, axisArtSlots, slotMarks } from "./axis_art.js";
@@ -44,14 +45,15 @@ const MARK = { yours: ["あなたの結果", "rose"], hero: ["いちばん上の
 
 export function render(root) {
   restore3();
-  const r = store3.result ?? null;
+  const r = currentResult() ?? null;   // 今の診断の結果（三択か24問。決定 U42）
+  const v4 = currentVersion() === "v4";
   const slots = axisArtSlots();
   let marks = { picked: [], hero: null, art: null };
   if (r) { try { marks = slotMarks(r); } catch (err) { console.error(err); } }
   root.append(h("div", { class: "a-im" },
     topBar({ title: "診断結果の絵", heading: true }),
     intro(slots),
-    rulesCard(slots, r, marks),
+    rulesCard(slots, r, marks, v4),
     axisSection(slots, marks),
     typeSection(typeImageSlots()),
     h("div", { class: "a-card a-rows-card a-im-foot" },
@@ -68,13 +70,16 @@ function intro(slots) {
     h("p", { class: "a-im-count", "data-count": "axes" }, `新しい画面：${c.all}枠のうち ${c.ready}枠に絵があります`, h("span", { class: "a-nowrap" }, pendingText(c))));
 }
 
-function rulesCard(slots, r, marks) {
+// 24問の診断（v4。決定 U42）では、場面の問いで A と B のどちらに近いかで選ぶ
+const RULE_V4 = "軸ごとに、場面の問いで A（左の傾向）に近いと答えたら A寄り、B に近いと答えたら B寄り、「どちらも同じくらい」ならまんなかの絵です（24問の診断）。答えがそろっていない軸は絵を出しません。";
+const PLACE_V4 = "出る場所：結果の画面のいちばん上（主軸の領域）、結果の「8つの領域」の各行、ホームのいちばん上（診断のあと）。";
+function rulesCard(slots, r, marks, v4 = false) {
   const midWait = slots.some(s => s.side === "mid" && !s.ready);
   return h("section", { class: "a-card a-im-rules", "aria-labelledby": "a-im-rules-h" },
     h("h2", { class: "a-im-rules-h", id: "a-im-rules-h" }, "どの絵が出るか"),
     h("ul", { class: "a-im-points" },
-      h("li", null, "軸ごとに、A（左の傾向）を選んだ割合が半分より多ければ A寄り、少なければ B寄り、ちょうど半分ならまんなかの絵です。割合は、結果の「8つの軸」の●と同じです。"),
-      h("li", null, "出る場所：結果の画面のいちばん上（主軸に合う傾向の軸）、結果の「8つの軸」の各行、ホームのいちばん上（診断のあと）。"),
+      h("li", null, v4 ? RULE_V4 : "軸ごとに、A（左の傾向）を選んだ割合が半分より多ければ A寄り、少なければ B寄り、ちょうど半分ならまんなかの絵です。割合は、結果の「8つの軸」の●と同じです。"),
+      h("li", null, v4 ? PLACE_V4 : "出る場所：結果の画面のいちばん上（主軸に合う傾向の軸）、結果の「8つの軸」の各行、ホームのいちばん上（診断のあと）。"),
       // まんなかの絵が準備中の枠があるときだけ（今は24枠すべてに絵があるので出ない）
       midWait ? h("li", null, "まんなかの絵が準備中の軸では、8つの軸の行は軸の番号の丸、いちばん上の絵は主軸に合う傾向の側（A寄りか B寄り）の絵を代わりに出しています。") : null),
     r ? legend(r, marks) : h("p", { class: "a-note a-im-marknote" }, "診断のあとは、あなたの結果で出る絵に印が付きます。"));
