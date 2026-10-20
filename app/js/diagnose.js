@@ -146,11 +146,12 @@ function answerCard(side, text, { picked = false, onPick }) {
     picked ? h("span", { class: "a-dg-ans-picked" }, icon("check", { size: 14 }), "前に選んだ回答") : null);
 }
 
-/** 手のアイコンと「左右にスワイプするか、タップで選んでください」 */
+/** 小さな手のアイコンと「左右にスワイプ、またはタップで選ぶ」の1行（質問より目立たせない。決定 U41 の4） */
 function swipeHint({ practice = false } = {}) {
   return h("div", { class: "a-dg-hint" },
-    h("p", { class: "a-dg-hand", "aria-hidden": "true" }, icon("arrow-left", { size: 16 }), icon("hand", { size: 34 }), icon("arrow-right", { size: 16 })),
-    h("p", { class: "a-dg-hint-text" }, "左右にスワイプするか、", h("br"), "タップで選んでください"),
+    h("p", { class: "a-dg-hint-text" },
+      h("span", { class: "a-dg-hand", "aria-hidden": "true" }, icon("arrow-left", { size: 12 }), icon("hand", { size: 20 }), icon("arrow-right", { size: 12 })),
+      h("span", null, "左右にスワイプ、またはタップで選ぶ")),
     isCoarsePointer() ? null
       : h("p", { class: "a-dg-kbd" }, practice ? "キーボード：← 左 ／ → 右" : "キーボード：← 左 ／ → 右 ／ Space 問題を変える（使い切ったら答えずに進む）"));
 }
@@ -198,7 +199,7 @@ function questionView(s) {
         answerCard("right", q.right.text, { picked: c.answer === "right", onPick: () => answer3("right", "t") })),
       h("span", { class: "a-dg-badge", "aria-hidden": "true" })),
     swipeHint(),
-    h("p", { class: "a-or" }, "または"),
+    h("hr", { class: "a-dg-sep" }),
     h("div", { class: "a-dg-tools" },
       swapBtn,
       c.canSkip ? h("p", { class: "a-note a-dg-skipnote" }, c.swapsUsed >= MAX_SWAPS
