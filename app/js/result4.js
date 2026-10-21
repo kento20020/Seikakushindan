@@ -189,7 +189,7 @@ function shareButton(lead) {
 
 async function share(lead) {
   const url = new URL("./", location.href).href;
-  const data = { title: "16次元診断", text: lead?.title || "16次元診断の結果", url };
+  const data = { title: "喧嘩の答え", text: lead?.title || "喧嘩の答えの診断結果", url };
   if (typeof navigator.share === "function") {
     try { await navigator.share(data); return; }
     catch (err) { if (err?.name === "AbortError") return; }

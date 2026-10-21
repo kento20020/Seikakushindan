@@ -73,7 +73,7 @@ function iosSteps(state) {
       h("li", null, first),
       h("li", null, STEP_ADD),
       h("li", null, STEP_DONE)),
-    h("p", { class: "a-pwa-sub" }, "ホーム画面のアイコン『16次元診断』から開くと、アプリの形で開きます。"),
+    h("p", { class: "a-pwa-sub" }, "ホーム画面のアイコン『喧嘩の答え』から開くと、アプリの形で開きます。"),
     state === "ios-other" ? h("p", { class: "a-note a-pwa-note" }, "iOS 16.4 より前の iPhone では、Safari で開いて追加してください。") : null,
   ];
 }

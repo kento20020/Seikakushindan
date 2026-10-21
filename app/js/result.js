@@ -265,7 +265,7 @@ function shareButton(r) {
 async function share(r) {
   const main = mainPattern(r);
   const url = new URL("./", location.href).href;   // app/ の入口（結果ごとのページはまだ無い）
-  const data = { title: "16次元診断", text: main?.headline || "16次元診断の結果", url };
+  const data = { title: "喧嘩の答え", text: main?.headline || "喧嘩の答えの診断結果", url };
   if (typeof navigator.share === "function") {
     try { await navigator.share(data); return; }
     catch (err) { if (err?.name === "AbortError") return; }   // 閉じただけなら何もしない。使えなければコピーへ
