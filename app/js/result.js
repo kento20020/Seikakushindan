@@ -1,5 +1,5 @@
 // 診断結果（#result。画像6）。仕様：docs/app-screens.md §4.4
-//   上：「←」・中央「診断結果」・右に枠だけの「シェア」
+//   上：「←」・中央「診断結果」・右に枠だけの「シェア」（app/js/share.js。文はサービス名と主軸の見出し、リンクは app/?from=share。決定 U45）
 //   主軸の絵（§12 の1・§13）：題の下に、軸の絵（axis_art.js の heroArt。主軸に合う傾向の軸の、●で選んだパターン）を列の幅いっぱいに。
 //     縁はぼかす。下に小さく傾向の名前。出せなければ出さない
 //   見出し「あなたを表す解釈」
@@ -14,7 +14,7 @@
 //   下：「もう一度診断する」「診断結果の一覧」（→ #types。§16）「診断結果の絵の一覧」（→ #images。§14）「ホームへ戻る」
 //   結果を開いたら、履歴に1件足す（recordDiagnosis。同じ結果は2回足さない）
 //   値は今の画面 js/ui/three.js の patternCard と同じ（js/ の中身は直さない）。見た目は app/css/diagnose.css（a-dg-）
-import { h, icon, topBar, toast, badge, sectionHead, rowLink, artPic } from "./ui.js";
+import { h, icon, topBar, badge, sectionHead, rowLink, artPic } from "./ui.js";
 import { store3, restore3 } from "../../js/ui/three_store.js";
 import { PATTERN_BY_ID } from "../../js/data/patterns.js";
 import { byRole } from "../../js/ui/result.js";
@@ -26,6 +26,7 @@ import { domainTendencies3 } from "../../js/data/type_images.js";
 import { getMarks, setMarks } from "./local.js";
 import { mainPattern, resultKey, recordDiagnosis, axisView, jpQuotes } from "./summary.js";
 import { heroArt, axisArt, NAVY, ART_SIZE } from "./axis_art.js";
+import { shareResult, shareText3 } from "./share.js";
 
 const ROLE_TONE = { "主軸": "ink", "補強": "rose", "矛盾": "slate", "地（形状）": "line" };
 
@@ -256,34 +257,9 @@ function axisRow(d, t, r) {
   return row;
 }
 
-// ---------------------------------------------------------------- シェア
+// ---------------------------------------------------------------- シェア（決定 U45。中身は share.js）
+//   文「喧嘩の答えで診断しました。」＋「今回の主軸：{主軸の見出し}」、リンクは app/?from=share（結果ごとのページは作らない）
 function shareButton(r) {
-  return h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm a-dg-share", id: "a-dg-share", onclick: () => share(r) },
+  return h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm a-dg-share", id: "a-dg-share", onclick: () => shareResult({ text: shareText3(mainPattern(r)) }) },
     icon("share", { size: 20 }), h("span", null, "シェア"));
-}
-
-async function share(r) {
-  const main = mainPattern(r);
-  const url = new URL("./", location.href).href;   // app/ の入口（結果ごとのページはまだ無い）
-  const data = { title: "喧嘩の答え", text: main?.headline || "喧嘩の答えの診断結果", url };
-  if (typeof navigator.share === "function") {
-    try { await navigator.share(data); return; }
-    catch (err) { if (err?.name === "AbortError") return; }   // 閉じただけなら何もしない。使えなければコピーへ
-  }
-  toast(await copyText(url) ? "リンクをコピーしました" : "リンクをコピーできませんでした");
-}
-
-async function copyText(text) {
-  try {
-    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
-  } catch { /* 下の方法で */ }
-  try {
-    const ta = h("textarea", { readonly: true, "aria-hidden": "true", style: { position: "fixed", top: "0", left: "0", opacity: "0" } });
-    ta.value = text;
-    document.body.append(ta);
-    ta.select();
-    const ok = document.execCommand("copy");
-    ta.remove();
-    return ok;
-  } catch { return false; }
 }

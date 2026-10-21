@@ -8,12 +8,15 @@
 //   24問版（v4。決定 U42）：今の診断の版（app/js/diagnosis_version.js の currentStatus）で、三択か24問の状態・結果を出す。
 //     v4 の診断後のカード：小さく「今回の回答で目立つ傾向」、大きく冒頭の見出し（主軸の状態の見出し）、その本文、主な傾向（主軸と補足）
 //     診断前のカードの「8〜10分」は、新しく始める診断が v4 のときは「24問」（時間は測っていないので出さない）
+//   共有のリンクから来た人（決定 U45。app/js/share.js の fromShare。このタブの間だけの印）：診断がまだ終わっていない（"before"・"mid"）ときだけ、
+//     並びを「上 → 診断 → 相談」にし、診断の見出しの下・カードの上に静かな箱「送られてきた診断です」を1つ出す。"done" のときはいつものホーム
 import { h, eyebrow, sectionHead, badge, roundArrow, rowLink, artPic, icon, go } from "./ui.js";
 import { restore3 } from "../../js/ui/three_store.js";
 import { mainPattern, topTendencies, recordDiagnosis } from "./summary.js";
 import { leadOf4, tendencies4, recordDiagnosis4 } from "./summary4.js";
 import { heroArt, artOf, ART_SIZE, AXIS_ART, NAVY } from "./axis_art.js";
 import { currentStatus, discardCurrent, newDiagnosisVersion } from "./diagnosis_version.js";
+import { fromShare } from "./share.js";
 
 // 診断前・途中の絵（軸の絵から2枚。同じ絵にしない。§13.3）
 //   上＝4-b（感情表出の B寄り。胸もとに小さなピンクがのぞく、静かな絵。前の仮の絵 4B と同じ見え方）。候補の先頭が基本で、診断のカードの絵と重なるときだけ次
@@ -60,10 +63,13 @@ export function render(root) {
     try { if (v4) recordDiagnosis4(r); else recordDiagnosis(r); } catch (err) { console.error(err); }   // 履歴にまだ無ければ足す（同じ結果は足さない）
     try { main = heroArt(r); } catch (err) { console.error(err); }   // v4 の結果も受け取る（主軸の領域の絵）
   }
+  // 共有のリンクから来た人（U45）：診断が終わっていなければ、診断を相談より先に出し、箱を添える
+  const shared = fromShare();
   // 診断の欄と、上・診断のカードの絵を同じ状態で作る（診断後のカードが作れなければ、診断前として出す）
   const build = (s) => {
     const pics = homePics(s, main);
-    return { pics, diag: s === "done" ? (v4 ? doneSection4(r) : doneSection(r)) : diagnoseSection(s, pics.diagnose, s === "mid" ? st.answered : 0) };
+    const first = shared && s !== "done";
+    return { pics, first, diag: s === "done" ? (v4 ? doneSection4(r) : doneSection(r)) : diagnoseSection(s, pics.diagnose, s === "mid" ? st.answered : 0, first) };
   };
   let view;
   try {
@@ -72,7 +78,26 @@ export function render(root) {
     console.error(err);
     view = build("before");
   }
-  root.append(h("div", { class: "a-home" }, hero(view.pics.hero), consultSection(), view.diag));
+  const order = view.first ? [view.diag, consultSection()] : [consultSection(), view.diag];
+  root.append(h("div", { class: "a-home", "data-from": view.first ? "share" : null }, hero(view.pics.hero), ...order));
+}
+
+/**
+ * 共有のリンクから来た人への箱の文（DOM を使わない）。v4 … 新しく始める診断が24問か
+ *   1行目「送られてきた診断です」、2行目は何が分かるかと、送った人の結果はここに出ないこと
+ */
+export function sharedNoteText(v4 = true) {
+  return {
+    title: "送られてきた診断です",
+    body: `${v4 ? "24問の「どっち？」に答えると" : "質問に答えると"}、恋人との喧嘩での自分の動き方の傾向が分かります。送った人の結果は、その人の端末の中にだけあり、ここには出ません。`,
+  };
+}
+
+function sharedNote() {
+  const t = sharedNoteText(newDiagnosisVersion() === "v4");
+  return h("div", { class: "a-home-shared" },
+    h("p", { class: "a-home-shared-title" }, t.title),
+    h("p", { class: "a-home-shared-body" }, t.body));
 }
 
 // ---------------------------------------------------------------- 上
@@ -107,7 +132,7 @@ function consultSection() {
 }
 
 // ---------------------------------------------------------------- 診断の欄（診断前・途中）
-function diagnoseSection(state, pic = artOf(...PIC.diagnose), answered = 0) {
+function diagnoseSection(state, pic = artOf(...PIC.diagnose), answered = 0, shared = false) {
   const mid = state === "mid";
   const inner = [
     artPic(pic, { pos: "55% 0%" }),   // 5-a：頭とパズルのピースが入るように（縦長の枠なので左右だけ少し切る）
@@ -126,6 +151,7 @@ function diagnoseSection(state, pic = artOf(...PIC.diagnose), answered = 0) {
     : h("a", { class: "a-card a-card-link a-feature a-feature-h", href: "#diagnose" }, inner);
   return h("section", { class: "a-home-sec", "aria-labelledby": "a-home-diag" },
     sectionHead("診断", { id: "a-home-diag" }),
+    shared ? sharedNote() : null,   // 共有のリンクから来た人だけ（U45）
     card);
 }
 

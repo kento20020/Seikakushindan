@@ -8,6 +8,21 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23ECE6DE'/%3E%3Cpath d='M10 9h12v14H10z' fill='%23A15E58'/%3E%3C/svg%3E">
 <title>喧嘩の答え（試作）</title>
 <meta name="description" content="喧嘩の答え（試作）。恋人との喧嘩での動き方を測る診断と、次の一手を一緒に考える相談">
+<!-- リンクの見た目（OGP。LINE・X などにリンクを貼ったときのカード。docs/app-screens.md §21。決定 U45）。
+     読みに来る側（クローラー）は JS を動かさないので、ここに直に書く。URL は絶対 URL でないと読まれないことがあるため絶対 URL。
+     サイトの場所（https://kento20020.github.io/Seikakushindan/app/）が変わったら og:url と og:image を直す。
+     説明の「24問」は、既定の診断の版が v4 のとき（app/js/diagnosis_version.js。v3 に戻したら説明も直す）。絵は tools/make_og_image.mjs で作る -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="喧嘩の答え">
+<meta property="og:title" content="喧嘩の答え">
+<meta property="og:description" content="恋人との喧嘩での動き方を、24問の「どっち？」で整理する診断と、次の一手を一緒に考える相談（試作）">
+<meta property="og:url" content="https://kento20020.github.io/Seikakushindan/app/">
+<meta property="og:image" content="https://kento20020.github.io/Seikakushindan/app/img/og/og-1200x630.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="喧嘩の答え">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" sizes="180x180" href="./img/pwa/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="喧嘩の答え">

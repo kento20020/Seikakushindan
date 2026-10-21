@@ -1,6 +1,6 @@
 // 24問版（v4）の診断結果（#result）。決定 U42・U44。仕様：docs/diagnosis-v4.md §6
 //   三択（v3）の結果は今までどおり result.js（どちらを出すかは main.js が今の診断の版で決める）
-//   上：「←」・中央「診断結果」・右に「シェア」
+//   上：「←」・中央「診断結果」・右に「シェア」（app/js/share.js。文はサービス名と冒頭の見出し、リンクは app/?from=share。結果はリンクに載せない。決定 U45）
 //   主軸の絵：主軸の領域の、A の割合で選んだ軸の絵（axis_art.js の heroArt4）。主軸が無ければ出さない
 //   見出し『今回の回答で目立つ傾向』と短い注記『今回の回答から見た傾向です。相手や状況によって変わることがあります。』
 //     適合率・正確率・信頼度などは出さない
@@ -13,12 +13,13 @@
 //     状態の見出しと本文。U41 の5 で三択から外した説明の文は出さない。絵は A の割合で選ぶ（axis_art.js の axisArt4）。incomplete は番号の丸
 //   結果を開いたら、履歴に1件足す（summary4.js の recordDiagnosis4。同じ結果は2回足さない）
 //   見た目は app/css/diagnose.css（三択の結果と同じ a-dg- の部品と、a-d4- で始まるクラス）
-import { h, icon, topBar, toast, badge, sectionHead, rowLink, artPic } from "./ui.js";
+import { h, icon, topBar, badge, sectionHead, rowLink, artPic } from "./ui.js";
 import { store4, restore4, progress4 } from "../../js/ui/four_store.js";
 import { DOMAINS } from "../../js/engine.js";
 import { DOMAIN_IDS4, domainText4 } from "../../js/engine4.js";
 import { leadOf4, recordDiagnosis4, axisView4 } from "./summary4.js";
 import { heroArt4, axisArt4, NAVY, ART_SIZE } from "./axis_art.js";
+import { shareResult, shareText4 } from "./share.js";
 
 export const RESULT_TITLE4 = "今回の回答で目立つ傾向";
 export const RESULT_NOTE4 = "今回の回答から見た傾向です。相手や状況によって変わることがあります。";
@@ -162,20 +163,9 @@ function domainRow(r, d) {
   return row;
 }
 
-// ---------------------------------------------------------------- シェア
+// ---------------------------------------------------------------- シェア（決定 U45。中身は share.js）
+//   文「喧嘩の答えで診断しました。」＋「今回の回答で目立つ傾向：{見出し}」（片側に強く寄らないときは「{見出し}でした。」）、リンクは app/?from=share
 function shareButton(lead) {
-  return h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm a-dg-share", id: "a-dg-share", onclick: () => share(lead) },
+  return h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm a-dg-share", id: "a-dg-share", onclick: () => shareResult({ text: shareText4(lead) }) },
     icon("share", { size: 20 }), h("span", null, "シェア"));
-}
-
-async function share(lead) {
-  const url = new URL("./", location.href).href;
-  const data = { title: "喧嘩の答え", text: lead?.title || "喧嘩の答えの診断結果", url };
-  if (typeof navigator.share === "function") {
-    try { await navigator.share(data); return; }
-    catch (err) { if (err?.name === "AbortError") return; }
-  }
-  let ok = false;
-  try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(url); ok = true; } } catch { ok = false; }
-  toast(ok ? "リンクをコピーしました" : "リンクをコピーできませんでした");
 }
