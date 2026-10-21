@@ -21,6 +21,14 @@
               .a-dg-axes > .a-dg-axis-list > .a-dg-axis.is-a|is-b|is-mid|is-none（8つの軸。--x ●の位置、--axis・--axis-deep 軸の色）
                 .a-dg-axis-head（軸の絵か番号・題・右上の強さ）／.a-dg-axis-ends（両はしの傾向名）／.a-dg-track（横軸と●）
                 .a-dg-axis-share（「〜寄り 75%」。前に色の点 .a-dg-share-dot）
+   24問版（v4。決定 U42・U44。JS は app/js/diagnose4.js・result4.js。下の「24問版」の節。クラスは a-d4- で始める）
+     開始画面   .a-d4-start（三択の開始画面の部品 .a-dg- を使う）＋ .a-d4-guide（開始時の案内）／.a-d4-old（三択の途中の続き）
+     質問       .a-dg-q.a-d4-q[data-kind="U"|"P"|"N"]：三択の質問の部品（.a-dg-qcard・.a-dg-kicker・.a-dg-prompt／.a-dg-stem＋.a-dg-ask・
+                  .a-dg-pair > .a-dg-ans・.a-dg-hint・.a-dg-sep・.a-dg-foot）をそのまま使う。上のカード＝A、下のカード＝B（U44）
+                .a-d4-tools > .a-d4-unknown（判断できない。点線の枠・「？」の印。三択の「問題を変える」の場所に、静かな見た目で）
+     結果       .a-d4-res（三択の結果の部品 .a-dg-hero・.a-dg-pc を使う）
+                .a-d4-doms：三択の「8つの軸」の部品（.a-dg-axis-list > .a-dg-axis.is-a|is-b|is-mid|is-none・.a-dg-axis-ends・.a-dg-track・
+                  .a-dg-axis-share）＋ .a-d4-dom-title（状態の見出し）・.a-d4-dom-body（状態の本文）
    決まり：押せる部品は 44px 以上、焦点は app.css の輪、動きを減らす設定では動かさない、横スクロールを出さない */
 
 /* ======================================================================
@@ -749,6 +757,106 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
 .a-dg-res-foot .a-note { text-align: center; }
 .a-dg-res-rows { margin-top: var(--sp-4); padding-top: 0; padding-bottom: 0; }
 .a-dg-empty { margin-top: var(--sp-6); }
+
+/* ======================================================================
+   24問版（v4。決定 U42・U44）：開始画面・質問・結果
+   質問と結果の8つの領域は、三択の部品（.a-dg-）をそのまま使う（目立たせ方は U41 の4 のまま：問い → 回答2枚 → ほかは薄く）
+   ====================================================================== */
+.a-d4-title { font-size: clamp(1.5rem, 6.6vw, 1.6875rem); }
+.a-d4-guide { margin-top: var(--sp-2); }
+.a-d4-guide-text {
+  margin-top: var(--sp-2);
+  font-family: var(--sans);
+  font-size: var(--fs-md);
+  line-height: 1.95;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.a-d4-start .a-dg-how { margin-top: var(--sp-4); }
+.a-d4-how-q { font-family: var(--serif); font-size: 1.375rem; line-height: 1; color: var(--ink-2); }
+.a-d4-old { margin-top: var(--sp-5); }
+.a-d4-old-text { margin-bottom: var(--sp-3); font-size: var(--fs-md); line-height: 1.8; letter-spacing: 0.04em; color: var(--ink-2); }
+
+/* 質問（U44）：三択の質問の画面の部品（.a-dg-）をそのまま使う。ここは「判断できない」だけ */
+/* 判断できない：三択の「問題を変える」の場所に、点線の枠・丸い形・「？」の印で静かに（回答のカードとは形でも分ける。押せる高さは 44px 以上） */
+.a-d4-tools { width: 100%; }
+.a-d4-unknown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 6px 20px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--serif);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.a-d4-unknown:hover { border-color: var(--field); background: var(--surface-2); color: var(--ink); }
+.a-d4-unknown:focus-visible { outline-offset: 3px; }
+.a-d4-unknown.is-picked { border-style: solid; border-color: var(--rose); background: var(--surface-2); color: var(--ink); }
+.a-d4-unknown-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px; height: 22px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+.a-d4-unknown-label { min-width: 0; word-break: auto-phrase; }
+.a-d4-unknown-sub { display: inline-block; font-size: var(--fs-sm); color: var(--muted); }
+.a-d4-picked {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--sans);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  color: var(--rose-ink);
+  white-space: nowrap;
+}
+
+/* 結果 */
+.a-d4-res-note { margin-top: var(--sp-2); }
+.a-d4-pc-body { margin-top: 0; }
+.a-d4-overall .a-dg-pc-title { margin-top: 0; }
+.a-d4-none-text { font-size: var(--fs-base); line-height: 1.9; letter-spacing: 0.04em; color: var(--ink); }
+.a-d4-none-sub { margin-top: var(--sp-2); }
+.a-d4-none-btn { margin-top: var(--sp-4); }
+
+/* 8つの領域（U44）：三択の「8つの軸」の行に、状態の見出しと本文を足す */
+.a-d4-dom { padding-bottom: var(--sp-4); }
+.a-d4-dom-titles { flex: 1; min-width: 0; }
+.a-d4-dom .a-dg-axis-name { font-size: var(--fs-sm); color: var(--muted); }
+.a-d4-dom-title {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: 1.55;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+  word-break: auto-phrase;
+  text-wrap: pretty;
+}
+.a-d4-dom-body {
+  margin-top: var(--sp-2);
+  font-family: var(--sans);
+  font-size: var(--fs-md);
+  line-height: 1.9;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
 
 /* ---------------------------------------------------------------- 狭い画面 */
 @media (max-width: 419px) {

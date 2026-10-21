@@ -5,8 +5,10 @@
 //   相談：詳細で、consult.js が renderSaved(record) を持てばそれでカードを出す。無ければ書いた文の冒頭と一手
 import { h, icon, eyebrow, badge, topBar, fmtDate, toast } from "./ui.js";
 import { loadRecords, getRecord, removeRecord } from "./local.js";
-import { store3, restore3 } from "../../js/ui/three_store.js";
+import { restore3 } from "../../js/ui/three_store.js";
 import { resultKey, jpQuotes } from "./summary.js";
+import { resultKey4, isResult4 } from "./summary4.js";
+import { currentResult } from "./diagnosis_version.js";
 
 const KIND_LABEL = { diagnosis: "診断", consult: "相談" };
 
@@ -17,8 +19,12 @@ export function render(root, route) {
   root.append(listView());
 }
 
+// 今の診断（三択か24問。diagnosis_version.js）の結果の key。24問は頭が d4- の別の key（決定 U42）
 function currentKey() {
-  try { return store3.result ? resultKey(store3.result) : null; } catch { return null; }
+  try {
+    const r = currentResult();
+    return r ? (isResult4(r) ? resultKey4(r) : resultKey(r)) : null;
+  } catch { return null; }
 }
 
 function hrefOf(item, cur) {
@@ -119,7 +125,7 @@ function diagnosisDetail(item) {
   const isCurrent = cur && d.key === cur;
   out.push(h("div", { class: "a-detail-block a-stack" },
     isCurrent ? null : h("p", { class: "a-note" }, "くわしい結果の画面は、いちばん新しい診断の結果だけ見られます。"),
-    store3.result ? h("a", { class: "a-btn a-btn-block", href: "#result" }, isCurrent ? "結果を見る" : "いまの結果を見る", icon("arrow-right")) : null));
+    currentResult() ? h("a", { class: "a-btn a-btn-block", href: "#result" }, isCurrent ? "結果を見る" : "いまの結果を見る", icon("arrow-right")) : null));
   return out;
 }
 

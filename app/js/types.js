@@ -10,7 +10,8 @@
 //   下：「診断結果の絵の一覧」（#images）・「ホームへ戻る」
 //   診断の結果が無くても見られる（印が無いだけ）。見た目は app/css/app.css（a-ty-）
 import { h, topBar, badge, rowLink, artPic } from "./ui.js";
-import { store3, restore3 } from "../../js/ui/three_store.js";
+import { restore3 } from "../../js/ui/three_store.js";
+import { currentResult, currentVersion } from "./diagnosis_version.js";
 import { jpQuotes } from "./summary.js";
 import { typeCatalog, typeMarks } from "./type_catalog.js";
 
@@ -20,13 +21,14 @@ const markBadge = (k) => badge(MARK[k][0], { tone: MARK[k][1], ic: MARK[k][2] })
 
 export function render(root) {
   restore3();
-  const r = store3.result ?? null;
+  const r = currentResult() ?? null;   // 今の診断の結果（三択か24問。決定 U42）
+  const v4 = currentVersion() === "v4";
   let marks = { yours: {}, ids: [], hero: null };
   if (r) { try { marks = typeMarks(r); } catch (err) { console.error(err); } }
   const axes = groupByAxis(typeCatalog());
   root.append(h("div", { class: "a-ty" },
     topBar({ title: "診断結果の一覧", heading: true }),
-    intro(r, marks),
+    intro(r, marks, v4),
     toc(axes),
     h("div", { class: "a-ty-axes" }, axes.map((ax) => axisSection(ax, marks))),
     h("div", { class: "a-card a-rows-card a-ty-foot" },
@@ -54,11 +56,13 @@ function paint(el, ax) {
 }
 
 // ---------------------------------------------------------------- 前置き
-function intro(r, marks) {
+// 24問の診断（v4。決定 U42・U44）では、軸ごとの3問のうち A を選んだ割合で型を選ぶ（答えが2問より少ない軸は印を付けない）
+const HOW_V4 = "24問の診断では、軸ごとの3問のうち左の傾向（A）を選んだ割合で型が決まります。半分より多ければ A寄り、少なければ B寄り、ちょうど半分ならまんなかです。「判断できない」が多く、答えが2問より少ない軸には印を付けません。どの型にも、よい・わるいはありません。";
+function intro(r, marks, v4 = false) {
   const has = marks.ids.length > 0;
   return h("div", { class: "a-ty-intro" },
     h("p", { class: "a-lead" }, "8つの軸それぞれに、A寄り・まんなか・B寄りの3つの型があります（24タイプ）。診断の結果では、軸ごとにどれか1つになります。"),
-    h("p", { class: "a-note a-ty-how" }, "型は、結果の「8つの軸」の●で決まります。左の傾向（A）を選んだ割合が半分より多ければ A寄り、少なければ B寄り、ちょうど半分ならまんなかです。どの型にも、よい・わるいはありません。"),
+    h("p", { class: "a-note a-ty-how" }, v4 ? HOW_V4 : "型は、結果の「8つの軸」の●で決まります。左の傾向（A）を選んだ割合が半分より多ければ A寄り、少なければ B寄り、ちょうど半分ならまんなかです。どの型にも、よい・わるいはありません。"),
     r && has
       ? h("div", { class: "a-ty-legend" },
         h("p", { class: "a-ty-legend-text" }, "あなたの型には印が付いています。"),
