@@ -6,14 +6,18 @@
 //   同じ絵は1つの画面に2回出さない（絵が出るのは、上と、診断前・途中のカードだけ。この2つを重ねない）
 //   診断の状態は js/ui/three_store.js（今の画面と同じ保存のキー。どちらで答えても共通）。js/ の中身は直さない
 //   24問版（v4。決定 U42）：今の診断の版（app/js/diagnosis_version.js の currentStatus）で、三択か24問の状態・結果を出す。
-//     v4 の診断後のカード：小さく「今回の回答で目立つ傾向」、大きく冒頭の見出し（主軸の状態の見出し）、その本文、主な傾向（主軸と補足）
+//     v4 の診断後のカード（持ち主の原稿の形。決定 U46。既定）：小さく「今回の診断結果」、大きく結果の画面と同じタイトル（summary4.js の copyCard4）、
+//       本文の最初の1文（文の途中で切らない）、丸い →（#result）、下に「もう一度診断する」。主な傾向の一覧は出さない。答えがそろった領域が無いときはタイトルだけ。
+//       上の絵は結果の画面のいちばん上と同じ（axis_art.js の heroArt。結果の文の主軸の、選ばれた側の絵）
+//     v4 の診断後のカード（前の形。?rc=u44）：小さく「今回の回答で目立つ傾向」、大きく冒頭の見出し（主軸の状態の見出し）、その本文、主な傾向（主軸と補足）
 //     診断前のカードの「8〜10分」は、新しく始める診断が v4 のときは「24問」（時間は測っていないので出さない）
 //   共有のリンクから来た人（決定 U45。app/js/share.js の fromShare。このタブの間だけの印）：診断がまだ終わっていない（"before"・"mid"）ときだけ、
 //     並びを「上 → 診断 → 相談」にし、診断の見出しの下・カードの上に静かな箱「送られてきた診断です」を1つ出す。"done" のときはいつものホーム
 import { h, eyebrow, sectionHead, badge, roundArrow, rowLink, artPic, icon, go } from "./ui.js";
 import { restore3 } from "../../js/ui/three_store.js";
 import { mainPattern, topTendencies, recordDiagnosis } from "./summary.js";
-import { leadOf4, tendencies4, recordDiagnosis4 } from "./summary4.js";
+import { leadOf4, tendencies4, recordDiagnosis4, copyCard4 } from "./summary4.js";
+import { isCopyResult } from "./result_copy_version.js";
 import { heroArt, artOf, ART_SIZE, AXIS_ART, NAVY } from "./axis_art.js";
 import { currentStatus, discardCurrent, newDiagnosisVersion } from "./diagnosis_version.js";
 import { fromShare } from "./share.js";
@@ -69,7 +73,7 @@ export function render(root) {
   const build = (s) => {
     const pics = homePics(s, main);
     const first = shared && s !== "done";
-    return { pics, first, diag: s === "done" ? (v4 ? doneSection4(r) : doneSection(r)) : diagnoseSection(s, pics.diagnose, s === "mid" ? st.answered : 0, first) };
+    return { pics, first, diag: s === "done" ? (v4 ? (isCopyResult() ? doneSectionCopy4(r) : doneSection4(r)) : doneSection(r)) : diagnoseSection(s, pics.diagnose, s === "mid" ? st.answered : 0, first) };
   };
   let view;
   try {
@@ -194,7 +198,26 @@ function doneSection(r) {
         rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" }))));
 }
 
-// ---------------------------------------------------------------- 診断の欄（診断後・24問版。決定 U42）
+// ---------------------------------------------------------------- 診断の欄（診断後・24問版・持ち主の原稿の形。決定 U46）
+//   小さく「今回の診断結果」、大きく結果の画面と同じタイトル、本文の最初の1文、丸い →。主な傾向の一覧は出さない
+function doneSectionCopy4(r) {
+  const c = copyCard4(r);
+  if (!c) throw new Error("24問の結果の文を作れませんでした");
+  return h("section", { class: "a-home-sec", "aria-labelledby": "a-home-diag" },
+    sectionHead("診断結果", { id: "a-home-diag", aside: "もっとあなたを見る", href: "#result" }),
+    h("div", { class: "a-card a-card-split a-diag-done a-diag-copy", "data-dv": "v4", "data-kind": c.kind },
+      h("a", { class: "a-card-main a-card-link", href: "#result" },
+        h("p", { class: "a-kicker" }, "今回の診断結果"),
+        h("div", { class: "a-diag-copy-main" },
+          h("div", { class: "a-diag-copy-text" },
+            h("h3", { class: "a-diag-headline" }, c.title),
+            c.sentence ? h("p", { class: "a-diag-one" }, c.sentence) : null),
+          roundArrow())),
+      h("div", { class: "a-rows" },
+        rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" }))));
+}
+
+// ---------------------------------------------------------------- 診断の欄（診断後・24問版・前の形。決定 U42・U44。?rc=u44）
 //   小さく「今回の回答で目立つ傾向」、大きく冒頭の見出し（summary4.js の leadOf4）、本文、主な傾向（主軸と補足。tendencies4）
 function doneSection4(r) {
   const lead = leadOf4(r);

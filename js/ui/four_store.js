@@ -17,6 +17,8 @@
 //   start4()             … 新しく始める（前の v4 の答えは消す。ほかの版の保存には触らない）
 //   answer4(value)       … 今の問いに答えて次へ。value は 1（A）・−1（B）・null（判断できない）。正しくない値は何もしない（false）
 //   back4()              … 前の問いへ
+//   review4()            … 回答を見直す（決定 U46）：答えを消さずに1問目へ。完了の印を外し、答えるたびに次の問いへ進み、24問目に答えると完了に戻る
+//                          （見直しの途中で読み込み直すと、答えがそろっているので完了として読む＝結果の画面に戻る。保存の形は変えない）
 //   discard4()           … v4 の診断を消す
 //   adopt4(json)         … 別の入れ物（iPhone の Safari ↔ ホーム画面のアプリ）から移した診断に置き換える。読めなければ投げる
 //   sanitizeSession4(x)  … 保存の形を確かめた写し（読めなければ null）
@@ -33,6 +35,8 @@ export const store4 = {
   session: null,   // 上の保存の形
   result: null,    // completed のときだけ computeResult4(session.answers)
 };
+
+let reviewing = false;   // 回答を見直している間（review4 から24問目まで）。保存しない
 
 let injected = null;
 /** 入れ物を差し替える（テスト用）。null で既定（globalThis.localStorage）に戻す。差し替えたら、次の restore4 で読み直す */
@@ -131,6 +135,7 @@ let restored = false;
 export function restore4() {
   if (restored) return;
   restored = true;
+  reviewing = false;
   store4.session = null; store4.result = null;
   try {
     const raw = storage()?.getItem(STORAGE_KEY4);
@@ -142,6 +147,7 @@ export function restore4() {
 /** 新しく始める（v4 の前の答えは消える） */
 export function start4() {
   restored = true;
+  reviewing = false;
   store4.session = emptySession4();
   rebuild();
   persist(); emit();
@@ -163,7 +169,8 @@ export function answer4(value) {
   else if (validValue4(id, value)) s.answers[id] = { status: "answered", value };
   else return false;
   const next = c.index + 1;
-  if (allPresent(s.answers)) { s.completed = true; s.currentIndex = TOTAL4 - 1; }
+  // 見直しの間は、答えがそろっていても24問目まで順に進む
+  if (allPresent(s.answers) && (!reviewing || next >= TOTAL4)) { s.completed = true; s.currentIndex = TOTAL4 - 1; reviewing = false; }
   else if (next < TOTAL4) s.currentIndex = next;
   else s.currentIndex = firstMissing(s.answers);
   rebuild();
@@ -180,9 +187,25 @@ export function back4() {
   return true;
 }
 
+/**
+ * 回答を見直す（決定 U46。結果の画面の「回答を見直す」）→ できたか
+ *   答えは消さない。完了の印を外して1問目へ。前の答えは「前に選んだ回答」の印で見える。答えるたびに次の問いへ進み、24問目に答えると完了に戻る
+ */
+export function review4() {
+  const s = store4.session;
+  if (!s) return false;
+  s.completed = false;
+  s.currentIndex = 0;
+  reviewing = true;
+  rebuild();
+  persist(); emit();
+  return true;
+}
+
 /** v4 の診断を消す（ほかの版の保存には触らない） */
 export function discard4() {
   restored = true;
+  reviewing = false;
   store4.session = null; store4.result = null;
   persist(); emit();
 }
@@ -192,6 +215,7 @@ export function adopt4(json) {
   const s = sanitizeSession4(json);
   if (!s) throw new Error("24問の診断として読めません");
   restored = true;
+  reviewing = false;
   store4.session = s;
   rebuild();
   persist(); emit();

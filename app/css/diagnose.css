@@ -26,7 +26,10 @@
      質問       .a-dg-q.a-d4-q[data-kind="U"|"P"|"N"]：三択の質問の部品（.a-dg-qcard・.a-dg-kicker・.a-dg-prompt／.a-dg-stem＋.a-dg-ask・
                   .a-dg-pair > .a-dg-ans・.a-dg-hint・.a-dg-sep・.a-dg-foot）をそのまま使う。上のカード＝A、下のカード＝B（U44）
                 .a-d4-tools > .a-d4-unknown（判断できない。点線の枠・「？」の印。三択の「問題を変える」の場所に、静かな見た目で）
-     結果       .a-d4-res（三択の結果の部品 .a-dg-hero・.a-dg-pc を使う）
+     結果       持ち主の原稿の形（決定 U46。既定）：.a-d4-res.a-d4-copy[data-kind] > .a-dg-hero.a-d4-copy-hero（絵。名前の札なし）→ h1.result-title（タイトル1つ）→
+                 .a-d4-copy-body（本文の段落・補足 .a-d4-copy-bridge）→ .a-d4-copy-action（.a-d4-copy-lead ＋ blockquote.a-d4-copy-quote）→
+                 details.a-d4-bd（「回答の内訳を見る」。.a-d4-bd-sum・.a-d4-bd-list > .a-d4-bd-dom）→ .a-dg-res-foot（操作）
+               前の形（?rc=u44）：.a-d4-res（三択の結果の部品 .a-dg-hero・.a-dg-pc を使う）
                 .a-d4-doms：三択の「8つの軸」の部品（.a-dg-axis-list > .a-dg-axis.is-a|is-b|is-mid|is-none・.a-dg-axis-ends・.a-dg-track・
                   .a-dg-axis-share）＋ .a-d4-dom-title（状態の見出し）・.a-d4-dom-body（状態の本文）
    決まり：押せる部品は 44px 以上、焦点は app.css の輪、動きを減らす設定では動かさない、横スクロールを出さない */
@@ -835,6 +838,84 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
 .a-d4-none-text { font-size: var(--fs-base); line-height: 1.9; letter-spacing: 0.04em; color: var(--ink); }
 .a-d4-none-sub { margin-top: var(--sp-2); }
 .a-d4-none-btn { margin-top: var(--sp-4); }
+
+/* 結果（持ち主の原稿の形。決定 U46）：絵 → タイトル1つ → 本文 → 補足1文 → 一言 → 閉じた内訳 → 操作。
+   タイトルは .result-title にそろえる（大きさ clamp(20px, 5.4vw, 24px)・太さ 700・行の高さ 1.5。今の見出しの字体〔明朝〕と色。
+   狭い画面では自然に折り返す。行数で切ったり高さを決めたりしない）。本文は 16px・行の高さ 1.8。章の見出し風の飾りは付けない */
+.result-title {
+  margin-top: var(--sp-6);
+  font-family: var(--serif);
+  font-size: clamp(20px, 5.4vw, 24px);
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  word-break: auto-phrase;
+  text-wrap: pretty;
+}
+.a-d4-copy-hero + .result-title { margin-top: var(--sp-2); }
+.a-d4-copy-body { margin-top: var(--sp-4); }
+.a-d4-copy-body > p,
+.a-d4-copy-action p {
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.8;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.a-d4-copy-body > p + p { margin-top: var(--sp-4); }
+.a-d4-copy-action { margin-top: var(--sp-6); }
+/* 一言：短い引用（左に細い線だけ。囲み・色の地は付けない） */
+.a-d4-copy-quote {
+  margin: var(--sp-2) 0 0;
+  padding: 2px 0 2px var(--sp-4);
+  border-left: 2px solid var(--line-strong);
+}
+.a-d4-copy-quote p { word-break: auto-phrase; }
+/* 回答の内訳（閉じた状態。開くと8つの領域の答え） */
+.a-d4-bd { margin-top: var(--sp-8); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.a-d4-bd-sum {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: 52px;
+  padding: var(--sp-2) 0;
+  font-size: var(--fs-md);
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  list-style: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.a-d4-bd-sum::-webkit-details-marker { display: none; }
+.a-d4-bd-sum .a-ic { flex: none; color: var(--muted); transition: transform var(--dur) var(--ease); }
+.a-d4-bd[open] > .a-d4-bd-sum .a-ic { transform: rotate(90deg); }
+.a-d4-bd-sum:focus-visible { outline-offset: 2px; }
+.a-d4-bd-body { padding-bottom: var(--sp-5); }
+.a-d4-bd-legend { font-size: var(--fs-sm); line-height: 1.8; letter-spacing: 0.04em; color: var(--muted); }
+.a-d4-bd-list { list-style: none; margin-top: var(--sp-3); }
+.a-d4-bd-dom { padding: var(--sp-3) 0; border-top: 1px solid var(--line); }
+.a-d4-bd-name { font-size: var(--fs-md); line-height: 1.6; letter-spacing: 0.04em; color: var(--ink); }
+.a-d4-bd-ab { font-size: var(--fs-sm); line-height: 1.7; letter-spacing: 0.04em; color: var(--muted); }
+.a-d4-bd-picks {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px var(--sp-3);
+  margin: var(--sp-2) 0 0;
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  line-height: 1.7;
+}
+.a-d4-bd-pick { display: contents; }
+.a-d4-bd-picks dt { color: var(--muted); }
+.a-d4-bd-picks dd { margin: 0; color: var(--ink-2); }
+.a-d4-bd-count, .a-d4-bd-hold { margin-top: var(--sp-1); font-family: var(--sans); font-size: var(--fs-sm); font-weight: 400; line-height: 1.7; color: var(--ink-2); }
+.a-d4-bd-hold { color: var(--muted); }
+.a-d4-bd-note { margin-top: var(--sp-3); }
+.a-d4-copy .a-dg-res-foot { margin-top: var(--sp-6); }
 
 /* 8つの領域（U44）：三択の「8つの軸」の行に、状態の見出しと本文を足す */
 .a-d4-dom { padding-bottom: var(--sp-4); }

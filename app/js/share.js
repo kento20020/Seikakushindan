@@ -2,7 +2,8 @@
 //   読み込んだだけでは document・window・navigator・sessionStorage を触らない（Node のテストでも読める）。DOM を触るのは shareResult と copyText だけ
 //
 //   shareUrl(base)          … 共有のリンク（app/ の入口に ?from=share。結果は載せない。?dv= などほかのクエリとハッシュは付けない）
-//   shareText4(lead)        … 24問の共有の文（lead は summary4.js の leadOf4(r)）
+//   shareTextCopy4(copy)    … 24問の共有の文（持ち主の原稿の形。決定 U46。既定。copy は summary4.js の copyOf4(r)）
+//   shareText4(lead)        … 24問の共有の文（前の形。?rc=u44。lead は summary4.js の leadOf4(r)）
 //   shareText3(main)        … 三択の共有の文（main は summary.js の mainPattern(r)。見出しは headline）
 //   shareResult({ text })   … 端末の共有の窓（navigator.share）。閉じたら何もしない。使えない・失敗したら「文＋改行＋リンク」をコピーして知らせる
 //   copyText(text)          … コピー（clipboard API → だめなら隠した textarea と execCommand）
@@ -28,7 +29,17 @@ export function shareUrl(base = globalThis.location?.href) {
 }
 
 /**
- * 24問（v4）の共有の文
+ * 24問（v4）の共有の文（持ち主の原稿の形。決定 U46）
+ *   「喧嘩の答えで診断しました。\n{結果の画面のタイトル}」。答えがそろった領域が無い（kind "none"）・copy が無い・題が空は1行目だけ
+ */
+export function shareTextCopy4(copy) {
+  const title = clean(copy?.title);
+  if (!title || copy.kind === "none") return SHARE_LEAD;
+  return `${SHARE_LEAD}\n${title}`;
+}
+
+/**
+ * 24問（v4）の共有の文（前の形。?rc=u44）
  *   primary … 「喧嘩の答えで診断しました。\n今回の回答で目立つ傾向：{見出し}」
  *   flat    … 「喧嘩の答えで診断しました。\n{見出し}でした。」（見出しは engine4.js の LEAD_TITLE4.flat）
  *   none・lead が無い・見出しが空 … 「喧嘩の答えで診断しました。」
