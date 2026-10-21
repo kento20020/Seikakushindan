@@ -2,7 +2,8 @@
 // 新しい画面（app/）の結果のシェアと、共有のリンクから来た人の入口のテスト。仕様：docs/app-screens.md §21（決定 U45）
 //  - app/js/share.js：読み込んだだけで document・window・navigator を触らない（Node で読める）
 //  - shareUrl：app/・app/index.html?dv=v3#result などから …/app/?from=share（ほかのクエリとハッシュは付けない。結果は載せない）
-//  - shareText4（24問）：primary・flat・none・null。shareText3（三択）：見出しあり・なし
+//  - shareTextCopy4（24問・持ち主の原稿の形。決定 U46。既定）：「喧嘩の答えで診断しました。」＋改行＋結果の画面のタイトル。答えがそろわないときは1行目だけ
+//  - shareText4（24問・前の形。?rc=u44）：primary・flat・none・null。shareText3（三択）：見出しあり・なし
 //  - shareResult：navigator.share に { title, text, url } が渡る。閉じた（AbortError）ときは何もしない
 //  - readFromShare：?from=share・?dv=v3&from=share#home → ?dv=v3#home・?from=other は印なし・クエリなし
 //  - markFromShare・fromShare：sessionStorage があればそこに、無ければこの読み込みの間だけ
@@ -13,10 +14,11 @@ import { readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  shareUrl, shareText4, shareText3, copyBody, shareResult, readFromShare, markFromShare, fromShare, clearFromShare,
+  shareUrl, shareText4, shareTextCopy4, shareText3, copyBody, shareResult, readFromShare, markFromShare, fromShare, clearFromShare,
   SHARE_TITLE, SHARE_LEAD, FROM_SHARE_KEY, COPY_OK, COPY_NG,
 } from "../app/js/share.js";
-import { LEAD_TITLE4 } from "../js/engine4.js";
+import { LEAD_TITLE4, computeResult4 } from "../js/engine4.js";
+import { copyOf4 } from "../app/js/summary4.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -47,6 +49,18 @@ await test("文の頭とコピーの中身", () => {
 });
 
 // ---------------------------------------------------------------- 共有の文
+await test("shareTextCopy4（既定）：「喧嘩の答えで診断しました。」＋改行＋結果の画面と同じタイトル。答えがそろわないときは1行目だけ", () => {
+  const ans = (v) => (v === null ? { status: "unknown", value: null } : { status: "answered", value: v });
+  const of = (u, p, n) => computeResult4(Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].flatMap((d) => [[`U${d}`, ans(u)], [`P${d}`, ans(p)], [`N${d}`, ans(n)]])));
+  const c = copyOf4(of(1, 1, 1));
+  assert.equal(shareTextCopy4(c), `喧嘩の答えで診断しました。\n${c.title}`);
+  assert.equal(shareTextCopy4(c), "喧嘩の答えで診断しました。\n話して、ふたりの間をほどいていく。");
+  assert.equal(shareTextCopy4(copyOf4(of(1, -1, null))), "喧嘩の答えで診断しました。\nいまの答えを、そのまま大切にする。");
+  assert.equal(shareTextCopy4(copyOf4(of(null, null, null))), SHARE_LEAD, "答えがそろった領域が無い");
+  assert.equal(shareTextCopy4(null), SHARE_LEAD);
+  assert.equal(shareTextCopy4({ kind: "primary", title: " " }), SHARE_LEAD);
+});
+
 await test("shareText4：primary は「今回の回答で目立つ傾向：見出し」", () => {
   const lead = { kind: "primary", title: "「向き合う」を選びやすい", body: "…", domain: 1 };
   assert.equal(shareText4(lead), "喧嘩の答えで診断しました。\n今回の回答で目立つ傾向：「向き合う」を選びやすい");

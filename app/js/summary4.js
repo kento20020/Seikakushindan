@@ -5,11 +5,18 @@
 //   axisView4(r, d)         … 結果の「8つの領域」の1本の横軸（三択の「8つの軸」の axisView と同じ形。●の位置・「向き合う寄り 67%」・読み上げの文）
 //   tendencies4(r)          … 主軸と補足の傾向（最大3）[{ domain, key: "1A", side, name, domainName, role: "主軸"|"補足" }]
 //   resultKey4(r)           … 結果の key（同じ24問の答えなら同じ）。履歴の重なりの判定に使う（三択の key とは頭が違う：d4-）
-//   diagnosisRecord4(r)     … 履歴に足す形 { kind, title, sub, data }
+//   diagnosisRecord4(r)     … 履歴に足す形 { kind, title, sub, data }（結果の出し方の版で変わる。下の「持ち主の原稿の形」）
 //   recordDiagnosis4(r)     … 履歴に足す（同じ結果は足さない）→ id か null
+//
+// 持ち主の原稿の形（決定 U46。既定。?rc=u44 で前の形。app/js/result_copy_version.js）
+//   copyOf4(r)              … 結果の文の1セット（js/result_copy4.js の resultCopy4）。結果の画面・ホーム・履歴・シェアの題は、どれもこの title
+//   copyCard4(r)            … ホームの診断後のカードの中身 { title, sentence（本文の最初の1文。答えがそろった領域が無いときは ""）, kind }
+//   履歴の記録：題＝copy の title、sub＝本文の最初の1文、data に copyVersion・copyId（前に記録した物はそのまま読める）
 import { DOMAINS } from "../../js/engine.js";
 import { LEAD_TITLE4, domainText4, leadSide4, DOMAIN_IDS4 } from "../../js/engine4.js";
 import { idsOfDomain4 } from "../../js/data/questions4.js";
+import { resultCopy4, firstSentence4 } from "../../js/result_copy4.js";
+import { resultCopyVersion } from "./result_copy_version.js";
 import { addRecord } from "./local.js";
 
 export const isResult4 = (r) => !!r && typeof r === "object" && r.diagnosisVersion === "v4" && !!r.domains;
@@ -79,8 +86,43 @@ export function resultKey4(r) {
   return `d4-${r?.questionBankVersion ?? ""}-${fnv1a(body)}`;
 }
 
-/** 履歴に足す形。title＝冒頭の見出し、sub＝その本文 */
-export function diagnosisRecord4(r) {
+/** 結果の文の1セット（v4 の結果でなければ null） */
+export function copyOf4(r) {
+  return isResult4(r) ? resultCopy4(r) : null;
+}
+
+/** ホームの診断後のカード：題・本文の最初の1文（文の途中で切らない）。答えがそろった領域が無いときは題だけ */
+export function copyCard4(r, c = copyOf4(r)) {
+  if (!c) return null;
+  return { title: c.title, sentence: c.kind === "none" ? "" : firstSentence4(c.paragraphs[0] ?? ""), kind: c.kind };
+}
+
+/**
+ * 履歴に足す形
+ *   持ち主の原稿の形（既定）：title＝copy の title、sub＝本文の最初の1文、data に copyVersion・copyId・主軸（copy の主軸）。主な傾向の一覧は入れない
+ *   前の形（rc "u44"）：title＝冒頭の見出し、sub＝その本文、主な傾向（主軸と補足）
+ */
+export function diagnosisRecord4(r, { rc = resultCopyVersion() } = {}) {
+  if (rc !== "u44") {
+    const copy = copyOf4(r);
+    const c = copyCard4(r, copy);
+    return {
+      kind: "diagnosis",
+      title: c?.title || "診断結果",
+      sub: c?.sentence || "",
+      data: {
+        key: resultKey4(r),
+        version: "v4",
+        questionBankVersion: r?.questionBankVersion ?? null,
+        copyVersion: copy?.copyVersion ?? null,
+        copyId: copy?.copyId ?? null,
+        primaryDomainId: copy?.primaryDomain ?? null,
+        tendencies: [],
+        answered: r?.counts?.answered ?? 0,
+        unknown: r?.counts?.unknown ?? 0,
+      },
+    };
+  }
   const lead = leadOf4(r);
   return {
     kind: "diagnosis",

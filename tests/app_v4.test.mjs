@@ -1,7 +1,7 @@
 // node tests/app_v4.test.mjs
 // 新しい画面（app/）の 24問版（v4。決定 U42・U44）の DOM の無い部分。仕様：docs/diagnosis-v4.md
 //  - app/js/diagnosis_version.js：既定は v4、?dv= で切り替え、今の診断の版（最後に触った版）、途中の三択は三択のまま、三択の結果を消さない
-//  - app/js/summary4.js：冒頭の見出し・主な傾向・結果の key・履歴に足す形・8つの領域の横軸（axisView4）
+//  - app/js/summary4.js：冒頭の見出し・主な傾向・結果の key・履歴に足す形（既定は持ち主の原稿の形〔U46〕、rc "u44" で前の形）・8つの領域の横軸（axisView4）
 //  - app/js/axis_art.js：v4 の絵（A の割合が 50% より多ければ A寄り、少なければ B寄り、50% はまんなか。incomplete は絵なし）、heroArt・slotMarks・typeMarks が v4 も受け取る
 //  - app/js/transfer.js：24問の診断も引き継げる（three と four の両方・four だけ）。壊れた four は読めない
 //  - js/consult/from_diagnosis4.js：相談の8領域の向き（強・寄りだけ向きを付ける。強は sure、寄りは est）と手がかり
@@ -161,12 +161,19 @@ await test("主な傾向（主軸と補足）・結果の key・履歴に足す�
   assert.equal(resultKey4(result4Of(spec)), k);
   assert.notEqual(resultKey4(result4Of({ ...spec, 8: "AB?" })), k);
   assert.notEqual(resultKey4(result4Of({ ...spec, 1: "AA?" })), k, "判断できないも key に入る");
-  const rec = diagnosisRecord4(r);
+  // 前の形（?rc=u44。決定 U44）の記録
+  const rec = diagnosisRecord4(r, { rc: "u44" });
   assert.equal(rec.kind, "diagnosis");
   assert.equal(rec.title, "「向き合う」を選びやすい");
   assert.equal(rec.data.version, "v4");
   assert.equal(rec.data.key, k);
   assert.equal(rec.data.tendencies.length, 3);
+  // 既定（持ち主の原稿の形。決定 U46）の記録：題は結果の画面のタイトル、sub は本文の最初の1文、copyVersion・copyId も残す
+  const rec2 = diagnosisRecord4(r);
+  assert.equal(rec2.title, "話して、ふたりの間をほどいていく。");
+  assert.equal(rec2.sub, "気まずいまま話が途切れると、どこか落ち着かないこともあるのではないでしょうか。");
+  assert.deepEqual([rec2.data.copyVersion, rec2.data.copyId, rec2.data.primaryDomainId, rec2.data.key], ["result-v4.1", "B1-1", 1, k]);
+  assert.deepEqual(rec2.data.tendencies, []);
   const id = recordDiagnosis4(r);
   assert.ok(id);
   assert.equal(recordDiagnosis4(r), id);

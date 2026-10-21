@@ -1,5 +1,22 @@
-// 24問版（v4）の診断結果（#result）。決定 U42・U44。仕様：docs/diagnosis-v4.md §6
+// 24問版（v4）の診断結果（#result）。決定 U42・U44・U46。仕様：docs/diagnosis-v4.md §6
 //   三択（v3）の結果は今までどおり result.js（どちらを出すかは main.js が今の診断の版で決める）
+//   出し方は2つ（app/js/result_copy_version.js。既定は "v4.1"、URL の ?rc=u44 で前の形）
+//
+// ■ 持ち主の原稿の形（決定 U46。既定。render → renderCopy）。文は js/result_copy4.js（原稿の写しは js/data/result_copy4.js）
+//   上の帯：「←」・小さな「診断結果」（ページの名前。h1 にしない）・「シェア」（文は「喧嘩の答えで診断しました。」＋改行＋タイトル）
+//   その下は、この順だけ：
+//     1 絵：結果の文の主軸の領域の、選ばれた側の軸の絵（axis_art.js の heroArt4）。飾りなので alt は空。下に傾向の名前を付けない。主軸が無ければ出さない
+//     2 タイトル（h1。画面の中の見出しはこれ1つ。.result-title）
+//     3 本文（原稿の段落どおり。特別の組 PAIR-7B-8B は2段落）
+//     4 補足1文（あるときだけ。本文と同じ大きさ。囲み・見出しを付けない）
+//     5 「たとえば、こんな一言から。」と、一言を「」で1つ（答えがそろった領域が無いときは出さない）
+//     6 閉じた「回答の内訳を見る」（details）：8つの領域の名前・A と B の名前・3問の答え・A と B を選んだ数（％にしない）、凡例、注記。結果の文は再掲しない。絵は出さない
+//     7 操作：［相談する］［もう一度診断する］［診断結果の一覧］［診断結果の絵の一覧］［ホームへ戻る］。
+//       答えがそろった領域が無いときは［回答を見直す］（24問の1問目へ。答えは消さない。four_store.js の review4）と［ホームへ戻る］
+//   外したもの：見出し『今回の回答で目立つ傾向』、主軸と補足のカード、8つの領域の線と絵、状態の見出し
+//   中の ID（B1-1・PAIR-7B-8B・テーマの名前）は画面に出さない
+//
+// ■ 前の形（決定 U44。?rc=u44。renderU44。下のコメントのまま）
 //   上：「←」・中央「診断結果」・右に「シェア」（app/js/share.js。文はサービス名と冒頭の見出し、リンクは app/?from=share。結果はリンクに載せない。決定 U45）
 //   主軸の絵：主軸の領域の、A の割合で選んだ軸の絵（axis_art.js の heroArt4）。主軸が無ければ出さない
 //   見出し『今回の回答で目立つ傾向』と短い注記『今回の回答から見た傾向です。相手や状況によって変わることがあります。』
@@ -13,18 +30,116 @@
 //     状態の見出しと本文。U41 の5 で三択から外した説明の文は出さない。絵は A の割合で選ぶ（axis_art.js の axisArt4）。incomplete は番号の丸
 //   結果を開いたら、履歴に1件足す（summary4.js の recordDiagnosis4。同じ結果は2回足さない）
 //   見た目は app/css/diagnose.css（三択の結果と同じ a-dg- の部品と、a-d4- で始まるクラス）
-import { h, icon, topBar, badge, sectionHead, rowLink, artPic } from "./ui.js";
-import { store4, restore4, progress4 } from "../../js/ui/four_store.js";
+import { h, icon, topBar, badge, sectionHead, rowLink, artPic, go } from "./ui.js";
+import { store4, restore4, progress4, review4 } from "../../js/ui/four_store.js";
 import { DOMAINS } from "../../js/engine.js";
 import { DOMAIN_IDS4, domainText4 } from "../../js/engine4.js";
-import { leadOf4, recordDiagnosis4, axisView4 } from "./summary4.js";
+import { copyStatesOf4 } from "../../js/result_copy4.js";
+import { ACTION_LEAD4, BREAKDOWN_LABEL4, REVIEW_LABEL4 } from "../../js/data/result_copy4.js";
+import { idsOfDomain4 } from "../../js/data/questions4.js";
+import { leadOf4, recordDiagnosis4, axisView4, copyOf4 } from "./summary4.js";
 import { heroArt4, axisArt4, NAVY, ART_SIZE } from "./axis_art.js";
-import { shareResult, shareText4 } from "./share.js";
+import { shareResult, shareText4, shareTextCopy4 } from "./share.js";
+import { isCopyResult } from "./result_copy_version.js";
 
 export const RESULT_TITLE4 = "今回の回答で目立つ傾向";
 export const RESULT_NOTE4 = "今回の回答から見た傾向です。相手や状況によって変わることがあります。";
 
 export function render(root) {
+  return isCopyResult() ? renderCopy(root) : renderU44(root);
+}
+
+// ================================================================ 持ち主の原稿の形（決定 U46）
+/** 内訳の凡例・注記・答えがそろっていない領域の文 */
+export const BREAKDOWN_LEGEND4 = "普段＝普段の自分についての問　場面＝場面の問";
+export const BREAKDOWN_HOLD4 = "答えがそろっていないため、判断を置いています";
+const PICK_LABEL = { U: "普段", P: "場面", N: "場面" };
+
+function renderCopy(root) {
+  restore4();
+  const r = store4.result;
+  if (!r) { root.append(emptyView()); return; }
+  try { recordDiagnosis4(r); } catch (err) { console.error(err); }
+  const copy = copyOf4(r);
+  const none = copy.kind === "none";
+  root.append(h("div", { class: "a-dg-res a-d4-res a-d4-copy", "data-dv": "v4", "data-kind": copy.kind },
+    topBar({ title: "診断結果", right: shareButtonCopy(copy) }),
+    copyHero(r),
+    h("h1", { class: "result-title", id: "a-d4-title" }, copy.title),
+    h("div", { class: "a-d4-copy-body" },
+      copy.paragraphs.map((p) => h("p", null, p)),
+      copy.bridge ? h("p", { class: "a-d4-copy-bridge" }, copy.bridge) : null),
+    copy.action
+      ? h("div", { class: "a-d4-copy-action" },
+        h("p", { class: "a-d4-copy-lead" }, ACTION_LEAD4),
+        h("blockquote", { class: "a-d4-copy-quote" }, h("p", null, `「${copy.action}」`)))
+      : null,
+    breakdown(r),
+    h("div", { class: "a-dg-res-foot" },
+      h("div", { class: "a-card a-rows a-dg-res-rows" }, none
+        ? [
+          rowLink({ ic: "redo", text: REVIEW_LABEL4, onClick: reviewAnswers, attrs: { id: "a-d4-review" } }),
+          rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" }),
+        ]
+        : [
+          rowLink({ href: "#consult", ic: "chat", text: "相談する" }),
+          rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" }),
+          rowLink({ href: "#types", ic: "grid", text: "診断結果の一覧" }),
+          rowLink({ href: "#images", ic: "sparkle", text: "診断結果の絵の一覧" }),
+          rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" }),
+        ]))));
+}
+
+/** 回答を見直す：答えを消さずに24問の1問目へ */
+function reviewAnswers() {
+  if (review4()) go("#diagnose/q");
+}
+
+/** 絵（飾り。alt は空。下に傾向の名前を付けない） */
+function copyHero(r) {
+  let art = null;
+  try { art = heroArt4(r); } catch (err) { console.error(err); }
+  if (!art?.file) return null;
+  return h("figure", { class: "a-dg-hero a-d4-copy-hero", "data-key": art.key, "data-art": art.id },
+    h("div", { class: "a-dg-hero-pic" },
+      h("img", { src: art.file, alt: "", width: ART_SIZE, height: ART_SIZE, decoding: "async", fetchpriority: "high" })));
+}
+
+const pickText = (D, pick) => (pick === "A" ? D.a : pick === "B" ? D.b : pick === "unknown" ? "判断できない" : "未回答");
+
+/** 回答の内訳（閉じた状態）。8つの領域の答えと、A・B を選んだ数（％にしない）。結果の文は再掲しない */
+function breakdown(r) {
+  const states = copyStatesOf4(r);
+  return h("details", { class: "a-d4-bd", id: "a-d4-bd" },
+    h("summary", { class: "a-d4-bd-sum" }, h("span", null, BREAKDOWN_LABEL4), icon("chevron-right", { size: 18 })),
+    h("div", { class: "a-d4-bd-body" },
+      h("p", { class: "a-d4-bd-legend" }, BREAKDOWN_LEGEND4),
+      h("ul", { class: "a-d4-bd-list" }, DOMAIN_IDS4.map((d) => breakdownRow(r, d, states[d]))),
+      h("p", { class: "a-note a-d4-bd-note" }, RESULT_NOTE4)));
+}
+
+function breakdownRow(r, d, state) {
+  const D = DOMAINS[d];
+  const dom = r.domains[d];
+  const ids = idsOfDomain4(d);
+  return h("li", { class: "a-d4-bd-dom", "data-domain": d },
+    h("p", { class: "a-d4-bd-name" }, `${d} ${D.name}`),
+    h("p", { class: "a-d4-bd-ab" }, h("span", { class: "a-nowrap" }, `A：${D.a}`), "　", h("span", { class: "a-nowrap" }, `B：${D.b}`)),
+    h("dl", { class: "a-d4-bd-picks" }, ["U", "P", "N"].map((k) => h("div", { class: "a-d4-bd-pick", "data-q": ids[k] },
+      h("dt", null, PICK_LABEL[k]),
+      h("dd", null, pickText(D, dom.picks?.[k]))))),
+    h("p", { class: "a-d4-bd-count" }, `選んだ数：${D.a} ${dom.a}・${D.b} ${dom.b}`),
+    state === "incomplete" ? h("p", { class: "a-d4-bd-hold" }, BREAKDOWN_HOLD4) : null);
+}
+
+// シェア（決定 U45・U46。中身は share.js）：文「喧嘩の答えで診断しました。」＋改行＋タイトル、リンクは app/?from=share
+function shareButtonCopy(copy) {
+  return h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm a-dg-share", id: "a-dg-share", onclick: () => shareResult({ text: shareTextCopy4(copy) }) },
+    icon("share", { size: 20 }), h("span", null, "シェア"));
+}
+
+// ================================================================ 前の形（決定 U44。?rc=u44）
+function renderU44(root) {
   restore4();
   const r = store4.result;
   if (!r) { root.append(emptyView()); return; }

@@ -20,6 +20,8 @@
 //     領域の3問のうち A を選んだ割合（share）が 50% より多ければ a、少なければ b、ちょうど 50% は mid（artSideOfShare）。
 //     incomplete（答えた数が2より少ない）の領域は絵を出さない（番号の丸）
 //     axisArt4(d, dom) … 8つの領域の1行の絵。heroArt4(r) … 主軸の領域の絵（主軸が無ければ null）
+//     結果の出し方（決定 U46。app/js/result_copy_version.js）：既定は結果の文（js/result_copy4.js）の主軸の、選ばれた側の絵
+//       （A 側は A寄り、B 側は B寄り）。?rc=u44 では前のとおり js/engine4.js の主軸（primaryDomainId）の、A の割合で選んだ絵
 //
 // 絵を差し替えるときは、app/img/axes/ の同じ名前のファイルを上書きする（絵の中身が変われば、下の alt も直す）。
 //   まんなかの絵（<軸>-mid.jpg）の作り方は tools/make_axis_mid.sh（横長の8枚並びのまとめ画像から切り出す。U36）
@@ -27,6 +29,8 @@
 import { DOMAINS } from "../../js/engine3.js";
 import { heroTendency, TYPE_IMAGES } from "../../js/data/type_images.js";
 import { axisView } from "./summary.js";
+import { resultCopy4 } from "../../js/result_copy4.js";
+import { resultCopyVersion } from "./result_copy_version.js";
 
 /** B 側の紺（絵の紺のリボン・8つの軸の B 側の●と帯） */
 export const NAVY = "#22315A";
@@ -204,10 +208,25 @@ export function axisArt4(d, dom) {
 }
 
 /**
- * v4 の結果の一番上・ホームの一番上の絵：主軸の領域の、A の割合で選んだ絵。主軸が無ければ null
- *   key・tendency は主軸の状態で選ばれた側（A強・A寄りは A、B強・B寄りは B）。主軸はまんなかにならないので、mid にはならない
+ * v4 の結果の一番上・ホームの一番上の絵。主軸が無ければ null
+ *   既定（結果の文の形。決定 U46）：結果の文の主軸（resultCopy4 の primaryDomain）の、選ばれた側の絵（A 側は a、B 側は b）
+ *   rc "u44"（前の形）：js/engine4.js の主軸（primaryDomainId）の、A の割合で選んだ絵
+ *   key・tendency は選ばれた側。主軸はまんなかにならないので、mid にはならない
  */
-export function heroArt4(r) {
+export function heroArt4(r, { rc = resultCopyVersion() } = {}) {
+  if (rc === "u44") return heroArt4U44(r);
+  let copy = null;
+  try { copy = r?.domains ? resultCopy4(r) : null; } catch { copy = null; }
+  const d = Number(copy?.primaryDomain);
+  if (!AXIS_ART[d] || (copy.side !== "A" && copy.side !== "B")) return null;
+  const art = artOf(d, copy.side === "A" ? "a" : "b");
+  if (!art?.file) return null;
+  const D = DOMAINS[d];
+  return { ...art, key: `${d}${copy.side}`, tendency: copy.side === "A" ? D.a : D.b, reason: "主軸の領域（24問）", bySide: false };
+}
+
+/** 前の形（?rc=u44。決定 U44）のいちばん上の絵：js/engine4.js の主軸の領域の、A の割合で選んだ絵 */
+function heroArt4U44(r) {
   const d = Number(r?.primaryDomainId);
   const dom = r?.domains?.[d];
   if (!AXIS_ART[d] || !complete4(dom)) return null;

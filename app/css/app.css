@@ -840,6 +840,9 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   letter-spacing: 0.06em;
   color: var(--ink-2);
 }
+/* 診断後のカード（24問・持ち主の原稿の形。決定 U46）：題と本文の最初の1文、右下に丸い → */
+.a-diag-copy-main { display: flex; align-items: flex-end; gap: var(--sp-4); }
+.a-diag-copy-text { flex: 1; min-width: 0; }
 .a-trends {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
