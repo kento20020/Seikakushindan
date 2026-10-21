@@ -62,6 +62,7 @@
      .a-note           … 小さな灰色の補足  .a-box … 薄い地の箱（「違うと思う文があればタップ」など。中に icon("hand") を入れる）
      .a-nowrap         … そこで折り返さない
      .a-pending / .a-error … 準備中の画面・表示できなかったときの箱
+     .a-home-shared    … 共有のリンクから来た人への箱（ホームの診断の欄。-title・-body。決定 U45）
    画面の見出し（タブのある画面）：.a-page-head（eyebrow ＋ .a-h1 ＋ .a-lead）
    入力
      .a-input / .a-textarea … 入力欄（文字は 16px。iPhone で拡大されない）。.a-count … 「0 / 2000」
@@ -754,6 +755,18 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 }
 .a-home-sec { position: relative; z-index: 1; }
 .a-home-hero + .a-home-sec .a-section-h { margin-top: var(--sp-6); }
+/* 共有のリンクから来た人への箱（決定 U45。診断の見出しの下・カードの上。docs/app-screens.md §21）
+   カードより目立たせない：面の色・影は使わず、.a-box と同じ薄い地に細い線と小さめの文字。意味は文で伝える（色だけに頼らない） */
+.a-home-shared {
+  margin-bottom: var(--sp-3);
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: rgb(42 39 51 / 0.045);
+  color: var(--ink-2);
+}
+.a-home-shared-title { font-size: var(--fs-md); font-weight: 700; line-height: 1.6; letter-spacing: 0.08em; color: var(--ink); word-break: auto-phrase; }
+.a-home-shared-body { margin-top: 2px; font-size: var(--fs-sm); line-height: 1.8; letter-spacing: 0.06em; word-break: auto-phrase; }
 
 /* カードの中身（相談＝縦・丸のアイコンが上、診断前・途中＝横・絵が左） */
 .a-feature { display: grid; gap: var(--sp-4); }
