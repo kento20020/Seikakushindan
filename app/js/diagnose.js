@@ -2,18 +2,19 @@
 //   中身は今の三択診断をそのまま使う（js/ui/three_store.js。保存のキーも同じなので、今の画面と続き・結果が共通）。js/ の中身は直さない
 //   値・操作・文言は今の画面 js/ui/three.js の startView・questionView・practiceView・bindSwipe・キーボードと同じ
 //   スワイプは C「触った回答だけ」で固定（決定 U28。js/ui/swipe_variants.js の swipePart("c", …)・swipeAllows("c", …)）
-//     つかんだ回答だけが、その側へだけ動く。回答の外から始めたら向きの側の回答が動く
+//     つかんだ回答だけが、その向きへだけ動く。回答の外から始めたら、その向きで選ぶ回答が動く
+//     向き（決定 U41 の6）：上のカード（選択肢 "left"）は右へ、下のカード（選択肢 "right"）は左へ。読み替えは app/js/swipe_dir.js
+//       記録する答えは選択肢のまま（同じカードを選べば前と同じ答え・同じ結果）。今の画面（/#three）は前の向きのまま
 //     上＝問題を変える（使い切ったら答えずに進む）、下＝戻る は、問いと回答のまとまり（.a-dg-qcard）ごと動く
-//   キーボード：← → で回答、Space で問題を変える（使い切ったら答えずに進む）。練習カードは ← → だけ
+//   キーボード：→ で上の回答、← で下の回答、Space で問題を変える（使い切ったら答えずに進む）。練習カードは ← → だけ
 //   見た目は app/css/diagnose.css（クラスは a-dg- で始まる）
 import { h, icon, topBar, toast, go, rowLink } from "./ui.js";
 import { store3, restore3, start3, answer3, swap3, skip3, back3, practice3, practicePending3, onChange3 } from "../../js/ui/three_store.js";
 import { PRACTICE_CARD, versionOf, resolveVersion } from "../../js/three_version.js";
 import { MAX_SWAPS } from "../../js/adaptive3.js";
 import { attachSwipe, isCoarsePointer, prefersReducedMotion } from "../../js/ui/swipe.js";
-import { swipePart, swipeAllows } from "../../js/ui/swipe_variants.js";
+import { DIR_OF, OPTION_OF, optionOfKey, movingPart, allows } from "./swipe_dir.js";
 
-const SW = "c";                                        // スワイプの形（固定）
 const ENTER_FROM = { left: "right", right: "left", up: "bottom", down: "top" };   // 飛ばした向きの反対側から次が入る
 const ENTER_MS = 240;                                  // diagnose.css の a-dg-in-* と合わせる
 const SWIPE_IGNORE = "a, input, select, textarea, summary, label, button:not(.a-dg-ans), [data-no-swipe]";   // 回答はボタンだが、つかんでよい
@@ -99,11 +100,11 @@ function startView() {
     topBar({ title: "診断" }),
     h("section", { class: "a-dg-intro", "aria-labelledby": "a-dg-title" },
       h("h1", { class: "a-dg-title", id: "a-dg-title", "data-focus": "" }, phrase("左か、右か。"), phrase("迷ったら問題を変える")),
-      h("p", { class: "a-lead a-dg-lead" }, "どの質問も、2つの文のうち自分に近い方を選ぶだけ。")),
+      h("p", { class: "a-lead a-dg-lead" }, "どの質問も、2つの選択肢のうち自分に近い方を選ぶだけ。")),
     h("ul", { class: "a-card a-dg-how", "aria-label": "答え方" },
       h("li", null,
         h("span", { class: "a-dg-how-ic a-dg-how-pair", "aria-hidden": "true" },
-          h("span", { class: "a-dg-dot-l" }, icon("arrow-left", { size: 16 })), h("span", { class: "a-dg-dot-r" }, icon("arrow-right", { size: 16 }))),
+          h("span", { class: "a-dg-dot-top" }, icon("arrow-right", { size: 16 })), h("span", { class: "a-dg-dot-bottom" }, icon("arrow-left", { size: 16 }))),
         h("p", null, h("b", null, "自分に近い方を選ぶ"),
           h("span", null, "左右にスワイプするか、タップで選びます。"))),
       h("li", null,
@@ -135,24 +136,28 @@ function progressBar(p) {
     h("i", { style: { width: `${Math.round(p.ratio * 100)}%` } }));
 }
 
-/** 回答のカード（上＝左の回答、下＝右の回答）。押しても、つかんで動かしても答えられる */
+/**
+ * 回答のカード（上＝選択肢 "left"、下＝選択肢 "right"）。押しても、つかんで動かしても答えられる
+ *   向き（決定 U41 の6）：上のカードは右へ（文・縦線・右に丸「→」）、下のカードは左へ（左に丸「←」・縦線・文）。色はカードのまま（上＝くすんだ赤、下＝灰青）
+ */
 function answerCard(side, text, { picked = false, onPick }) {
-  const left = side === "left";
-  const dot = h("span", { class: "a-dg-ans-dot", "aria-hidden": "true" }, icon(left ? "arrow-left" : "arrow-right", { size: 26 }));
-  const body = h("span", { class: "a-dg-ans-text" }, h("span", { class: "a-sr" }, left ? "左の回答：" : "右の回答："), text);
+  const top = side === "left";
+  const dot = h("span", { class: "a-dg-ans-dot", "aria-hidden": "true" }, icon(`arrow-${DIR_OF[side]}`, { size: 26 }));
+  const body = h("span", { class: "a-dg-ans-text" }, h("span", { class: "a-sr" }, top ? "上の回答：" : "下の回答："), text);
   return h("button", { type: "button", class: ["a-dg-ans", `a-dg-ans-${side}`, picked && "is-picked"], "data-side": side,
     "aria-pressed": picked ? "true" : "false", onclick: onPick },
-    left ? [dot, body] : [body, dot],
+    DIR_OF[side] === "left" ? [dot, body] : [body, dot],
     picked ? h("span", { class: "a-dg-ans-picked" }, icon("check", { size: 14 }), "前に選んだ回答") : null);
 }
 
-/** 手のアイコンと「左右にスワイプするか、タップで選んでください」 */
+/** 小さな手のアイコンと「左右にスワイプ、またはタップで選ぶ」の1行（質問より目立たせない。決定 U41 の4） */
 function swipeHint({ practice = false } = {}) {
   return h("div", { class: "a-dg-hint" },
-    h("p", { class: "a-dg-hand", "aria-hidden": "true" }, icon("arrow-left", { size: 16 }), icon("hand", { size: 34 }), icon("arrow-right", { size: 16 })),
-    h("p", { class: "a-dg-hint-text" }, "左右にスワイプするか、", h("br"), "タップで選んでください"),
+    h("p", { class: "a-dg-hint-text" },
+      h("span", { class: "a-dg-hand", "aria-hidden": "true" }, icon("arrow-left", { size: 12 }), icon("hand", { size: 20 }), icon("arrow-right", { size: 12 })),
+      h("span", null, "左右にスワイプ、またはタップで選ぶ")),
     isCoarsePointer() ? null
-      : h("p", { class: "a-dg-kbd" }, practice ? "キーボード：← 左 ／ → 右" : "キーボード：← 左 ／ → 右 ／ Space 問題を変える（使い切ったら答えずに進む）"));
+      : h("p", { class: "a-dg-kbd" }, practice ? "キーボード：→ 上 ／ ← 下" : "キーボード：→ 上 ／ ← 下 ／ Space 問題を変える（使い切ったら答えずに進む）"));
 }
 
 function noticeOf(c, s) {
@@ -198,7 +203,7 @@ function questionView(s) {
         answerCard("right", q.right.text, { picked: c.answer === "right", onPick: () => answer3("right", "t") })),
       h("span", { class: "a-dg-badge", "aria-hidden": "true" })),
     swipeHint(),
-    h("p", { class: "a-or" }, "または"),
+    h("hr", { class: "a-dg-sep" }),
     h("div", { class: "a-dg-tools" },
       swapBtn,
       c.canSkip ? h("p", { class: "a-note a-dg-skipnote" }, c.swapsUsed >= MAX_SWAPS
@@ -254,29 +259,30 @@ function bindSwipe(card, c) {
   const parts = { card, left: card.querySelector(".a-dg-ans-left"), right: card.querySelector(".a-dg-ans-right") };
   const sides = [parts.left, parts.right];
   const label = c ? { up: c.canSwap ? "問題を変える" : "答えずに進む", down: "戻る" } : {};
-  // 指を置いた回答（"left" | "right"）。回答の外（問いの文など）から始めたときは null
+  // 指を置いた回答の選択肢（"left"＝上 | "right"＝下）。回答の外（問いの文など）から始めたときは null
   const sideOf = (start) => {
     const b = start instanceof Element ? start.closest(".a-dg-ans") : null;
     return b && card.contains(b) ? b.dataset.side : null;
   };
   const go = (dir, fn) => () => { enterFrom = ENTER_FROM[dir]; try { fn(); } finally { enterFrom = null; } };
+  // 右へ＝上の回答（選択肢 "left"）、左へ＝下の回答（選択肢 "right"）。決定 U41 の6
   const handlers = c
     ? {
-      onLeft: go("left", () => answer3("left", "s")),
-      onRight: go("right", () => answer3("right", "s")),
+      onLeft: go("left", () => answer3(OPTION_OF.left, "s")),
+      onRight: go("right", () => answer3(OPTION_OF.right, "s")),
       onUp: go("up", c.canSwap ? () => swap3("s") : () => skip3("s")),
       onDown: c.index > 0 ? go("down", () => back3("s")) : undefined,
     }
-    : { onLeft: go("left", () => practiceDone("left")), onRight: go("right", () => practiceDone("right")) };
+    : { onLeft: go("left", () => practiceDone(OPTION_OF.left)), onRight: go("right", () => practiceDone(OPTION_OF.right)) };
   detach = attachSwipe(card, {
     ignore: SWIPE_IGNORE,
     maxTilt: 5,
     target: ({ axis, dir, start }) => {
-      const el = parts[swipePart(SW, { axis, dir, startSide: sideOf(start) })] || card;
+      const el = parts[movingPart({ axis, dir, startOption: sideOf(start) })] || card;
       if (el !== card) el.classList.add("a-dg-moving");   // 動いている間だけ前面に（onEnd で外す）
       return el;
     },
-    allow: (dir, { start }) => swipeAllows(SW, dir, sideOf(start)),
+    allow: (dir, { start }) => allows(dir, sideOf(start)),
     ...handlers,
     onStart: () => { holdClip(); card.classList.add("is-dragging"); },
     onEnd: () => {
@@ -290,12 +296,12 @@ function bindSwipe(card, c) {
       if (dir) card.dataset.swipe = dir; else delete card.dataset.swipe;
       badge.textContent = dir && label[dir] ? label[dir] : "";
       card.style.setProperty("--p", progress.toFixed(3));
-      for (const b of sides) b.classList.toggle("is-hot", dir === b.dataset.side && progress >= 0.2);
+      for (const b of sides) b.classList.toggle("is-hot", dir === DIR_OF[b.dataset.side] && progress >= 0.2);
     },
   });
 }
 
-// ================================================================ キーボード（← → で回答、Space で問題を変える／答えずに進む）
+// ================================================================ キーボード（→ で上の回答・← で下の回答〔U41 の6〕、Space で問題を変える／答えずに進む）
 function onKey(e) {
   if (!view || view.key !== "diagnose/q") return;
   const s = store3.session;
@@ -303,12 +309,12 @@ function onKey(e) {
   if (e.repeat || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.isComposing) return;
   const t = e.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+  const opt = optionOfKey(e.key);   // → ＝上（"left"）、← ＝下（"right"）
   if (practicePending3()) {   // 練習カード：← → だけ
-    if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); practiceDone(e.key === "ArrowLeft" ? "left" : "right"); }
+    if (opt) { e.preventDefault(); practiceDone(opt); }
     return;
   }
-  if (e.key === "ArrowLeft") { e.preventDefault(); answer3("left", "k"); }
-  else if (e.key === "ArrowRight") { e.preventDefault(); answer3("right", "k"); }
+  if (opt) { e.preventDefault(); answer3(opt, "k"); }
   else if (e.key === " " || e.code === "Space") {
     if (t && (t.tagName === "BUTTON" || t.tagName === "A" || t.tagName === "SUMMARY")) return;   // 焦点のあるボタンはそのまま押させる
     e.preventDefault();

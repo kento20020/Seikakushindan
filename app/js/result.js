@@ -10,6 +10,7 @@
 //   「8つの軸」（§12 の2）：領域ごとに1本の横軸。●＝同じ場面の問で B を選んだ割合、下に「熟考寄り 75%」、右上に強さ「即応 40 ・ 熟考 72」
 //     値は summary.js の axisView（r.states を読むだけ）。左に、その軸の●で選んだ軸の絵（axis_art.js の axisArt。まんなかは mid の絵、答えなしは番号の丸）
 //     色（§13）：A 側の●と帯はその軸の色、B 側は紺、まんなかの●は墨。文字は墨のまま（「〜寄り」の前に色の点を添える）。「弱め」「両方とも強い」の印
+//     見出しの下の説明の文（●・右上の数字・「弱め」の説明）は出さない（持ち主「この補足いらない」。決定 U41 の5）
 //   下：「もう一度診断する」「診断結果の一覧」（→ #types。§16）「診断結果の絵の一覧」（→ #images。§14）「ホームへ戻る」
 //   結果を開いたら、履歴に1件足す（recordDiagnosis。同じ結果は2回足さない）
 //   値は今の画面 js/ui/three.js の patternCard と同じ（js/ の中身は直さない）。見た目は app/css/diagnose.css（a-dg-）
@@ -195,7 +196,6 @@ function bodyParts(m, t, r, uid, marks) {
 }
 
 // ---------------------------------------------------------------- 8つの軸（§12 の2）
-const AXES_NOTE = "●は、同じ場面で左右どちらを選んだかの割合です。右上の数字は、別々の場面を比べた答えから出した強さ（0〜100。あなたの中での比べ）です。「弱め」は、優勢だけれど強さがやや弱い軸です。";
 // 左の小さな丸の絵の切り取り（人物の顔と、手もとのリボンが入るように）
 const AXIS_PIC = { pos: "52% 40%", zoom: 1.35 };
 const SIDE_CLASS = { A: "is-a", B: "is-b", mid: "is-mid" };
@@ -205,7 +205,6 @@ function axesSection(r) {
   try { leads = domainTendencies3(r.profile3); } catch (err) { console.error(err); return null; }
   return h("section", { class: "a-dg-axes", "aria-labelledby": "a-dg-axes-h" },
     sectionHead("8つの軸", { id: "a-dg-axes-h" }),
-    h("p", { class: "a-note a-dg-axes-note" }, AXES_NOTE),
     h("ul", { class: "a-card a-dg-axis-list" }, Object.keys(DOMAINS).map(d => axisRow(+d, leads[d], r))));
 }
 

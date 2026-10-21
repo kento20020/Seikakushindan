@@ -125,7 +125,7 @@ const AXIS_PIC = { pos: "52% 40%", zoom: 1.35 };
 function domainsSection(r) {
   return h("section", { class: "a-d4-doms", "aria-labelledby": "a-d4-doms-h" },
     sectionHead("8つの領域", { id: "a-d4-doms-h" }),
-    h("p", { class: "a-note a-dg-axes-note" }, DOMAINS_NOTE),
+    h("p", { class: "a-note a-d4-doms-note" }, DOMAINS_NOTE),
     h("ul", { class: "a-card a-d4-dom-list" }, DOMAIN_IDS4.map((d) => domainRow(r, d))));
 }
 
