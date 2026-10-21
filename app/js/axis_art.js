@@ -16,8 +16,9 @@
 //                          { ...artOf の形, key: "2B", tendency: "熟考", reason, bySide }。出せなければ null
 //   axisArtSlots()       … 絵の一覧の画面（#images。§14）の24枠。軸の順・各軸は a → mid → b の順。絵が無い枠は ready: false
 //   slotMarks(r)         … 結果 r で選ばれる枠の id（8つの軸の行 picked・一番上の絵 hero）。一覧の画面の印に使う
-//   24問版（v4。r.diagnosisVersion === "v4"。決定 U42）：heroArt・slotMarks は v4 の結果も受け取る。絵の A/B の割り当ては同じで、
-//     選び方だけが違う：場面の問の p が ＋なら a、−なら b、0 なら mid（artSideOfP）。答えがそろっていない領域は絵を出さない（番号の丸）
+//   24問版（v4。r.diagnosisVersion === "v4"。決定 U42・U44）：heroArt・slotMarks は v4 の結果も受け取る。絵の A/B の割り当ても選び方も三択と同じ：
+//     領域の3問のうち A を選んだ割合（share）が 50% より多ければ a、少なければ b、ちょうど 50% は mid（artSideOfShare）。
+//     incomplete（答えた数が2より少ない）の領域は絵を出さない（番号の丸）
 //     axisArt4(d, dom) … 8つの領域の1行の絵。heroArt4(r) … 主軸の領域の絵（主軸が無ければ null）
 //
 // 絵を差し替えるときは、app/img/axes/ の同じ名前のファイルを上書きする（絵の中身が変われば、下の alt も直す）。
@@ -184,11 +185,11 @@ export function slotMarks(r) {
   return { picked, hero: art?.id ?? null, art };
 }
 
-// ---------------------------------------------------------------- 24問版（v4。決定 U42。docs/diagnosis-v4.md §7）
-/** 場面の問の p（−2〜＋2）→ "a"（＋）| "b"（−）| "mid"（0）| null（答えなし・判断できない） */
-export function artSideOfP(p) {
-  if (typeof p !== "number" || !Number.isInteger(p)) return null;
-  return p > 0 ? "a" : p < 0 ? "b" : "mid";
+// ---------------------------------------------------------------- 24問版（v4。決定 U42・U44。docs/diagnosis-v4.md §6）
+/** A を選んだ割合（0〜100）→ "a"（50 より多い）| "b"（50 より少ない）| "mid"（50）| null（答えなし） */
+export function artSideOfShare(share) {
+  if (typeof share !== "number" || !Number.isFinite(share)) return null;
+  return share > 50 ? "a" : share < 50 ? "b" : "mid";
 }
 
 const complete4 = (dom) => !!dom && dom.state !== "incomplete";
@@ -197,14 +198,14 @@ const complete4 = (dom) => !!dom && dom.state !== "incomplete";
 export function axisArt4(d, dom) {
   const t = AXIS_ART[Number(d)];
   if (!t) return null;
-  const side = complete4(dom) ? artSideOfP(dom.p) : null;
+  const side = complete4(dom) ? artSideOfShare(dom.share) : null;
   if (!side) return { id: null, domain: t.domain, side: null, file: null, alt: null, color: t.color, deep: t.deep };
   return artOf(t.domain, side);
 }
 
 /**
- * v4 の結果の一番上・ホームの一番上の絵：主軸の領域の、p で選んだ絵。主軸が無ければ null
- *   key・tendency は主軸の状態で選ばれた側（状態 1・2・1w は A、3・4・3w は B）。主軸の p は 0 にならないので、mid にはならない
+ * v4 の結果の一番上・ホームの一番上の絵：主軸の領域の、A の割合で選んだ絵。主軸が無ければ null
+ *   key・tendency は主軸の状態で選ばれた側（A強・A寄りは A、B強・B寄りは B）。主軸はまんなかにならないので、mid にはならない
  */
 export function heroArt4(r) {
   const d = Number(r?.primaryDomainId);
@@ -212,7 +213,7 @@ export function heroArt4(r) {
   if (!AXIS_ART[d] || !complete4(dom)) return null;
   const art = axisArt4(d, dom);
   if (!art?.file) return null;
-  const lead = ["1", "2", "1w"].includes(dom.state) ? "A" : "B";
+  const lead = ["strongA", "leanA"].includes(dom.state) ? "A" : "B";
   const D = DOMAINS[d];
   return { ...art, key: `${d}${lead}`, tendency: lead === "A" ? D.a : D.b, reason: "主軸の領域（24問）", bySide: false };
 }
@@ -222,7 +223,7 @@ export function slotMarks4(r) {
   const picked = [];
   for (const t of Object.values(AXIS_ART)) {
     const dom = r?.domains?.[t.domain];
-    const side = complete4(dom) ? artSideOfP(dom.p) : null;
+    const side = complete4(dom) ? artSideOfShare(dom.share) : null;
     if (side) picked.push(`${t.domain}-${side}`);
   }
   let art = null;

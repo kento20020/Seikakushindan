@@ -1,18 +1,16 @@
 // node tests/engine4.test.mjs
-// 24問版（v4。決定 U42）の採点（js/engine4.js）。仕様：docs/diagnosis-v4.md §5〜§7（持ち主の仕様書（2026-10-20）§6・§7）
-//  - classifyDomain：すべての状態（1・2・3・4・5・6・7〔differentDirections あり・なし〕・1w・3w・incomplete）の表。仕様書のコードそのまま
-//  - 値の読み方：不正な値は未回答。判断できない（null）と未回答（キーなし）を分ける
-//  - 主軸と補足の並べ方（選ばれた側の評定 → |p| → |a−b| → 領域の番号）、候補が無いときの見出し
-//  - 組み合わせ（§7.2）：優勢・高／中／低・specialA/B/C・shape allA、最大2件・重要度の順・同じ領域の集合は1件
-//  - 文（§6.2）：状態の見出しと本文、状態7で differentDirections のときの本文、p の補足
+// 24問版（v4。決定 U44「どっち？」の2択）の採点（js/engine4.js）。仕様：docs/diagnosis-v4.md §5・§6
+//  - 値の読み方：1（A）・−1（B）だけ。不正な値は未回答。判断できない（null）と未回答（キーなし）を分ける
+//  - 領域の状態の表：A強・A寄り・まんなか・B寄り・B強・incomplete（答えた数が2より少ない）。A の割合（100・67・50・33・0）
+//  - 違いの印：U と、同じ向きの P・N が逆のときだけ。本文の後ろに1文
+//  - 主軸と補足の並べ方（強 → 寄り → 答えた数 → 領域の番号）、候補が無いときの見出し（flat・none）
+//  - 文：状態の見出しと本文。旧版の断定・点数・確率の言葉を入れない
 import assert from "node:assert/strict";
 import {
-  classifyDomain, differentDirections4, valueOf, domainOf, computeResult4, rankCandidates4, combinations4, dominant4, clause4,
-  stateText4, domainText4, prefText4, ratingLabel4, isRating4, isPref4, traitList4, CANDIDATE_STATES4, LEAD_TITLE4, DIFFERENT_DIRECTIONS_TEXT4,
+  valueOf, validValue4, isAnswer4, classifyDomain4, differentDirections4, domainOf, computeResult4, rankCandidates4,
+  stateText4, domainText4, leadSide4, strength4, CANDIDATE_STATES4, LEAD_TITLE4, DIFFERENT_DIRECTIONS_TEXT4, STATE_LABEL4, DOMAIN_IDS4,
 } from "../js/engine4.js";
 import { QUESTION_ORDER4 } from "../js/data/questions4.js";
-import { PATTERN_META } from "../js/data/patterns_meta.js";
-import { DOMAINS } from "../js/engine.js";
 
 let fail = 0, pass = 0;
 function test(name, fn) {
@@ -21,287 +19,157 @@ function test(name, fn) {
 }
 
 const ans = (v) => (v === null ? { status: "unknown", value: null } : { status: "answered", value: v });
-/** 領域ごとの [a, b, p]（null は判断できない、undefined は未回答）から answers */
+/** "A" → 1、"B" → −1、"?" → 判断できない、"-" → 未回答 */
+const V = { A: 1, B: -1, "?": null };
+/** 領域ごとの "UPN"（例 "AAB"・"A?-"）から answers */
 function answersOf(spec) {
   const out = {};
-  for (const [d, [a, b, p]] of Object.entries(spec)) {
-    if (a !== undefined) out[`R${d}A`] = ans(a);
-    if (b !== undefined) out[`R${d}B`] = ans(b);
-    if (p !== undefined) out[`P${d}`] = ans(p);
+  for (const [d, s] of Object.entries(spec)) {
+    ["U", "P", "N"].forEach((k, i) => { if (s[i] !== "-") out[`${k}${d}`] = ans(V[s[i]]); });
   }
   return out;
 }
-/** 8領域すべてを同じ値で（一部だけ上書き） */
-const all = (abp, over = {}) => answersOf(Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].map((d) => [d, over[d] ?? abp])));
-
-// ---------------------------------------------------------------- classifyDomain（§6.2）
-// [a, b, p, 状態, differentDirections]
-const TABLE = [
-  [null, 3, 1, "incomplete", false], [3, null, 1, "incomplete", false], [3, 3, null, "incomplete", false], [null, null, null, "incomplete", false],
-  [0, 1, 2, "6", false], [1, 1, -2, "6", false], [0, 0, 0, "6", false], [1, 0, -1, "6", false],
-  [4, 1, -1, "7", true], [1, 3, 2, "7", true], [4, 2, -2, "7", true], [0, 2, 1, "7", true],
-  [3, 4, 1, "2", false], [4, 4, 2, "2", false], [3, 2, 1, "2", false], [4, 2, 2, "2", false],
-  [4, 3, -1, "4", false], [3, 3, -2, "4", false], [2, 3, -1, "4", false], [2, 4, -2, "4", false],
-  [3, 3, 0, "5", false], [4, 3, 0, "5", false], [4, 4, 0, "5", false],
-  [4, 0, 2, "1", false], [3, 1, 1, "1", false],
-  [0, 4, -2, "3", false], [1, 3, -1, "3", false],
-  [2, 0, 1, "1w", false], [2, 2, 2, "1w", false], [2, 1, 2, "1w", false],
-  [0, 2, -1, "3w", false], [2, 2, -1, "3w", false],
-  [1, 2, 1, "7", false], [2, 1, -1, "7", false], [3, 1, 0, "7", false], [2, 2, 0, "7", false], [1, 2, 0, "7", false],
-];
-
-test("classifyDomain：すべての状態の表（仕様書のコードのとおり）", () => {
-  const seen = new Set();
-  for (const [a, b, p, st, dd] of TABLE) {
-    assert.equal(classifyDomain(a, b, p), st, `(${a}, ${b}, ${p})`);
-    assert.equal(differentDirections4(a, b, p), dd, `dd (${a}, ${b}, ${p})`);
-    seen.add(st + (st === "7" ? (dd ? "dd" : "") : ""));
-  }
-  for (const st of ["1", "2", "3", "4", "5", "6", "7", "7dd", "1w", "3w", "incomplete"]) assert.ok(seen.has(st), `表に ${st} がある`);
-});
-
-test("classifyDomain：125通りすべてで決まった状態のどれか。候補の状態の向きは p の向きと同じ", () => {
-  const ok = new Set(["1", "2", "3", "4", "5", "6", "7", "1w", "3w"]);
-  for (let a = 0; a <= 4; a++) for (let b = 0; b <= 4; b++) for (let p = -2; p <= 2; p++) {
-    const st = classifyDomain(a, b, p);
-    assert.ok(ok.has(st), `${a},${b},${p} → ${st}`);
-    if (["1", "2", "1w"].includes(st)) assert.ok(p > 0);
-    if (["3", "4", "3w"].includes(st)) assert.ok(p < 0);
-    if (st === "5") assert.ok(p === 0 && a >= 3 && b >= 3);
-    if (st === "6") assert.ok(a <= 1 && b <= 1);
-    // differentDirections なら必ず状態7（両方が少ないときは6が先）
-    if (differentDirections4(a, b, p) && !(a <= 1 && b <= 1)) assert.equal(st, "7");
-  }
-});
+const all = (s, over = {}) => answersOf(Object.fromEntries(DOMAIN_IDS4.map((d) => [d, over[d] ?? s])));
 
 // ---------------------------------------------------------------- 値の読み方
-test("valueOf：正しい値だけ読む。判断できないは null、未回答・不正な値は undefined", () => {
-  assert.equal(valueOf({ R1A: ans(3) }, "R1A"), 3);
-  assert.equal(valueOf({ R1A: ans(null) }, "R1A"), null);
-  assert.equal(valueOf({}, "R1A"), undefined);
-  for (const bad of [NaN, 5, -1, 2.5, "3", Infinity, true, {}, [1]]) assert.equal(valueOf({ R1A: { status: "answered", value: bad } }, "R1A"), undefined, String(bad));
-  assert.equal(valueOf({ P1: { status: "answered", value: 3 } }, "P1"), undefined, "P は −2〜＋2");
-  assert.equal(valueOf({ P1: { status: "answered", value: -2 } }, "P1"), -2);
-  assert.equal(valueOf({ R1A: { status: "unknown", value: 2 } }, "R1A"), undefined, "unknown は value null だけ");
-  assert.equal(valueOf({ R1A: { status: "skip", value: null } }, "R1A"), undefined);
-  assert.equal(valueOf({ R1A: 3 }, "R1A"), undefined);
-  assert.equal(valueOf(null, "R1A"), undefined);
-  assert.ok(isRating4(0) && isRating4(4) && !isRating4(4.0001) && !isRating4("1"));
-  assert.ok(isPref4(-2) && isPref4(2) && !isPref4(-3) && !isPref4("0"));
+test("valueOf：1・−1 だけ読む。判断できないは null、未回答・不正な値は undefined", () => {
+  const a = {
+    U1: ans(1), P1: ans(-1), N1: ans(null),
+    U2: { status: "answered", value: 0 }, P2: { status: "answered", value: 2 }, N2: { status: "answered", value: "1" },
+    U3: { status: "answered", value: NaN }, P3: { status: "unknown", value: 1 }, N3: 1,
+  };
+  assert.equal(valueOf(a, "U1"), 1);
+  assert.equal(valueOf(a, "P1"), -1);
+  assert.equal(valueOf(a, "N1"), null);
+  for (const id of ["U2", "P2", "N2", "U3", "P3", "N3", "U4"]) assert.equal(valueOf(a, id), undefined, id);
+  assert.equal(valueOf(null, "U1"), undefined);
+  assert.equal(validValue4("XX", 1), false);
+  assert.deepEqual([1, -1, 0, 2, "1", null, true].map(isAnswer4), [true, true, false, false, false, false, false]);
 });
 
-test("domainOf：判断できない（unknown）と未回答（unanswered）を分けて missing に。どちらも incomplete", () => {
-  const d = domainOf({ R1A: ans(3), R1B: ans(null) }, 1);
-  assert.equal(d.state, "incomplete");
-  assert.equal(d.a, 3); assert.equal(d.b, null); assert.equal(d.p, null);
-  assert.deepEqual(d.missing, [{ id: "R1B", status: "unknown" }, { id: "P1", status: "unanswered" }]);
-  assert.equal(d.differentDirections, false);
-  const e = domainOf({ R1A: ans(4), R1B: ans(1), P1: ans(-1) }, 1);
-  assert.equal(e.state, "7"); assert.equal(e.differentDirections, true); assert.deepEqual(e.missing, []);
+// ---------------------------------------------------------------- 領域の状態の表
+// [U・P・N, 状態, n, a, b, share, differentDirections]
+const TABLE = [
+  ["AAA", "strongA", 3, 3, 0, 100, false],
+  ["AA?", "strongA", 2, 2, 0, 100, false],
+  ["?AA", "strongA", 2, 2, 0, 100, false],
+  ["AAB", "leanA", 3, 2, 1, 67, false],
+  ["ABA", "leanA", 3, 2, 1, 67, false],
+  ["BAA", "leanA", 3, 2, 1, 67, true],     // 普段は B、場面は2つとも A
+  ["AB?", "mid", 2, 1, 1, 50, false],
+  ["?AB", "mid", 2, 1, 1, 50, false],
+  ["ABB", "leanB", 3, 1, 2, 33, true],     // 普段は A、場面は2つとも B
+  ["BAB", "leanB", 3, 1, 2, 33, false],
+  ["BBA", "leanB", 3, 1, 2, 33, false],
+  ["BBB", "strongB", 3, 0, 3, 0, false],
+  ["B?B", "strongB", 2, 0, 2, 0, false],
+  ["A??", "incomplete", 1, 1, 0, 100, false],
+  ["??B", "incomplete", 1, 0, 1, 0, false],
+  ["???", "incomplete", 0, 0, 0, null, false],
+  ["A-B", "mid", 2, 1, 1, 50, false],      // 未回答も数えない（ふつうは結果が出ない。保存が壊れたときだけ）
+  ["---", "incomplete", 0, 0, 0, null, false],
+];
+
+test("領域の状態の表（A強・A寄り・まんなか・B寄り・B強・incomplete）。A の割合は 100・67・50・33・0", () => {
+  for (const [s, state, n, a, b, share, dd] of TABLE) {
+    const dom = domainOf(answersOf({ 1: s }), 1);
+    assert.deepEqual([dom.state, dom.n, dom.a, dom.b, dom.share, dom.differentDirections], [state, n, a, b, share, dd], s);
+  }
+  assert.deepEqual(Object.keys(STATE_LABEL4), ["strongA", "leanA", "mid", "leanB", "strongB", "incomplete"]);
+  assert.equal(classifyDomain4(0, 0), "incomplete");
+  assert.equal(classifyDomain4(1, 0), "incomplete", "答えた数が2より少ない");
+});
+
+test("違いの印：U があり、P と N が両方あって同じ向きで、U と逆のときだけ", () => {
+  assert.equal(differentDirections4(-1, 1, 1), true);
+  assert.equal(differentDirections4(1, -1, -1), true);
+  assert.equal(differentDirections4(1, 1, 1), false);
+  assert.equal(differentDirections4(1, -1, 1), false, "P と N が違う向き");
+  assert.equal(differentDirections4(null, 1, 1), false, "U が判断できない");
+  assert.equal(differentDirections4(-1, 1, null), false, "N が判断できない");
+  assert.equal(differentDirections4(undefined, 1, 1), false);
+});
+
+test("domainOf：3問の答え（picks）と、判断できない（unknown）・未回答（unanswered）を分けた missing", () => {
+  const dom = domainOf(answersOf({ 4: "A?-" }), 4);
+  assert.deepEqual(dom.picks, { U: "A", P: "unknown", N: "unanswered" });
+  assert.deepEqual(dom.missing, [{ id: "P4", status: "unknown" }, { id: "N4", status: "unanswered" }]);
+  assert.equal(dom.state, "incomplete");
+  assert.equal(dom.domain, 4);
 });
 
 // ---------------------------------------------------------------- 結果
-test("computeResult4：形（traits は rating と rating×25、domains、主軸、patternIds）。confidence は作らない", () => {
-  const r = computeResult4(all([4, 0, 2]));
+test("computeResult4：形（domains・主軸・補足・lead・counts）。confidence と組み合わせは作らない", () => {
+  const r = computeResult4(all("AAA", { 3: "A??" }));
   assert.equal(r.diagnosisVersion, "v4");
-  assert.equal(r.questionBankVersion, "v4-24-2026-10-20");
-  assert.equal(Object.keys(r.traits).length, 16);
-  assert.deepEqual(r.traits["向き合う"], { rating: 4, displayValue: 100 });
-  assert.deepEqual(r.traits["距離を取る"], { rating: 0, displayValue: 0 });
-  for (let d = 1; d <= 8; d++) assert.equal(r.domains[d].state, "1");
-  assert.equal(r.primaryDomainId, 1);
-  assert.deepEqual(r.supportingDomainIds, [2, 3]);
+  assert.equal(r.questionBankVersion, "v4-24-dotchi-2026-10-21");
+  assert.deepEqual(Object.keys(r.domains).map(Number), DOMAIN_IDS4);
   assert.equal(r.lead, "primary");
-  assert.deepEqual(r.counts, { answered: 24, unknown: 0, unanswered: 0 });
-  assert.ok(!("confidence" in r));
-  assert.ok(JSON.stringify(r).indexOf("confidence") < 0);
-  assert.deepEqual(r.patternIds.slice(0, 8), [1, 2, 3, 4, 5, 6, 7, 8].map((d) => `B${d}-1`));
+  assert.deepEqual(r.completeDomainIds, [1, 2, 4, 5, 6, 7, 8]);
+  assert.deepEqual(r.counts, { answered: 22, unknown: 2, unanswered: 0 });
+  for (const k of ["confidence", "combos", "patternIds", "traits"]) assert.ok(!(k in r), k);
+  // 毎回同じ答えから同じ結果
+  assert.deepEqual(computeResult4(all("AAA", { 3: "A??" })), r);
 });
 
-test("traits の displayValue：0/25/50/75/100、答えが無ければ null", () => {
-  const r = computeResult4(answersOf({ 1: [0, 1, 0], 2: [2, 3, 0], 3: [4, null, 0] }));
-  assert.deepEqual([r.traits["向き合う"].displayValue, r.traits["距離を取る"].displayValue, r.traits["即応"].displayValue, r.traits["熟考"].displayValue, r.traits["追う"].displayValue],
-    [0, 25, 50, 75, 100]);
-  assert.deepEqual(r.traits["待つ"], { rating: null, displayValue: null });
-  assert.deepEqual(r.traits["表に出す"], { rating: null, displayValue: null });
+test("主軸と補足の並べ方：強 → 寄り、同じなら答えた数が多い方、さらに同じなら領域の番号順。まんなか・incomplete は候補にしない", () => {
+  // 1 寄り(3問)・2 強(2問)・3 まんなか・4 強(3問)・5 寄り(3問)・6 incomplete・7 強(3問)・8 強(2問)
+  const r = computeResult4(answersOf({ 1: "AAB", 2: "BB?", 3: "AB?", 4: "BBB", 5: "ABA", 6: "A??", 7: "AAA", 8: "A?A" }));
+  assert.deepEqual(rankCandidates4(r.domains).map((x) => x.domain), [4, 7, 2, 8, 1, 5]);
+  assert.equal(r.primaryDomainId, 4);
+  assert.deepEqual(r.supportingDomainIds, [7, 2]);
+  assert.deepEqual([...CANDIDATE_STATES4], ["strongA", "leanA", "leanB", "strongB"]);
+  assert.deepEqual(["strongA", "leanA", "mid", "leanB", "strongB", "incomplete"].map(leadSide4), ["A", "A", null, "B", "B", null]);
+  assert.deepEqual(["strongA", "leanA", "mid", "leanB", "strongB", "incomplete"].map(strength4), [2, 1, 0, 1, 2, 0]);
 });
 
-test("主軸と補足の並べ方：選ばれた側の評定 → |p| → |a−b| の大きい順、同じなら領域の番号順", () => {
-  // 1: 状態1（自分の側 4・|p| 2・|a−b| 4）、2: 状態1（4・1・4）、3: 状態3（4・2・4。1 と同じ → 番号順）、4: 状態2（3）、5: 1w（2）、6〜8: 候補でない
-  const r = computeResult4(answersOf({ 1: [4, 0, 2], 2: [4, 0, 1], 3: [0, 4, -2], 4: [3, 2, 1], 5: [2, 0, 1], 6: [3, 3, 0], 7: [0, 0, 0], 8: [1, 2, 1] }));
-  assert.deepEqual(rankCandidates4(r.domains).map((x) => x.domain), [1, 3, 2, 4, 5]);
-  assert.equal(r.primaryDomainId, 1);
-  assert.deepEqual(r.supportingDomainIds, [3, 2]);
-  // |a−b| で決まる：1 は状態2（4・2・|a−b| 2）、2 は状態1（4・2・4）→ 2 が先
-  const r2 = computeResult4(all([0, 0, 0], { 1: [4, 2, 2], 2: [4, 0, 2] }));
-  assert.equal(r2.primaryDomainId, 2);
-  assert.deepEqual(r2.supportingDomainIds, [1]);
-  // 選ばれた側の評定が先（B 側の領域は b を見る）
-  const r3 = computeResult4(all([0, 0, 0], { 1: [3, 1, 2], 6: [0, 4, -1] }));
-  assert.equal(r3.primaryDomainId, 6);
-  assert.deepEqual(r3.supportingDomainIds, [1]);
-  for (const d of [r.primaryDomainId, ...r.supportingDomainIds]) assert.ok(CANDIDATE_STATES4.includes(r.domains[d].state));
-});
-
-test("候補が無いとき：状態5があれば『複数の傾向を持つ』、無ければ『今回の回答では、片側に強く寄らない傾向』、完全に答えた領域が0なら none", () => {
-  const multi = computeResult4(all([0, 0, 0], { 2: [3, 3, 0], 5: [4, 4, 0], 7: [4, 1, -1] }));
-  assert.equal(multi.lead, "multiple");
-  assert.equal(multi.primaryDomainId, null);
-  assert.deepEqual(multi.supportingDomainIds, []);
-  assert.deepEqual(multi.multipleDomainIds, [2, 5]);
-  assert.equal(LEAD_TITLE4.multiple, "複数の傾向を持つ");
-  const flat = computeResult4(all([1, 1, 0], { 3: [2, 2, 0], 4: [4, 1, -2] }));
+test("候補が無いとき：状態の出た領域があれば flat『今回の回答では、片側に強く寄らない傾向』、どれも incomplete なら none", () => {
+  const flat = computeResult4(all("AB?"));
   assert.equal(flat.lead, "flat");
+  assert.equal(flat.primaryDomainId, null);
+  assert.deepEqual(flat.supportingDomainIds, []);
   assert.equal(LEAD_TITLE4.flat, "今回の回答では、片側に強く寄らない傾向");
-  const none = computeResult4(all([4, 0, null]));
+  const mixed = computeResult4(all("A??", { 5: "AB?" }));
+  assert.equal(mixed.lead, "flat");
+  const none = computeResult4(all("???"));
   assert.equal(none.lead, "none");
-  assert.equal(none.primaryDomainId, null);
   assert.deepEqual(none.completeDomainIds, []);
-  assert.deepEqual(none.patternIds, []);
-  assert.deepEqual(none.combos, []);
-  assert.equal(none.counts.unknown, 8);
-  // 答えた分の個別の値は残る
-  assert.equal(none.domains[1].a, 4);
-  assert.equal(none.traits["向き合う"].rating, 4);
+  assert.deepEqual(none.counts, { answered: 0, unknown: 24, unanswered: 0 });
+  // 1つでも強か寄りがあれば primary
+  assert.equal(computeResult4(all("AB?", { 6: "BBA" })).primaryDomainId, 6);
 });
 
-test("答えがそろわない領域は主軸・組み合わせに使わない（埋め合わせない）", () => {
-  const r = computeResult4(all([0, 0, 0], { 1: [4, 0, null], 2: [3, 0, 1] }));
-  assert.equal(r.domains[1].state, "incomplete");
-  assert.equal(r.primaryDomainId, 2);
-  assert.ok(!r.patternIds.some((id) => id.startsWith("B1-")));
-  assert.ok(r.combos.every((c) => !c.domains.includes(1)));
+// ---------------------------------------------------------------- 文
+test("状態の見出しと本文（A・B は傾向の名前）。違いの印があるときは本文の後ろに1文", () => {
+  const T = (s, d = 1) => domainText4(domainOf(answersOf({ [d]: s }), d));
+  assert.deepEqual(T("AAA"), { title: "「向き合う」を選びやすい", body: "3問とも「向き合う」を選びました。" });
+  assert.deepEqual(T("A?A"), { title: "「向き合う」を選びやすい", body: "2問とも「向き合う」を選びました。" });
+  assert.deepEqual(T("AAB"), { title: "「向き合う」寄り", body: "3問のうち2問で「向き合う」を選びました。" });
+  assert.deepEqual(T("AB?"), { title: "どちらか一方には寄らない", body: "「向き合う」と「距離を取る」を同じ数だけ選びました。" });
+  assert.deepEqual(T("BAB", 2), { title: "「熟考」寄り", body: "3問のうち2問で「熟考」を選びました。" });
+  assert.deepEqual(T("BBB", 2), { title: "「熟考」を選びやすい", body: "3問とも「熟考」を選びました。" });
+  assert.deepEqual(T("ABB", 3), { title: "「待つ」寄り", body: `3問のうち2問で「待つ」を選びました。${DIFFERENT_DIRECTIONS_TEXT4}` });
+  assert.equal(DIFFERENT_DIRECTIONS_TEXT4, "普段の自分と、場面で選んだ行動に違いがありました。");
+  assert.deepEqual(T("A??"), { title: "この領域はまだ分かりません", body: "判断できない問が多いため、この領域は出していません。" });
+  assert.equal(stateText4("leanB", "A", "B", { n: 3, b: 2 }).title, "「B」寄り");
+  assert.equal(domainText4({ domain: 99 }), null);
 });
 
-// ---------------------------------------------------------------- 組み合わせ（§7.2）
-const metaOf = (id) => PATTERN_META.find((m) => m.id === id);
-
-test("優勢:t：完全に答えて p が t の側、t の評定 3以上・反対側以上、differentDirections でない。1w/3w は成立しない", () => {
-  const dom = (abp) => computeResult4(answersOf({ 1: abp })).domains;
-  assert.equal(dominant4(dom([3, 3, 1]), "向き合う"), true);
-  assert.equal(dominant4(dom([4, 0, 2]), "向き合う"), true);
-  assert.equal(dominant4(dom([4, 0, 2]), "距離を取る"), false);
-  assert.equal(dominant4(dom([3, 4, 1]), "向き合う"), false, "反対側の方が高い");
-  assert.equal(dominant4(dom([2, 0, 2]), "向き合う"), false, "1w");
-  assert.equal(dominant4(dom([4, 0, 0]), "向き合う"), false, "p が 0");
-  assert.equal(dominant4(dom([4, 1, -1]), "距離を取る"), false, "differentDirections");
-  assert.equal(dominant4(dom([4, 0, null]), "向き合う"), false, "答えがそろわない");
-});
-
-test("高／中／低：評定 3〜4／2／0〜1。欠けた値の条件は成り立たない", () => {
-  const r = computeResult4(answersOf({ 1: [3, 2, 0], 2: [1, null, 0] }));
-  assert.ok(clause4(r.domains, r.traits, "高:向き合う"));
-  assert.ok(clause4(r.domains, r.traits, "中:距離を取る"));
-  assert.ok(clause4(r.domains, r.traits, "低:即応"));
-  assert.ok(!clause4(r.domains, r.traits, "高:熟考") && !clause4(r.domains, r.traits, "低:熟考") && !clause4(r.domains, r.traits, "中:熟考"));
-  assert.ok(!clause4(r.domains, r.traits, "高:知らない傾向"));
-});
-
-test("すべて A が優勢：重要度5の候補（S01・S05・S19）から、ID の順に最大2件。文は条件の傾向", () => {
-  const r = computeResult4(all([4, 0, 2]));
-  assert.deepEqual(r.combos.map((c) => c.id), ["S01", "S05"]);
-  assert.equal(r.combos[0].text, "「向き合う」「主導する」と「解決する」があわせて見られます。");
-  assert.deepEqual(r.combos[0].domains, [1, 6, 8]);
-  assert.deepEqual(r.patternIds.slice(8), ["S01", "S05"]);
-});
-
-test("shape：allA は8領域すべてで A が優勢のときだけ候補。low・high・mid は使わない", () => {
-  const only = (id) => PATTERN_META.filter((m) => m.id === id);
-  const allA = computeResult4(all([4, 0, 2]));
-  assert.deepEqual(combinations4(allA.domains, allA.traits, only("S19")).map((c) => c.id), ["S19"]);
-  assert.equal(combinations4(allA.domains, allA.traits, only("S19"))[0].text,
-    `${traitList4([1, 2, 3, 4, 5, 6, 7, 8].map((d) => DOMAINS[d].a))}があわせて見られます。`);
-  const almost = computeResult4(all([4, 0, 2], { 8: [4, 0, null] }));
-  assert.deepEqual(combinations4(almost.domains, almost.traits, only("S19")), []);
-  const lows = computeResult4(all([0, 0, 0]));
-  const highs = computeResult4(all([4, 4, 0]));
-  for (const r of [lows, highs]) assert.deepEqual(combinations4(r.domains, r.traits, ["S16", "S17", "S18"].flatMap(only)), []);
-});
-
-test("specialC：関係する領域がすべて完全で p＝0 のときだけ。specialB：関係する領域が完全でないと候補にならない", () => {
-  const S13 = [metaOf("S13")];   // 高:向き合う・高:距離を取る・高:追う・高:待つ（領域 1・3）
-  const yes = computeResult4(all([0, 0, 0], { 1: [4, 4, 0], 3: [3, 4, 0] }));
-  assert.deepEqual(combinations4(yes.domains, yes.traits, S13).map((c) => c.id), ["S13"]);
-  const no = computeResult4(all([0, 0, 0], { 1: [4, 4, 1], 3: [3, 4, 0] }));
-  assert.deepEqual(combinations4(no.domains, no.traits, S13), []);
-  const S07 = [metaOf("S07")];   // 高:主導する・高:待つ（領域 3・6）
-  const b = computeResult4(all([0, 0, 0], { 3: [0, 4, -2], 6: [4, 0, 2] }));
-  assert.deepEqual(combinations4(b.domains, b.traits, S07).map((c) => c.id), ["S07"]);
-  const bMissing = computeResult4(all([0, 0, 0], { 3: [0, 4, null], 6: [4, 0, 2] }));
-  assert.deepEqual(combinations4(bMissing.domains, bMissing.traits, S07), []);
-});
-
-test("同じ領域の集合の候補は1件だけ（S07 と、領域 3・6 の cross が両方成り立つとき）", () => {
-  const r = computeResult4(all([0, 0, 0], { 3: [0, 4, -2], 6: [4, 0, 2] }));
-  const cands = PATTERN_META.filter((m) => m.kind !== "basic" && String([...m.domains].sort()) === "3,6");
-  const found = combinations4(r.domains, r.traits, cands);
-  assert.equal(found.length, 1);
-  // ふつうの結果でも、同じ集合が2回出ない
-  const keys = r.combos.map((c) => [...c.domains].sort().join(","));
-  assert.equal(new Set(keys).size, keys.length);
-});
-
-test("いろいろな答えで：組み合わせは最大2件・重要度の大きい順（同じなら ID 順）・同じ領域の集合なし・主軸は組み合わせで変わらない", () => {
-  let seed = 7;
-  const rnd = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
-  for (let k = 0; k < 400; k++) {
-    const answers = {};
-    for (const id of QUESTION_ORDER4) {
-      if (rnd(12) === 0) { answers[id] = ans(null); continue; }
-      answers[id] = ans(id.startsWith("R") ? rnd(5) : rnd(5) - 2);
+test("結果の文に、旧版の断定（一晩・何もしない）や点数・確率・評価の言葉を入れない", () => {
+  const states = ["strongA", "leanA", "mid", "leanB", "strongB", "incomplete"];
+  for (const st of states) {
+    for (const dd of [false, true]) {
+      const t = stateText4(st, "向き合う", "距離を取る", { n: 3, a: 2, b: 1, differentDirections: dd });
+      const s = t.title + t.body;
+      assert.ok(!/一晩|何もしない|点|確率|%|％|正確|信頼|な人|べき/.test(s), s);
     }
-    const r = computeResult4(answers);
-    assert.ok(r.combos.length <= 2);
-    const imp = r.combos.map((c) => metaOf(c.id).importance);
-    for (let i = 1; i < imp.length; i++) assert.ok(imp[i - 1] > imp[i] || (imp[i - 1] === imp[i] && r.combos[i - 1].id < r.combos[i].id));
-    const keys = r.combos.map((c) => [...c.domains].sort().join(","));
-    assert.equal(new Set(keys).size, keys.length);
-    for (const c of r.combos) {
-      assert.ok(c.domains.every((d) => r.domains[d].state !== "incomplete"));
-      assert.ok(!["S16", "S17", "S18"].includes(c.id));
-    }
-    const ranked = rankCandidates4(r.domains);
-    assert.equal(r.primaryDomainId, ranked[0]?.domain ?? null);
   }
 });
 
-// ---------------------------------------------------------------- 文（§6.2）
-test("状態の見出しと本文（A・B は傾向の名前）。状態7で differentDirections のときだけ別の本文", () => {
-  assert.deepEqual(stateText4("1", "向き合う", "距離を取る"), { title: "「向き合う」を選びやすい", body: "普段の回答では「向き合う」の当てはまりが多く、今回の場面でも「向き合う」を選ぶ傾向が見られます。" });
-  assert.equal(stateText4("2", "即応", "熟考").title, "「即応」を先に選び、「熟考」も持つ");
-  assert.equal(stateText4("3", "追う", "待つ").title, "「待つ」を選びやすい");
-  assert.equal(stateText4("4", "追う", "待つ").title, "「待つ」を先に選び、「追う」も持つ");
-  assert.equal(stateText4("5", "A", "B").title, "どちらの傾向もある");
-  assert.equal(stateText4("6", "A", "B").title, "どちらも強くは当てはまらない");
-  assert.equal(stateText4("7", "A", "B").title, "片側だけにはまとまらない");
-  assert.equal(stateText4("7", "向き合う", "距離を取る").body, "今回の回答では、「向き合う」か「距離を取る」のどちらか一方だけには整理しきれませんでした。");
-  assert.equal(stateText4("7", "A", "B", { differentDirections: true }).body, DIFFERENT_DIRECTIONS_TEXT4);
-  assert.equal(DIFFERENT_DIRECTIONS_TEXT4, "普段の傾向と今回の場面で選んだ行動に違いがありました。一方だけに決めず、両方の回答を残しています。");
-  assert.equal(stateText4("1w", "表に出す", "内に置く").title, "「表に出す」をやや選びやすい");
-  assert.equal(stateText4("3w", "表に出す", "内に置く").body, "場面の選択は「内に置く」寄りですが、普段の当てはまりは中程度でした。");
-  assert.deepEqual(stateText4("incomplete", "A", "B"), { title: "この領域はまだ分かりません", body: "判断できない項目があるため、この領域の組み合わせは判定していません。" });
-  const dd = computeResult4(answersOf({ 1: [4, 1, -1] })).domains[1];
-  assert.equal(domainText4(dd).body, DIFFERENT_DIRECTIONS_TEXT4);
-});
-
-test("p の補足と評定のラベル", () => {
-  assert.deepEqual([2, 1, 0, -1, -2].map((p) => prefText4(p, "向き合う", "距離を取る")),
-    ["向き合う寄り", "やや向き合う寄り", "同程度", "やや距離を取る寄り", "距離を取る寄り"]);
-  assert.equal(prefText4(null, "A", "B"), "判断できない");
-  assert.equal(prefText4(undefined, "A", "B"), "未回答");
-  assert.equal(ratingLabel4(3), "かなり当てはまる");
-  assert.equal(ratingLabel4(null), "判断できない");
-  assert.equal(ratingLabel4(undefined), "未回答");
-});
-
-test("結果の文に、旧版の断定（一晩・何もしない）や点数・確率の言葉を入れない", () => {
-  const texts = [];
-  for (const st of ["1", "2", "3", "4", "5", "6", "7", "1w", "3w", "incomplete"]) {
-    const t = stateText4(st, "A", "B");
-    texts.push(t.title, t.body);
-  }
-  texts.push(DIFFERENT_DIRECTIONS_TEXT4, LEAD_TITLE4.multiple, LEAD_TITLE4.flat);
-  for (const t of texts) assert.ok(!/一晩|何もしない|%|確率|信頼度|正確|な人/.test(t), t);
+test("24問すべて未回答でも落ちない（どれも incomplete）", () => {
+  const r = computeResult4({});
+  assert.equal(r.lead, "none");
+  assert.deepEqual(r.counts, { answered: 0, unknown: 0, unanswered: QUESTION_ORDER4.length });
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

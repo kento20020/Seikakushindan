@@ -1,19 +1,21 @@
-// 24問版（v4）の診断の状態と操作（保存・再開）。DOM を使わない（Node のテストでも動く）。決定 U42
-// 仕様：docs/diagnosis-v4.md（持ち主の仕様書（2026-10-20）の §8.2 の保存の形）。三択の three_store.js とは別に持ち、保存のキーも別。
+// 24問版（v4）の診断の状態と操作（保存・再開）。DOM を使わない（Node のテストでも動く）。決定 U42・U44
+// 仕様：docs/diagnosis-v4.md §7。三択の three_store.js とは別に持ち、保存のキーも別（U42 のまま）。
+//   U44 で問いを「どっち？」の2択にした（答えは A＝1・B＝−1）。問の版の印（questionBankVersion）を変えたので、
+//   U42 の当てはまり度の版の保存（公開していない試しの物）は読まずに捨てる（「v4 の診断は無い」として動く）
 //   v4 の保存が壊れていても、ほかの版の保存（seikaku16:three:v1 など）には触らない（読めない v4 の保存は無かったことにするだけ）
 //
 // 保存の形（キー seikaku16:four:v1）：
-//   { schemaVersion: 1, diagnosisVersion: "v4", questionBankVersion: "v4-24-2026-10-20", questionOrder: [24個の ID],
-//     answers: { R1A: { status: "answered", value: 3 }, R2B: { status: "unknown", value: null }, … }, currentIndex: 0, completed: false }
-//   未回答＝answers にキーが無い。数の回答は status "answered"、判断できないは status "unknown"（value は null）
+//   { schemaVersion: 1, diagnosisVersion: "v4", questionBankVersion: "v4-24-dotchi-2026-10-21", questionOrder: [24個の ID],
+//     answers: { U1: { status: "answered", value: 1 }, P2: { status: "unknown", value: null }, … }, currentIndex: 0, completed: false }
+//   未回答＝answers にキーが無い。A は value 1、B は value −1（status "answered"）、判断できないは status "unknown"（value は null）
 //   currentIndex は画面の位置（答えた数とは別）。completed は24問すべてに答え（判断できないを含む）があること
-//   読むとき：数でない・範囲の外・整数でない・文字列の数・形の合わない値は未回答に戻す。completed は答えから決め直す
+//   読むとき：1・−1 以外の値（数でない・範囲の外・文字列・形の合わない値）は未回答に戻す。completed は答えから決め直す
 //   結果は保存しない。読むたび・答えるたびに、今の24問の答えから computeResult4 で作り直す（古い結果を使い回さない）
 //
 //   store4               … { session, result }（session は上の形。result は js/engine4.js の computeResult4）
 //   restore4()           … 保存を読む（1回だけ）
 //   start4()             … 新しく始める（前の v4 の答えは消す。ほかの版の保存には触らない）
-//   answer4(value)       … 今の問いに答えて次へ。value は数か null（判断できない）。正しくない値は何もしない（false）
+//   answer4(value)       … 今の問いに答えて次へ。value は 1（A）・−1（B）・null（判断できない）。正しくない値は何もしない（false）
 //   back4()              … 前の問いへ
 //   discard4()           … v4 の診断を消す
 //   adopt4(json)         … 別の入れ物（iPhone の Safari ↔ ホーム画面のアプリ）から移した診断に置き換える。読めなければ投げる
@@ -147,7 +149,7 @@ export function start4() {
 
 /**
  * 今の問いに答えて次へ → 答えられたか
- *   value：数（R は 0〜4、P は −2〜＋2）か null（判断できない）
+ *   value：1（A。上のカード）・−1（B。下のカード）・null（判断できない）
  *   24問すべてに答え（判断できないを含む）がそろったら完了。そろっていなければ次の問いへ。
  *   最後の問い（24問目）のあとに欠けがあれば（壊れた保存を読んだときだけ）最初の未回答へ（追加の問いは出さない）
  */
