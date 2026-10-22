@@ -97,7 +97,7 @@ function startView() {
       : [h("button", { type: "button", class: "a-btn a-btn-block", id: "a-dg-start", onclick: begin }, "診断をはじめる", icon("arrow-right"))];
 
   return h("div", { class: "a-dg-start" },
-    topBar({ title: "診断" }),
+    topBar({ title: "診断", help: true }),
     h("section", { class: "a-dg-intro", "aria-labelledby": "a-dg-title" },
       h("h1", { class: "a-dg-title", id: "a-dg-title", "data-focus": "" }, phrase("左か、右か。"), phrase("迷ったら問題を変える")),
       h("p", { class: "a-lead a-dg-lead" }, "どの質問も、2つの選択肢のうち自分に近い方を選ぶだけ。")),
@@ -125,7 +125,7 @@ function startView() {
 /** 上の題（← はホームへ。回答は保存されたまま）と、答えた数 / 今の予定の数 */
 function qTop(p) {
   return topBar({
-    title: "診断", back: "#home", heading: true,
+    title: "診断", back: "#home", heading: true, help: true,   // 右の数の右に「危ないときは」（決定 U47）
     right: h("p", { class: "a-dg-count", "aria-label": `${p.total}問中 ${p.answered}問 回答済み` },
       h("span", { "aria-hidden": "true" }, `${p.answered} / ${p.total}`)),
   });

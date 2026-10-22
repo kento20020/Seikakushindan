@@ -44,6 +44,9 @@ const SHELL = [
   "./js/ui.js",
   "./js/pwa.js",
   "./js/home.js",
+  "./js/help.js",              // 窓口のページ（#help。決定 U47）。つながらないときにも開けるように
+  "./js/safety.js",
+  "../js/consult/texts.js",    // safety.js が読む窓口の一覧（SAFETY_RESOURCES）
   "./img/pwa/icon-192.png",
 ];
 
@@ -183,6 +186,8 @@ async function warm(urls) {
 }
 
 // ---------------------------------------------------------------- つながっていません
+//   危ないときの番号（決定 U47）：110・119 と、窓口のページ（#help）と同じ3つの窓口。service worker はモジュールを読めないので文字で持つ。
+//   番号は js/consult/texts.js の SAFETY_RESOURCES と同じであること（tests/app_safety.test.mjs で突き合わせる）。電話はネットが無くてもかけられるので tel: のリンクにする
 function offlinePage() {
   const html = `<!doctype html>
 <html lang="ja">
@@ -203,6 +208,12 @@ function offlinePage() {
   button { margin-top: 24px; min-height: 52px; width: 100%; border: 0; border-radius: 999px; background: #A15E58; color: #fff;
     font: inherit; font-size: 16px; letter-spacing: 0.1em; cursor: pointer; }
   button:focus-visible { outline: 3px solid #8C5049; outline-offset: 3px; }
+  .help { margin-top: 28px; padding-top: 20px; border-top: 1px solid #E2D8CF; text-align: left; }
+  .help h2 { margin: 0 0 8px; font-size: 15px; line-height: 1.7; letter-spacing: 0.08em; }
+  .help p, .help li { font-size: 14px; line-height: 1.8; color: #4A4652; }
+  .help ul { margin: 8px 0 0; padding: 0 0 0 1.2em; }
+  .help a { color: #8C5049; letter-spacing: 0.04em; white-space: nowrap; text-underline-offset: 0.2em; }
+  .help a:focus-visible { outline: 3px solid #8C5049; outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -210,6 +221,15 @@ function offlinePage() {
   <h1>インターネットに<br>つながっていません</h1>
   <p>この画面はまだ端末に保存されていないため、開けませんでした。つながってから、もう一度読み込んでください。</p>
   <button type="button" onclick="location.reload()">再読み込みする</button>
+  <section class="help" aria-labelledby="help-h">
+    <h2 id="help-h">危ないときは</h2>
+    <p>いま危ないと感じたら、<a href="tel:110">110番</a>（警察）か<a href="tel:119">119番</a>（救急）に電話してください。</p>
+    <ul>
+      <li>DV相談＋：<a href="tel:0120279889">0120-279-889</a>（24時間）</li>
+      <li>DV相談ナビ：<a href="tel:%238008">#8008</a></li>
+      <li>よりそいホットライン：<a href="tel:0120279338">0120-279-338</a>（24時間）</li>
+    </ul>
+  </section>
 </main>
 </body>
 </html>`;

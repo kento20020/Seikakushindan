@@ -4,12 +4,13 @@
 //   h(tag, attrs, ...children)        要素を作る（今の js/ui/dom.js の h をそのまま使う）
 //   icon(name, { size, solid, cls })  線のアイコン（インライン SVG。名前は ICON_NAMES）
 //   logo("line" | "google")           ログインのボタンのロゴ
-//   topBar({ title, back, right, heading })  上の題「←　——題——　右」
+//   topBar({ title, back, right, heading, help })  上の題「←　——題——　右」（help: true で右に「危ないときは」。決定 U47）
 //   tabBar(active)                    下のタブ（"home" | "history" | "mypage"）
 //   roundArrow(onClick, label)        丸い矢印ボタン。onClick が無ければ飾り（カード全体が押せるとき）
 //   toast(text)                       下に一時的に出るお知らせ（読み上げも）
 //   go(hash) / goBack(fallback)       画面を替える／前の画面へ（アプリの中の前が無ければ fallback へ）
 //   eyebrow(text) / sectionHead(title, opts) / badge(text, opts) / rowLink(opts) / artPic(art, opts) / fmtDate(at)
+//   helpLink() / helpFoot()           「危ないときは ›」の小さなリンク／画面のいちばん下の1行（どちらも窓口のページ #help へ。決定 U47）
 import { h } from "../../js/ui/dom.js";
 
 export { h };
@@ -124,8 +125,10 @@ export function goBack(fallback = "#home") {
  *   back    … 省略：前の画面へ（goBack）／"#home" など：その画面へ／関数：それを呼ぶ／false：← を出さない
  *   right   … 右に置く要素（「40 / 64」・シェアのボタンなど）。省略可
  *   heading … true なら題を h1 にする（画面にほかの h1 が無いとき。質問の画面など）
+ *   help    … true なら右に小さな「危ないときは」（a.a-top-help → #help。決定 U47・U22「どの画面にも」）。既定は false（相談の画面は今のまま）
+ *             right があるとき（質問の画面の「12 / 24」）は、その右に並べる。右に「シェア」がある結果の画面には付けず、下の1行（helpFoot）にする
  */
-export function topBar({ title = "", back, right = null, heading = false } = {}) {
+export function topBar({ title = "", back, right = null, heading = false, help = false } = {}) {
   const onBack = () => {
     if (typeof back === "function") back();
     else if (typeof back === "string") go(back);
@@ -134,10 +137,25 @@ export function topBar({ title = "", back, right = null, heading = false } = {})
   const left = back === false
     ? h("span", { class: "a-top-spacer", "aria-hidden": "true" })
     : h("button", { type: "button", class: "a-top-back", "aria-label": "戻る", onclick: onBack }, icon("arrow-left"));
-  return h("header", { class: "a-top" },
+  const helpEl = help ? h("a", { class: "a-top-help", href: HELP_HREF }, HELP_TEXT) : null;
+  return h("header", { class: ["a-top", helpEl && "has-help", helpEl && right != null && "has-right"] },
     left,
     h(heading ? "h1" : "p", { class: "a-top-title" }, h("span", null, title)),
-    h("div", { class: "a-top-right" }, right));
+    h("div", { class: "a-top-right" }, right, helpEl));
+}
+
+// ---------------------------------------------------------------- 危ないときは（決定 U47。窓口のページ #help。app/js/help.js）
+//   文は app/js/safety.js の窓口のページと同じ言い方。ここは短い文字だけ持つ（どの画面でも読むので、窓口の一覧〔js/consult/texts.js〕は読まない）
+const HELP_HREF = "#help";
+const HELP_TEXT = "危ないときは";
+/** 文の後ろに置く小さなリンク「危ないときは ›」（› はアイコン。押せる範囲は上下に広げる） */
+export function helpLink() {
+  return h("a", { class: "a-help-link", href: HELP_HREF }, h("span", null, HELP_TEXT), icon("chevron-right", { size: 16 }));
+}
+/** 画面のいちばん下（操作のあと・タブの上）の静かな1行「危ないときは：相談できる窓口 ›」 */
+export function helpFoot() {
+  return h("p", { class: "a-help-foot-line" },
+    h("a", { class: "a-help-foot", href: HELP_HREF }, h("span", null, `${HELP_TEXT}：相談できる窓口`), icon("chevron-right", { size: 16 })));
 }
 
 const TABS = [["home", "ホーム", "home"], ["history", "履歴", "paper"], ["mypage", "マイページ", "person"]];
@@ -193,9 +211,11 @@ export function badge(text, { tone = "rose", ic = null } = {}) {
 /**
  * 1行のリンク・ボタン（アイコン＋文＋ ›）。href があれば a、無ければ button
  *   rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" })
+ *   sub … 文の下の小さな2行目（span.a-row-sub。省略すれば今までの見た目のまま。決定 U47）
  */
-export function rowLink({ href = null, onClick = null, ic = null, text, chevron = true, attrs = {} }) {
-  const kids = [ic ? icon(ic) : null, h("span", { class: "a-row-text" }, text), chevron ? icon("chevron-right", { size: 18 }) : null];
+export function rowLink({ href = null, onClick = null, ic = null, text, sub = null, chevron = true, attrs = {} }) {
+  const label = h("span", { class: "a-row-text" }, text, sub ? h("span", { class: "a-row-sub" }, sub) : null);
+  const kids = [ic ? icon(ic) : null, label, chevron ? icon("chevron-right", { size: 18 }) : null];
   return href
     ? h("a", { class: "a-row", href, ...attrs }, kids)
     : h("button", { type: "button", class: "a-row", onclick: onClick, ...attrs }, kids);

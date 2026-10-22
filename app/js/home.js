@@ -11,9 +11,10 @@
 //       上の絵は結果の画面のいちばん上と同じ（axis_art.js の heroArt。結果の文の主軸の、選ばれた側の絵）
 //     v4 の診断後のカード（前の形。?rc=u44）：小さく「今回の回答で目立つ傾向」、大きく冒頭の見出し（主軸の状態の見出し）、その本文、主な傾向（主軸と補足）
 //     診断前のカードの「8〜10分」は、新しく始める診断が v4 のときは「24問」（時間は測っていないので出さない）
+//   いちばん下（タブの上）に静かな1行「危ないときは：相談できる窓口 ›」（ui.js の helpFoot → #help。決定 U47）
 //   共有のリンクから来た人（決定 U45。app/js/share.js の fromShare。このタブの間だけの印）：診断がまだ終わっていない（"before"・"mid"）ときだけ、
 //     並びを「上 → 診断 → 相談」にし、診断の見出しの下・カードの上に静かな箱「送られてきた診断です」を1つ出す。"done" のときはいつものホーム
-import { h, eyebrow, sectionHead, badge, roundArrow, rowLink, artPic, icon, go } from "./ui.js";
+import { h, eyebrow, sectionHead, badge, roundArrow, rowLink, artPic, icon, go, helpFoot } from "./ui.js";
 import { restore3 } from "../../js/ui/three_store.js";
 import { mainPattern, topTendencies, recordDiagnosis } from "./summary.js";
 import { leadOf4, tendencies4, recordDiagnosis4, copyCard4 } from "./summary4.js";
@@ -83,7 +84,7 @@ export function render(root) {
     view = build("before");
   }
   const order = view.first ? [view.diag, consultSection()] : [consultSection(), view.diag];
-  root.append(h("div", { class: "a-home", "data-from": view.first ? "share" : null }, hero(view.pics.hero), ...order));
+  root.append(h("div", { class: "a-home", "data-from": view.first ? "share" : null }, hero(view.pics.hero), ...order, helpFoot()));
 }
 
 /**

@@ -1,10 +1,14 @@
 // 履歴（#history）と、1件の詳細（#history/<id>）。仕様：docs/app-screens.md §4.8
-//   この端末の中だけ（app/js/local.js）。新しい順に、診断（日時・主軸の見出し → 結果へ）と相談（日時・書いた文の冒頭・一手 → そのときのカード）
+//   この端末の中だけ（app/js/local.js）。新しい順に、診断（日時・主軸の見出し → 結果へ）と相談（日時・題「相談」→ そのときのカード）
+//   相談の行（決定 U47。人目の守り）：はじめは書いた文の冒頭と一手の見出しを一覧に出さない（題は「相談」、日時は今のまま）。
+//     マイページの「履歴の一覧に、相談で書いた文の冒頭を出す」（local.js の historySnippetOn。"1" のときだけ）をオンにすると、今までの形
+//     （書いた文の冒頭・「次の一手：…」）。押すと今までどおり詳細（詳細では書いた文が出る）。診断の行は今のまま
+//   一覧のいちばん下（タブの上）に「危ないときは：相談できる窓口 ›」（ui.js の helpFoot）。詳細は上の帯の右に「危ないときは」
 //   1件ずつ消せる。何も無いときは「まだ履歴がありません」と、相談・診断への入口
 //   診断：今の結果と同じ key なら #result へ。前の結果は、残っている要点を詳細で見せる（くわしい画面は今の結果だけ）
 //   相談：詳細で、consult.js が renderSaved(record) を持てばそれでカードを出す。無ければ書いた文の冒頭と一手
-import { h, icon, eyebrow, badge, topBar, fmtDate, toast } from "./ui.js";
-import { loadRecords, getRecord, removeRecord } from "./local.js";
+import { h, icon, eyebrow, badge, topBar, fmtDate, toast, helpFoot } from "./ui.js";
+import { loadRecords, getRecord, removeRecord, historySnippetOn } from "./local.js";
 import { restore3 } from "../../js/ui/three_store.js";
 import { resultKey, jpQuotes } from "./summary.js";
 import { resultKey4, isResult4 } from "./summary4.js";
@@ -42,27 +46,35 @@ function listView() {
       h("h1", { class: "a-h1" }, "履歴"),
       h("p", { class: "a-lead" }, "この端末の中だけに保存しています")));
   if (!items.length) {
-    wrap.append(emptyView());
+    wrap.append(emptyView(), helpFoot());
     return wrap;
   }
+  const snippet = historySnippetOn();
   const list = h("ul", { class: "a-hist-list", "aria-label": "新しい順" });
-  for (const item of items) list.append(itemRow(item, cur, list));
-  wrap.append(list);
+  for (const item of items) list.append(itemRow(item, cur, list, snippet));
+  wrap.append(list, helpFoot());
   return wrap;
 }
 
-function itemRow(item, cur, list) {
+/** 相談の行で、書いた文の冒頭と一手を隠すか（snippet … 冒頭を出す設定。決定 U47） */
+const hideText = (item, snippet) => item.kind === "consult" && !snippet;
+
+function itemRow(item, cur, list, snippet = false) {
   const label = KIND_LABEL[item.kind] || "記録";
-  const title = titleOf(item) || (item.kind === "consult" ? "相談" : "診断結果");
-  const li = h("li", { class: "a-card a-hist-item", "data-id": item.id, "data-kind": item.kind },
+  const hide = hideText(item, snippet);
+  const title = hide ? "相談" : titleOf(item) || (item.kind === "consult" ? "相談" : "診断結果");
+  const sub = hide ? "" : item.sub;
+  const li = h("li", { class: "a-card a-hist-item", "data-id": item.id, "data-kind": item.kind, "data-snippet": item.kind === "consult" ? (hide ? "off" : "on") : null },
     h("a", { class: "a-hist-link", href: hrefOf(item, cur) },
       h("span", { class: "a-hist-meta" },
         badge(label, { tone: item.kind === "consult" ? "rose" : "slate" }),
         h("time", { datetime: item.at }, fmtDate(item.at))),
       h("span", { class: "a-hist-title" }, title),
-      item.sub ? h("span", { class: "a-hist-sub" }, item.kind === "consult" ? `次の一手：${item.sub}` : item.sub) : null),
+      sub ? h("span", { class: "a-hist-sub" }, item.kind === "consult" ? `次の一手：${sub}` : sub) : null),
     h("button", {
-      type: "button", class: "a-icon-btn", "aria-label": `「${title}」の${label}の履歴を消す`,
+      type: "button", class: "a-icon-btn",
+      // 冒頭を出さないときは、消すボタンの読み上げにも書いた文を入れない（日時で呼ぶ）
+      "aria-label": hide ? `${fmtDate(item.at)}の${label}の履歴を消す` : `「${title}」の${label}の履歴を消す`,
       onclick: () => {
         if (!window.confirm("この履歴を消しますか？（元に戻せません）")) return;
         const next = li.nextElementSibling || li.previousElementSibling;
@@ -92,7 +104,7 @@ function emptyView() {
 // ---------------------------------------------------------------- 1件の詳細
 async function detail(root, id) {
   const item = getRecord(id);
-  root.append(topBar({ title: "履歴", back: "#history" }));
+  root.append(topBar({ title: "履歴", back: "#history", help: true }));
   if (!item) {
     root.append(h("div", { class: "a-pending" },
       h("h1", { class: "a-h1" }, "この履歴は見つかりません"),

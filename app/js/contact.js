@@ -5,6 +5,7 @@
 //     "mail"：フォームが無く、メールのアドレス（CONTACT_MAIL）がある → 利用者のメールのアプリを開いて送ってもらう（mailto。今はこれ）
 //     "off" ：どちらも無い → 欄は出すが［送る］は押せず、「いまは送れません（送り先を準備しています）。」。何も送らない・開かない
 //   上：「←」（前の画面。無ければ #mypage）・題（h1）
+//   前置きの上：1行「いま危ないときは、お問い合わせではなく窓口へ。メールの返事には時間がかかります。」＋「危ないときは ›」（#help。決定 U47）
 //   前置き：何を送れるか、と注3つ（送り方ごとに文を替える。NOTES）
 //   欄：種類（4つのうち1つ。最初はどれも選ばない）・内容（字数を「123 / 1000」で出す）・
 //     返事の連絡先（メールアドレス。任意。フォームのときと送れないときだけ。メールのときは出さない：利用者のアドレスが運営者に届くため）・
@@ -19,7 +20,8 @@
 //   書きかけ：このモジュールの変数（draft）にだけ持つ。画面を離れて戻っても残るが、ページを閉じる・読み込み直すと消える。
 //     localStorage・sessionStorage・IndexedDB には書かない（ほかの人に端末を見られたときのため）
 //   見た目は app/css/app.css（a-ct-）
-import { h, icon, topBar, goBack, go, toast } from "./ui.js";
+import { h, icon, topBar, goBack, go, toast, helpLink } from "./ui.js";
+import { CONTACT_SAFETY_LINE } from "./safety.js";
 import { CONTACT_FORM, CONTACT_MAIL, CONTACT_KINDS, BODY_MAX, contactMode, countChars, validate, deviceLabel, buildBody, buildMail } from "./contact_form.js";
 import { currentDevice, currentStandalone } from "./pwa.js";
 
@@ -62,7 +64,8 @@ export function render(root) {
   const mode = contactMode();
   const device = deviceLabel({ platform: currentDevice(), standalone: currentStandalone() });
   const wrap = h("div", { class: "a-ct", "data-ct-mode": mode },
-    topBar({ title: "お問い合わせ", heading: true, back: () => goBack("#mypage") }),
+    topBar({ title: "お問い合わせ", heading: true, back: () => goBack("#mypage"), help: true }),
+    h("p", { class: "a-ct-safety" }, CONTACT_SAFETY_LINE, helpLink()),   // 決定 U47
     h("div", { class: "a-ct-intro" },
       h("p", { class: "a-lead" }, "使い方がわからないこと・うまく動かないこと・ご意見を送れます。"),
       h("ul", { class: "a-ct-notes" }, NOTES[mode].map((t) => h("li", { class: "a-note" }, t)))));

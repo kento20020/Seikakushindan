@@ -4,7 +4,7 @@
 //   export function render(root, route) { ... }   root は空の <main>。中身を足して返す
 //     片付けの関数を返してよい（画面を替えるときに呼ぶ。document や window に付けたものを外す）。Promise を返してもよい
 //   route = { key, name, parts, params, hash }
-//     key    … 画面の名前（"home" "diagnose" "diagnose/q" "result" "consult" "account" "history" "mypage" "images" "types" "contact"）
+//     key    … 画面の名前（"home" "diagnose" "diagnose/q" "result" "consult" "account" "history" "mypage" "images" "types" "contact" "help"）
 //     name   … ハッシュの1つ目（"diagnose" など）。parts … "/" で分けた全部、params … 2つ目から（"#history/abc" → ["abc"]）
 //   画面を替えたら、先頭へスクロールし、焦点を見出しへ移す（root の [data-focus]、無ければ最初の h1）
 //   下のタブはホーム・履歴・マイページだけ（main.js が出す）。ほかの画面は ui.js の topBar で「← 題」を出す
@@ -33,6 +33,7 @@ const ROUTES = {
   images: { load: () => import("./images.js"), title: "診断結果の絵" },   // 診断結果の絵の一覧（§14）
   types: { load: () => import("./types.js"), title: "診断結果の一覧" },   // 診断結果の一覧（8軸×3のタイプ図鑑。§16）
   contact: { load: () => import("./contact.js"), title: "お問い合わせ" },   // お問い合わせ（今はメールのアプリで送る。Google フォームを入れればフォームへ。§17）
+  help: { load: () => import("./help.js"), title: "危ないときは" },   // 窓口のページ（110・119 と相談できる窓口。履歴に残さない。§23。決定 U47）
 };
 
 /** "#history/abc" → { key: "history", name: "history", parts: ["history","abc"], params: ["abc"], hash } */

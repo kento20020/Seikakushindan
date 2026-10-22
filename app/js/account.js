@@ -60,7 +60,7 @@ export function render(root) {
 
   setMode("signup", false);
   root.append(
-    topBar({ title: "アカウント", back: () => goBack("#mypage") }),
+    topBar({ title: "アカウント", back: () => goBack("#mypage"), help: true }),
     h("div", { class: "a-account-head" },
       deco(),
       h("h1", { class: "a-h1" }, "アカウントを作成して", h("br"), "もっと便利に"),

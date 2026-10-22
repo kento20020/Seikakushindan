@@ -105,7 +105,7 @@ function startView() {
       : [h("button", { type: "button", class: "a-btn a-btn-block", id: "a-dg-start", onclick: begin }, "診断をはじめる", icon("arrow-right"))];
 
   return h("div", { class: "a-dg-start a-d4-start", "data-dv": "v4" },
-    topBar({ title: "診断" }),
+    topBar({ title: "診断", help: true }),
     h("section", { class: "a-dg-intro", "aria-labelledby": "a-dg-title" },
       h("h1", { class: "a-dg-title a-d4-title", id: "a-dg-title", "data-focus": "" }, phrase("24問で、"), phrase("ふたりのすれ違い方を"), phrase("整理する")),
       h("p", { class: "a-lead a-dg-lead" }, START4.lead)),
@@ -141,7 +141,7 @@ function oldBlock(old) {
 // ================================================================ 質問（#diagnose/q）
 function qTop(p) {
   return topBar({
-    title: "診断", back: "#home", heading: true,
+    title: "診断", back: "#home", heading: true, help: true,   // 右の数の右に「危ないときは」（決定 U47）
     right: h("p", { class: "a-dg-count", "aria-label": `${p.total}問中 ${p.answered}問 回答済み` },
       h("span", { "aria-hidden": "true" }, `${p.answered} / ${p.total}`)),
   });

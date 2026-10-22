@@ -8,11 +8,15 @@
 //     iPhone のときだけ、手順の下に「Safari とアプリのあいだで診断を移す」（app/js/transfer.js の引き継ぎのコード）
 //     カードのいちばん下に、どの状態でも「ホーム画面で使うのをやめるには」（<details>。§15.11。決定 U39）。
 //       今の端末（pwa.js の currentDevice：iPhone・Android・パソコン）の手順を先に、ほかの端末は「ほかの端末」の下に
-//   この端末の記録：「すべて消す」（確かめてから。app/ の履歴と結果の印、診断の回答と結果。今の画面と共通の保存も消える）
+//     節の最初の方に1行「端末を見られたくないときは、追加しないでください。…」（決定 U47。人目の守り）
+//   この端末の記録：「すべて消す」（確かめてから。app/ の履歴と結果の印、診断の回答と結果、履歴の冒頭の設定。今の画面と共通の保存も消える）
+//     切り替え「履歴の一覧に、相談で書いた文の冒頭を出す」（決定 U47。local.js の historySnippetOn・setHistorySnippet。はじめはオフ）と小さな注
+//   いちばん下（タブの上）に「危ないときは：相談できる窓口 ›」（ui.js の helpFoot → #help。決定 U47）
 //   お問い合わせ（§17。決定 U39・U40）：「お問い合わせ・不具合の報告」（→ #contact。今はメールのアプリで送る画面。Google フォームを入れればフォームへ）
 //   小さく「試作の画面です」と、今の画面（../#three）へのリンク
-import { h, icon, eyebrow, sectionHead, rowLink, toast, go } from "./ui.js";
-import { loadRecords, clearAll } from "./local.js";
+import { h, icon, eyebrow, sectionHead, rowLink, toast, go, helpFoot } from "./ui.js";
+import { loadRecords, clearAll, historySnippetOn, setHistorySnippet } from "./local.js";
+import { APP_PRIVACY_LINE, HISTORY_SNIPPET_LABEL, HISTORY_SNIPPET_NOTE } from "./safety.js";
 import { store3, restore3, discard3 } from "../../js/ui/three_store.js";
 import { store4, restore4, discard4 } from "../../js/ui/four_store.js";
 import { diagnosisState } from "./home.js";
@@ -91,6 +95,7 @@ function appSection() {
       h("p", { class: "a-pwa-text", "data-pwa-text": "", tabindex: "-1" },
         done ? icon("check-circle", { size: 20, solid: true }) : null,
         h("span", null, APP_TEXT[state] || APP_TEXT.menu)),
+      h("p", { class: "a-note a-pwa-privacy" }, APP_PRIVACY_LINE),   // 人目の守り（決定 U47）
       state === "prompt"
         ? h("button", { type: "button", class: "a-btn a-btn-block a-pwa-btn", onclick: addToHome }, "ホーム画面に追加する")
         : null,
@@ -248,7 +253,7 @@ async function addToHome(e) {
 function view() {
   const state = diagnosisState();
   const count = loadRecords().items.length;
-  const hasData = count > 0 || !!store3.session || !!store4.session;
+  const hasData = count > 0 || !!store3.session || !!store4.session || historySnippetOn();
   return h("div", { class: "a-mypage" },
     h("header", { class: "a-page-head" },
       eyebrow("MY PAGE"),
@@ -288,7 +293,8 @@ function view() {
         h("div", { class: "a-data-row" },
           h("p", null, `履歴 ${count}件`),
           h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm", disabled: !hasData, onclick: clearEverything }, "すべて消す")),
-        h("p", { class: "a-note", style: { marginTop: "12px" } }, "どこにも送っていません。消すと元に戻せません。"))),
+        h("p", { class: "a-note", style: { marginTop: "12px" } }, "どこにも送っていません。消すと元に戻せません。"),
+        snippetToggle())),
 
     // お問い合わせ（§17。決定 U39）
     h("section", { "aria-labelledby": "a-me-contact" },
@@ -299,12 +305,31 @@ function view() {
 
     h("footer", { class: "a-foot" },
       h("p", { class: "a-note" }, "試作の画面です"),
-      h("p", { class: "a-note" }, h("a", { class: "a-link a-link-tap", href: "../#three" }, "今の画面（診断・相談）を開く"))));
+      h("p", { class: "a-note" }, h("a", { class: "a-link a-link-tap", href: "../#three" }, "今の画面（診断・相談）を開く"))),
+    helpFoot());
+}
+
+// ---------------------------------------------------------------- 履歴の一覧に、相談で書いた文の冒頭を出す（決定 U47。はじめはオフ）
+function snippetToggle() {
+  const input = h("input", {
+    type: "checkbox", id: "a-me-snippet", "aria-describedby": "a-me-snippet-note",
+    onchange: (e) => {
+      const on = e.target.checked;
+      if (!setHistorySnippet(on)) { e.target.checked = !on; toast("この端末では切り替えを保存できませんでした"); }
+    },
+  });
+  input.checked = historySnippetOn();
+  return h("div", { class: "a-me-snippet" },
+    h("label", { class: "a-check", for: "a-me-snippet" },
+      input,
+      h("span", { class: "a-check-box", "aria-hidden": "true" }, icon("check")),
+      h("span", null, HISTORY_SNIPPET_LABEL)),
+    h("p", { class: "a-note", id: "a-me-snippet-note" }, HISTORY_SNIPPET_NOTE));
 }
 
 function clearEverything() {
   if (!window.confirm("この端末に残っている、診断の回答と結果・相談の履歴をすべて消しますか？（元に戻せません）")) return;
-  clearAll();
+  clearAll();             // 履歴と結果の印と、履歴の冒頭の設定（U47。出さないに戻る）
   discard3();
   discard4();             // 24問版（v4。決定 U42）の診断も消す
   setActiveVersion(null);

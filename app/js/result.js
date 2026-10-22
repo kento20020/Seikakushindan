@@ -12,9 +12,11 @@
 //     色（§13）：A 側の●と帯はその軸の色、B 側は紺、まんなかの●は墨。文字は墨のまま（「〜寄り」の前に色の点を添える）。「弱め」「両方とも強い」の印
 //     見出しの下の説明の文（●・右上の数字・「弱め」の説明）は出さない（持ち主「この補足いらない」。決定 U41 の5）
 //   下：「もう一度診断する」「診断結果の一覧」（→ #types。§16）「診断結果の絵の一覧」（→ #images。§14）「ホームへ戻る」
+//     いちばん下に静かな1行「危ないときは：相談できる窓口 ›」（ui.js の helpFoot。決定 U47。右上はシェアなので上の帯には付けない）
+//     三択の結果には、24問の結果の安全の1行（領域3・6）は入れていない（U47 では24問だけ）
 //   結果を開いたら、履歴に1件足す（recordDiagnosis。同じ結果は2回足さない）
 //   値は今の画面 js/ui/three.js の patternCard と同じ（js/ の中身は直さない）。見た目は app/css/diagnose.css（a-dg-）
-import { h, icon, topBar, badge, sectionHead, rowLink, artPic } from "./ui.js";
+import { h, icon, topBar, badge, sectionHead, rowLink, artPic, helpFoot } from "./ui.js";
 import { store3, restore3 } from "../../js/ui/three_store.js";
 import { PATTERN_BY_ID } from "../../js/data/patterns.js";
 import { byRole } from "../../js/ui/result.js";
@@ -54,7 +56,8 @@ export function render(root) {
         rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" }),
         rowLink({ href: "#types", ic: "grid", text: "診断結果の一覧" }),
         rowLink({ href: "#images", ic: "sparkle", text: "診断結果の絵の一覧" }),
-        rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" })))));
+        rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" }))),
+    helpFoot()));
 }
 
 // ---------------------------------------------------------------- 主軸の絵（§12 の1・§13）
@@ -76,7 +79,7 @@ function emptyView() {
   let mid = false;
   try { mid = !!s && !s.isDone() && s.progress().answered > 0; } catch { mid = false; }
   return h("div", { class: "a-dg-res" },
-    topBar({ title: "診断結果" }),
+    topBar({ title: "診断結果", help: true }),
     h("div", { class: "a-card a-empty a-dg-empty" },
       h("h1", { class: "a-empty-title" }, "まだ結果がありません"),
       h("p", { class: "a-note" }, mid ? "途中まで答えた診断があります。最後まで答えると、ここに結果が出ます。" : "診断に答えると、ここに結果が出ます。"),

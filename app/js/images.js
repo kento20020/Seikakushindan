@@ -51,7 +51,7 @@ export function render(root) {
   let marks = { picked: [], hero: null, art: null };
   if (r) { try { marks = slotMarks(r); } catch (err) { console.error(err); } }
   root.append(h("div", { class: "a-im" },
-    topBar({ title: "診断結果の絵", heading: true }),
+    topBar({ title: "診断結果の絵", heading: true, help: true }),
     intro(slots),
     rulesCard(slots, r, marks, v4),
     axisSection(slots, marks),

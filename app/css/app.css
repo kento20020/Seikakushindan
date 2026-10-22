@@ -26,8 +26,10 @@
      .a-stack          … 子の間を縦にあける（--gap で変えられる。既定 16px）
      .a-sr             … 画面には出さず、読み上げだけ
    上の題
-     .a-top            … 「←＋——題——＋右」。ui.js の topBar({ title, back, right, heading })
+     .a-top            … 「←＋——題——＋右」。ui.js の topBar({ title, back, right, heading, help })
        .a-top-back（← 44px）／.a-top-title（中央の題。左右に細い線）／.a-top-right（右：数・シェアのボタンなど）
+       .a-top-help       … 右の小さな「危ないときは」（help: true。→ #help。決定 U47）。付いた帯は .has-help（狭い画面では題の線を短く）、
+                           右にほかの物（数）もあれば .has-right（狭い画面では題の線を外す）
    下のタブ
      .a-tabs > .a-tabs-list > li > a.a-tab[aria-current="page"]  … ui.js の tabBar(active)。ホーム・履歴・マイページの3画面だけ
    見出し
@@ -51,7 +53,7 @@
      .a-icon-btn       … アイコンだけのボタン（44px。aria-label を必ず付ける）
      .a-link           … 下線つきの文字リンク（a でも button でも）。.a-link-tap を足すと上下に押せる範囲が広がる（44px）
      .a-row            … 1行のリンク・ボタン（アイコン＋文＋ ›）。「⟳ もう一度診断する ›」など。ui.js の rowLink(opts)
-                         .a-rows の中に並べると間に線が入る
+                         .a-rows の中に並べると間に線が入る。.a-row-sub … 文の下の小さな2行目（rowLink の sub。決定 U47）
      .a-or             … 「または」の区切り線
      .a-seg            … 切り替え（「新規登録｜ログイン」。role="tablist" の button[role="tab"][aria-selected]。今の方に下線）
    印・お知らせ
@@ -63,6 +65,10 @@
      .a-nowrap         … そこで折り返さない
      .a-pending / .a-error … 準備中の画面・表示できなかったときの箱
      .a-home-shared    … 共有のリンクから来た人への箱（ホームの診断の欄。-title・-body。決定 U45）
+     危ないときは（決定 U47。窓口のページ #help へ）
+       .a-help-link      … 文の後ろの小さなリンク「危ないときは ›」。ui.js の helpLink()
+       .a-help-foot-line > .a-help-foot … 画面のいちばん下の静かな1行「危ないときは：相談できる窓口 ›」。ui.js の helpFoot()
+       .a-safety-note    … 見出しの無い小さな囲み（地は面の色・左に細い線）。24問の結果の安全の1行・#types の下の注
    画面の見出し（タブのある画面）：.a-page-head（eyebrow ＋ .a-h1 ＋ .a-lead）
    入力
      .a-input / .a-textarea … 入力欄（文字は 16px。iPhone で拡大されない）。.a-count … 「0 / 2000」
@@ -93,6 +99,8 @@
   --slate-soft: #E3E5EA;
   --vermilion: #C4473D;
   --night: #272439;
+  --help-ink: #9E3A31;   /* 「危ないときは」の文字（相談の画面の --cs-stop と同じ。地・面の上で 5:1 以上。決定 U47） */
+  --help-soft: #F6E7E2;  /* 窓口のページのいますぐの電話の地（相談の画面の --cs-safety と同じ） */
 
   /* 文字 */
   --serif: "Shippori Mincho", "Hiragino Mincho ProN", "Hiragino Mincho Pro", "Yu Mincho", "YuMincho", "Noto Serif JP", "IPAMincho", serif;
@@ -249,6 +257,39 @@ hr { border: 0; }
   font-size: var(--fs-md);
   color: var(--ink-2);
   letter-spacing: 0.12em;
+}
+/* 右の「危ないときは」（決定 U47。ui.js の topBar の help）。見た目は相談の画面の .a-cs-danger と同じ（文字の下線・暗い朱・44px） */
+.a-top-help {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  color: var(--help-ink);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.3em;
+}
+.a-top-help:hover { background: rgb(158 58 49 / 0.06); }
+/* 右に「危ないときは」がある帯：右の列は中身の幅より狭くしない（題に重ねない）。狭い画面では題の左右の線を短くして、題を真ん中に近づける */
+.a-top.has-help { grid-template-columns: minmax(44px, 1fr) auto minmax(max-content, 1fr); }
+.a-top.has-help .a-top-right { gap: var(--sp-1); }
+@media (max-width: 519px) {
+  .a-top.has-help .a-top-title { gap: 10px; }
+  .a-top.has-help .a-top-title::before, .a-top.has-help .a-top-title::after { width: clamp(12px, 5vw, 52px); }
+  /* 右に数（質問の画面の「12 / 24」）もある帯：題の線を外し、題と数のあいだをあける */
+  .a-top.has-help.has-right { column-gap: var(--sp-3); }
+  .a-top.has-help.has-right .a-top-title::before, .a-top.has-help.has-right .a-top-title::after { display: none; }
+}
+@media (max-width: 359px) {
+  /* とても狭い画面（320px など）：題の線を外し、字の間を詰める（長い題「診断結果の一覧」でも右にはみ出さない） */
+  .a-top.has-help .a-top-title { letter-spacing: 0.12em; }
+  .a-top.has-help .a-top-title::before, .a-top.has-help .a-top-title::after { display: none; }
+  .a-top.has-help { column-gap: var(--sp-2); }
+  .a-top-help { padding: 0 6px; letter-spacing: 0.02em; }
 }
 
 /* ---------------------------------------------------------------- 下のタブ */
@@ -501,6 +542,8 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 }
 .a-row > .a-ic:first-child { color: var(--ink-2); width: 24px; height: 24px; }
 .a-row > .a-row-text { flex: 1; min-width: 0; }
+/* 文の下の小さな2行目（rowLink の sub。決定 U47。無ければ今までの見た目） */
+.a-row-sub { display: block; margin-top: 1px; font-size: var(--fs-xs); line-height: 1.6; letter-spacing: 0.06em; color: var(--muted); }
 .a-row > .a-ic:last-child { width: 18px; height: 18px; color: var(--ink-2); }
 .a-row:hover > .a-row-text { color: var(--rose-ink); }
 .a-row:focus-visible { outline-offset: 2px; border-radius: var(--r-md); }
@@ -1384,6 +1427,120 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   .a-ty-card { grid-template-columns: minmax(0, 1fr); align-content: start; padding: var(--sp-5); }
   .a-ty-foot { max-width: calc(var(--col) + 2 * var(--gutter)); }
 }
+
+/* ======================================================================
+   危ないときは（決定 U47。相談の外の安全と人目の守り。docs/app-screens.md §23）
+   ====================================================================== */
+/* 文の後ろの小さなリンク「危ないときは ›」。押せる範囲は上下に広げる（.a-link-tap と同じやり方） */
+.a-help-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin: -11px 0 -11px 0.5em;
+  padding: 11px 2px;
+  color: var(--help-ink);
+  font-family: var(--serif);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.3em;
+  vertical-align: baseline;
+}
+.a-help-link .a-ic { flex: none; width: 14px; height: 14px; }
+.a-help-link:hover { color: var(--ink); }
+/* 画面のいちばん下（操作のあと・タブの上）の静かな1行 */
+.a-help-foot-line { margin-top: var(--sp-8); text-align: center; }
+.a-help-foot {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.06em;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.3em;
+}
+.a-help-foot .a-ic { flex: none; width: 14px; height: 14px; }
+.a-help-foot:hover { color: var(--ink-2); text-decoration-color: currentColor; }
+/* 見出しの無い小さな囲み（24問の結果の安全の1行・#types の下の注）。地は面の色、左に細い線だけ。長い文なのでゴシック */
+.a-safety-note {
+  margin-top: var(--sp-6);
+  padding: 12px 16px 12px 14px;
+  border-left: 2px solid var(--line-strong);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  background: var(--surface);
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 0.875rem;
+  line-height: 1.85;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+.a-safety-note p + p { margin-top: 6px; }
+.a-safety-note .a-help-link { font-size: var(--fs-sm); }
+.a-ty-safety { margin-top: var(--sp-8); }
+@media (min-width: 960px) {
+  .a-ty-safety { max-width: calc(var(--col) + 2 * var(--gutter)); }
+}
+/* お問い合わせの前置きの上の1行 */
+.a-ct-safety { margin: var(--sp-2) 0 var(--sp-5); font-size: var(--fs-sm); line-height: 1.8; letter-spacing: 0.06em; color: var(--ink-2); word-break: auto-phrase; }
+/* マイページの「アプリとして使う」の人目の注と、「この端末の記録」の切り替え */
+.a-pwa-privacy { margin-top: var(--sp-2); }
+.a-me-snippet { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--line); }
+.a-me-snippet .a-check { align-items: flex-start; padding: 10px 0; }
+.a-me-snippet .a-check-box { margin-top: 0.15em; }
+.a-me-snippet .a-note { margin-top: 2px; padding-left: calc(24px + var(--sp-3)); }
+
+/* 窓口のページ（#help。app/js/help.js） */
+.a-help-now {
+  margin-top: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-md);
+  background: var(--help-soft);
+  font-size: var(--fs-lg);
+  line-height: 1.85;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  word-break: auto-phrase;
+}
+.a-help-now-tel {
+  display: inline-block;
+  margin: -8px 0;
+  padding: 8px 2px;
+  color: var(--help-ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+.a-help-sec { margin-top: var(--sp-8); }
+.a-help-h { margin-bottom: var(--sp-3); font-size: var(--fs-md); font-weight: 700; line-height: 1.6; letter-spacing: 0.1em; color: var(--ink); }
+.a-help-list { list-style: none; padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+.a-help-item { display: flex; flex-direction: column; padding: var(--sp-3) 0; }
+.a-help-item + .a-help-item { border-top: 1px solid var(--line); }
+.a-help-name { font-size: var(--fs-md); font-weight: 700; letter-spacing: 0.08em; }
+.a-help-tel {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 44px;
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--rose-ink);
+  font-variant-numeric: tabular-nums;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+.a-help-note { font-family: var(--sans); font-weight: 400; font-size: var(--fs-sm); line-height: 1.8; letter-spacing: 0.02em; color: var(--ink-2); }
+.a-help-when { display: flex; flex-direction: column; gap: var(--sp-2); padding-left: 1.2em; font-family: var(--sans); font-weight: 400; font-size: var(--fs-md); line-height: 1.85; letter-spacing: 0.02em; color: var(--ink-2); }
+.a-help-notes { margin-top: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-1); }
 
 /* 仮の画面（準備中） */
 .a-pending { padding: var(--sp-8) 0; text-align: center; }

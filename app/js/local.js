@@ -4,8 +4,11 @@
 //   記録：{ id, kind: "diagnosis" | "consult", at: ISO の日時（UTC）, title, sub, data }
 //   診断の記録は data.key（app/js/summary.js の resultKey(result)）が同じなら2回足さない
 // テストでは useStorage(差し替えの入れ物) で localStorage の代わりを渡す（getItem・setItem・removeItem があればよい）
+// 履歴の一覧に、相談で書いた文の冒頭を出すか（決定 U47）：別のキー seikaku16:app:history-snippet。"1" のときだけ出す（初めは出さない）。
+//   historySnippetOn()・setHistorySnippet(on)。clearAll（マイページの「すべて消す」）でこの設定も消す（＝出さないに戻る）
 
 export const STORAGE_KEY = "seikaku16:app:v1";
+export const HISTORY_SNIPPET_KEY = "seikaku16:app:history-snippet";
 export const KINDS = Object.freeze(["diagnosis", "consult"]);
 export const MAX_ITEMS = 200;      // これより古い記録は消える
 const MAX_TEXT = 400;              // title・sub の長さの上限（文字）
@@ -117,12 +120,32 @@ export function clearRecords() {
   return write(d);
 }
 
-/** この端末の app/ の記録をすべて消す（記録と結果の印）→ 消せたか */
+/** この端末の app/ の記録をすべて消す（記録と結果の印と、履歴の冒頭の設定）→ 消せたか */
 export function clearAll() {
   try {
     const s = storage();
     if (!s) return false;
     s.removeItem(STORAGE_KEY);
+    s.removeItem(HISTORY_SNIPPET_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------- 履歴の一覧に、相談で書いた文の冒頭を出すか（決定 U47。初めは出さない）
+/** 出すか（"1" のときだけ true。キーが無い・読めない・localStorage が無いときは false） */
+export function historySnippetOn() {
+  try { return storage()?.getItem(HISTORY_SNIPPET_KEY) === "1"; } catch { return false; }
+}
+
+/** 出す（true）・出さない（false。キーを消す）→ 保存できたか */
+export function setHistorySnippet(on) {
+  try {
+    const s = storage();
+    if (!s) return false;
+    if (on) s.setItem(HISTORY_SNIPPET_KEY, "1");
+    else s.removeItem(HISTORY_SNIPPET_KEY);
     return true;
   } catch {
     return false;

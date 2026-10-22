@@ -11,8 +11,11 @@
 //     4 補足1文（あるときだけ。本文と同じ大きさ。囲み・見出しを付けない）
 //     5 「たとえば、こんな一言から。」と、一言を「」で1つ（答えがそろった領域が無いときは出さない）
 //     6 閉じた「回答の内訳を見る」（details）：8つの領域の名前・A と B の名前・3問の答え・A と B を選んだ数（％にしない）、凡例、注記。結果の文は再掲しない。絵は出さない
-//     7 操作：［相談する］［もう一度診断する］［診断結果の一覧］［診断結果の絵の一覧］［ホームへ戻る］。
+//     7 操作：［相談する］（小さな2行目「次に喧嘩したら、ここに書くだけ」。決定 U47）［もう一度診断する］［診断結果の一覧］［診断結果の絵の一覧］［ホームへ戻る］。
 //       答えがそろった領域が無いときは［回答を見直す］（24問の1問目へ。答えは消さない。four_store.js の review4）と［ホームへ戻る］
+//     6 と 7 のあいだ：安全の1行（決定 U47。app/js/safety.js の safetyNote4）。領域3か6が A強（答えた問がすべて A）のときだけ、見出しの無い小さな囲み
+//       （原稿の本文・補足・一言の流れを切らないよう、内訳の後ろに置く）。答えがそろった領域が無いときは条件を満たさないので出ない
+//     いちばん下（操作のあと）：静かな1行「危ないときは：相談できる窓口 ›」（ui.js の helpFoot。右上はシェアなので、上の帯には付けない）
 //   外したもの：見出し『今回の回答で目立つ傾向』、主軸と補足のカード、8つの領域の線と絵、状態の見出し
 //   中の ID（B1-1・PAIR-7B-8B・テーマの名前）は画面に出さない
 //
@@ -28,9 +31,10 @@
 //   組み合わせ（172パターン）は出さない（U44）
 //   8つの領域：三択の結果の「8つの軸」と同じ形の横の線（左右の傾向の名前・●の位置＝B を選んだ割合・「向き合う寄り 67%」の1行）＋
 //     状態の見出しと本文。U41 の5 で三択から外した説明の文は出さない。絵は A の割合で選ぶ（axis_art.js の axisArt4）。incomplete は番号の丸
+//   安全の1行（決定 U47）：8つの領域のあと・操作の前（持ち主の原稿の形と同じ条件・同じ文）。いちばん下に「危ないときは：相談できる窓口 ›」
 //   結果を開いたら、履歴に1件足す（summary4.js の recordDiagnosis4。同じ結果は2回足さない）
 //   見た目は app/css/diagnose.css（三択の結果と同じ a-dg- の部品と、a-d4- で始まるクラス）
-import { h, icon, topBar, badge, sectionHead, rowLink, artPic, go } from "./ui.js";
+import { h, icon, topBar, badge, sectionHead, rowLink, artPic, go, helpLink, helpFoot } from "./ui.js";
 import { store4, restore4, progress4, review4 } from "../../js/ui/four_store.js";
 import { DOMAINS } from "../../js/engine.js";
 import { DOMAIN_IDS4, domainText4 } from "../../js/engine4.js";
@@ -41,6 +45,7 @@ import { leadOf4, recordDiagnosis4, axisView4, copyOf4 } from "./summary4.js";
 import { heroArt4, axisArt4, NAVY, ART_SIZE } from "./axis_art.js";
 import { shareResult, shareText4, shareTextCopy4 } from "./share.js";
 import { isCopyResult } from "./result_copy_version.js";
+import { safetyNote4, CONSULT_ROW_SUB } from "./safety.js";
 
 export const RESULT_TITLE4 = "今回の回答で目立つ傾向";
 export const RESULT_NOTE4 = "今回の回答から見た傾向です。相手や状況によって変わることがあります。";
@@ -75,6 +80,7 @@ function renderCopy(root) {
         h("blockquote", { class: "a-d4-copy-quote" }, h("p", null, `「${copy.action}」`)))
       : null,
     breakdown(r),
+    safetyBox(r),
     h("div", { class: "a-dg-res-foot" },
       h("div", { class: "a-card a-rows a-dg-res-rows" }, none
         ? [
@@ -82,12 +88,26 @@ function renderCopy(root) {
           rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" }),
         ]
         : [
-          rowLink({ href: "#consult", ic: "chat", text: "相談する" }),
+          rowLink({ href: "#consult", ic: "chat", text: "相談する", sub: CONSULT_ROW_SUB }),
           rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" }),
           rowLink({ href: "#types", ic: "grid", text: "診断結果の一覧" }),
           rowLink({ href: "#images", ic: "sparkle", text: "診断結果の絵の一覧" }),
           rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" }),
-        ]))));
+        ])),
+    helpFoot()));
+}
+
+/**
+ * 安全の1行（決定 U47）：領域3（不安時の確認行動）か領域6（話し合いの主導）が A強のときだけ。見出しの無い小さな囲み（.a-safety-note）。
+ *   両方のときは2つの文を続けて1つの囲みに。最後に共通の1文と「危ないときは ›」（#help）
+ */
+function safetyBox(r) {
+  let note = null;
+  try { note = safetyNote4(r); } catch (err) { console.error(err); }
+  if (!note) return null;
+  return h("div", { class: "a-safety-note a-d4-safety", role: "note", "data-domains": note.domains.join(" ") },
+    h("p", null, note.texts.join("")),
+    h("p", null, note.tail, helpLink()));
 }
 
 /** 回答を見直す：答えを消さずに24問の1問目へ */
@@ -153,13 +173,15 @@ function renderU44(root) {
     h("p", { class: "a-note a-d4-res-note" }, RESULT_NOTE4),
     leadCards(r, lead),
     domainsSection(r),
+    safetyBox(r),
     h("div", { class: "a-dg-res-foot" },
       h("div", { class: "a-card a-rows a-dg-res-rows" },
-        rowLink({ href: "#consult", ic: "chat", text: "相談する" }),
+        rowLink({ href: "#consult", ic: "chat", text: "相談する", sub: CONSULT_ROW_SUB }),
         rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" }),
         rowLink({ href: "#types", ic: "grid", text: "診断結果の一覧" }),
         rowLink({ href: "#images", ic: "sparkle", text: "診断結果の絵の一覧" }),
-        rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" })))));
+        rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" }))),
+    helpFoot()));
 }
 
 // ---------------------------------------------------------------- 主軸の絵
@@ -178,7 +200,7 @@ function emptyView() {
   const s = store4.session;
   const mid = !!s && !s.completed && progress4(s).answered > 0;
   return h("div", { class: "a-dg-res" },
-    topBar({ title: "診断結果" }),
+    topBar({ title: "診断結果", help: true }),
     h("div", { class: "a-card a-empty a-dg-empty" },
       h("h1", { class: "a-empty-title" }, "まだ結果がありません"),
       h("p", { class: "a-note" }, mid ? "途中まで答えた診断があります。最後まで答えると、ここに結果が出ます。" : "診断に答えると、ここに結果が出ます。"),

@@ -7,13 +7,15 @@
 //   軸ごとの節：見出し（軸の色の点＋番号＋名前）と小さく「{a} ↔ {b}」。中に3つの型のカード（A寄り・まんなか・B寄り）
 //     カード：絵（alt 付き）・型の名前・比率・短い説明（lead）・「この型に近い見出し」
 //     あなたの型：「あなたの型」の印（文字とアイコン）＋カードの枠（色だけに頼らない）。いちばん上の絵の型には「いちばん上の絵」の印
+//   一覧の最後：小さな注（スマホ・居場所・お金・人づきあいを…＋「危ないときは ›」。決定 U47。型ごとのカードには出さない）
 //   下：「診断結果の絵の一覧」（#images）・「ホームへ戻る」
 //   診断の結果が無くても見られる（印が無いだけ）。見た目は app/css/app.css（a-ty-）
-import { h, topBar, badge, rowLink, artPic } from "./ui.js";
+import { h, topBar, badge, rowLink, artPic, helpLink } from "./ui.js";
 import { restore3 } from "../../js/ui/three_store.js";
 import { currentResult, currentVersion } from "./diagnosis_version.js";
 import { jpQuotes } from "./summary.js";
 import { typeCatalog, typeMarks } from "./type_catalog.js";
+import { TYPES_SAFETY_NOTE } from "./safety.js";
 
 // 印：[文, badge の色, アイコン]
 const MARK = { yours: ["あなたの型", "rose", "check-circle"], hero: ["いちばん上の絵", "ink", null] };
@@ -27,10 +29,12 @@ export function render(root) {
   if (r) { try { marks = typeMarks(r); } catch (err) { console.error(err); } }
   const axes = groupByAxis(typeCatalog());
   root.append(h("div", { class: "a-ty" },
-    topBar({ title: "診断結果の一覧", heading: true }),
+    topBar({ title: "診断結果の一覧", heading: true, help: true }),
     intro(r, marks, v4),
     toc(axes),
     h("div", { class: "a-ty-axes" }, axes.map((ax) => axisSection(ax, marks))),
+    // 一覧の最後に小さな注（決定 U47。型ごとのカードには出さない：特定の型を疑う形にしないため）
+    h("div", { class: "a-safety-note a-ty-safety", role: "note" }, h("p", null, TYPES_SAFETY_NOTE, helpLink())),
     h("div", { class: "a-card a-rows-card a-ty-foot" },
       h("div", { class: "a-rows" },
         rowLink({ href: "#images", ic: "sparkle", text: "診断結果の絵の一覧" }),
