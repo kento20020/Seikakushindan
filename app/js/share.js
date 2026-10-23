@@ -4,7 +4,8 @@
 //   shareUrl(base)          … 共有のリンク（app/ の入口に ?from=share。結果は載せない。?dv= などほかのクエリとハッシュは付けない）
 //   shareTextCopy4(copy)    … 24問の共有の文（持ち主の原稿の形。決定 U46。既定。copy は summary4.js の copyOf4(r)）
 //   shareText4(lead)        … 24問の共有の文（前の形。?rc=u44。lead は summary4.js の leadOf4(r)）
-//   shareText3(main)        … 三択の共有の文（main は summary.js の mainPattern(r)。見出しは headline）
+//   shareTextCopy3(copy)    … 三択の共有の文（持ち主の原稿の形。決定 U49。既定。copy は summary.js の copyOf3(r)。24問の shareTextCopy4 と同じ形）
+//   shareText3(main)        … 三択の共有の文（前の形。?rc3=old。main は summary.js の mainPattern(r)。見出しは headline）
 //   shareResult({ text })   … 端末の共有の窓（navigator.share）。閉じたら何もしない。使えない・失敗したら「文＋改行＋リンク」をコピーして知らせる
 //   copyText(text)          … コピー（clipboard API → だめなら隠した textarea と execCommand）
 //   readFromShare(href)     … URL に from=share があるか、と from を外した URL { shared, href }（ほかのクエリとハッシュはそのまま）
@@ -52,7 +53,12 @@ export function shareText4(lead) {
   return SHARE_LEAD;
 }
 
-/** 三択（v3）の共有の文。見出しがあれば「喧嘩の答えで診断しました。\n今回の主軸：{見出し}」、無ければ1行目だけ */
+/** 三択（v3）の共有の文（持ち主の原稿の形。決定 U49）：「喧嘩の答えで診断しました。\n{結果の画面のタイトル}」（24問と同じ形） */
+export function shareTextCopy3(copy) {
+  return shareTextCopy4(copy);
+}
+
+/** 三択（v3）の共有の文（前の形。?rc3=old）。見出しがあれば「喧嘩の答えで診断しました。\n今回の主軸：{見出し}」、無ければ1行目だけ */
 export function shareText3(main) {
   const headline = clean(main?.headline);
   return headline ? `${SHARE_LEAD}\n今回の主軸：${headline}` : SHARE_LEAD;

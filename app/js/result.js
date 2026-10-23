@@ -1,4 +1,22 @@
-// 診断結果（#result。画像6）。仕様：docs/app-screens.md §4.4
+// 三択（80問。v3）の診断結果（#result。画像6）。仕様：docs/app-screens.md §4.4・§24
+//   出し方は2つ（app/js/result_copy_version.js。既定は "copy"、URL の ?rc3=old で前の形）。24問の結果は result4.js
+//
+// ■ 持ち主の原稿の形（決定 U49。既定。render → renderCopy）。文は js/result_copy3.js（原稿の写しは js/data/result_copy4.js。24問と同じ文）
+//   24問の結果（result4.js の renderCopy。決定 U46）と同じ並び・同じ部品（a-d4-copy-*・result-title・a-d4-bd・a-dg-res-rows）：
+//   上の帯：「←」・小さな「診断結果」（h1 にしない）・「シェア」（文は「喧嘩の答えで診断しました。」＋改行＋タイトル）
+//     1 絵：結果の文の主軸の領域の、選ばれた側の軸の絵（axis_art.js の heroArt3copy）。飾りなので alt は空。主軸が無ければ出さない
+//     2 タイトル（h1。画面の中の見出しはこれ1つ）
+//     3 本文（原稿の段落どおり。特別の組は2段落）  4 補足1文（あるときだけ）
+//     5 「たとえば、こんな一言から。」と一言
+//     6 閉じた「回答の内訳を見る」：8つの領域の名前・「A：向き合う　B：距離を取る」・選んだ数（domainStates3 の a・b）。
+//       百分率・「〜寄り 67%」・強さの数は出さない（原稿 §8）。結果の文は再掲しない。絵は出さない
+//     7 安全の1行（決定 U47 の三択版。領域3か6が状態 "1" のとき。app/js/safety.js の safetyNote3）
+//     8 操作：［相談する］（2行目「次に喧嘩したら、ここに書くだけ」）［もう一度診断する］［診断結果の一覧］［診断結果の絵の一覧］［ホームへ戻る］
+//     9 いちばん下に「危ないときは：相談できる窓口 ›」
+//   外したもの（データは消さない）：主軸・補強・矛盾・地のカード、解釈パターンの見出し・太字の要約・本文・場面例、「違うと思う文をタップ」
+//     「ありそう／なさそう」、8つの軸の線と「〜寄り 67%」、見出し「あなたを表す解釈」
+//
+// ■ 前の形（?rc3=old。renderOld。下のコメントのまま。画素まで今までと同じ）
 //   上：「←」・中央「診断結果」・右に枠だけの「シェア」（app/js/share.js。文はサービス名と主軸の見出し、リンクは app/?from=share。決定 U45）
 //   主軸の絵（§12 の1・§13）：題の下に、軸の絵（axis_art.js の heroArt。主軸に合う傾向の軸の、●で選んだパターン）を列の幅いっぱいに。
 //     縁はぼかす。下に小さく傾向の名前。出せなければ出さない
@@ -16,7 +34,7 @@
 //     三択の結果には、24問の結果の安全の1行（領域3・6）は入れていない（U47 では24問だけ）
 //   結果を開いたら、履歴に1件足す（recordDiagnosis。同じ結果は2回足さない）
 //   値は今の画面 js/ui/three.js の patternCard と同じ（js/ の中身は直さない）。見た目は app/css/diagnose.css（a-dg-）
-import { h, icon, topBar, badge, sectionHead, rowLink, artPic, helpFoot } from "./ui.js";
+import { h, icon, topBar, badge, sectionHead, rowLink, artPic, helpFoot, helpLink } from "./ui.js";
 import { store3, restore3 } from "../../js/ui/three_store.js";
 import { PATTERN_BY_ID } from "../../js/data/patterns.js";
 import { byRole } from "../../js/ui/result.js";
@@ -26,13 +44,109 @@ import { splitSentences, SCENE_LABEL } from "../../js/feedback_collect.js";   //
 import { DOMAINS } from "../../js/engine3.js";
 import { domainTendencies3 } from "../../js/data/type_images.js";
 import { getMarks, setMarks } from "./local.js";
-import { mainPattern, resultKey, recordDiagnosis, axisView, jpQuotes } from "./summary.js";
-import { heroArt, axisArt, NAVY, ART_SIZE } from "./axis_art.js";
-import { shareResult, shareText3 } from "./share.js";
+import { mainPattern, resultKey, recordDiagnosis, axisView, jpQuotes, copyOf3 } from "./summary.js";
+import { heroArt, heroArt3copy, axisArt, NAVY, ART_SIZE } from "./axis_art.js";
+import { shareResult, shareText3, shareTextCopy3 } from "./share.js";
+import { isCopyResult3 } from "./result_copy_version.js";
+import { safetyNote3, CONSULT_ROW_SUB } from "./safety.js";
+import { ACTION_LEAD4, BREAKDOWN_LABEL4 } from "../../js/data/result_copy4.js";
 
 const ROLE_TONE = { "主軸": "ink", "補強": "rose", "矛盾": "slate", "地（形状）": "line" };
 
 export function render(root) {
+  return isCopyResult3() ? renderCopy(root) : renderOld(root);
+}
+
+// ================================================================ 持ち主の原稿の形（決定 U49）
+/** 内訳の凡例・注記 */
+export const BREAKDOWN_LEGEND3 = "選んだ数は、同じ場面の2つの動き方から、近いほうを選んだ問の数です。";
+export const BREAKDOWN_NOTE3 = "今回の回答から見た傾向です。相手や状況によって変わることがあります。";
+
+function renderCopy(root) {
+  restore3();
+  const r = store3.result;
+  if (!r) { root.append(emptyView()); return; }
+  try { recordDiagnosis(r); } catch (err) { console.error(err); }   // 履歴にまだ無ければ足す（同じ答えの記録があれば足さない）
+  const copy = copyOf3(r);
+  const sample = r.source && r.source.type && r.source.type !== "session";
+  root.append(h("div", { class: "a-dg-res a-d4-copy a-d3-copy", "data-dv": "v3", "data-kind": copy.kind },
+    topBar({ title: "診断結果", right: shareButtonCopy(copy) }),
+    copyHero(r),
+    h("h1", { class: "result-title", id: "a-d3-title" }, copy.title),
+    h("div", { class: "a-d4-copy-body" },
+      copy.paragraphs.map((p) => h("p", null, p)),
+      copy.bridge ? h("p", { class: "a-d4-copy-bridge" }, copy.bridge) : null),
+    copy.action
+      ? h("div", { class: "a-d4-copy-action" },
+        h("p", { class: "a-d4-copy-lead" }, ACTION_LEAD4),
+        h("blockquote", { class: "a-d4-copy-quote" }, h("p", null, `「${copy.action}」`)))
+      : null,
+    breakdown3(r),
+    safetyBox3(r),
+    sample ? h("p", { class: "a-note a-d3-sample" }, "サンプルの回答から作った結果です（試作の確認用）。") : null,
+    h("div", { class: "a-dg-res-foot" },
+      h("div", { class: "a-card a-rows a-dg-res-rows" },
+        rowLink({ href: "#consult", ic: "chat", text: "相談する", sub: CONSULT_ROW_SUB }),
+        rowLink({ href: "#diagnose", ic: "redo", text: "もう一度診断する" }),
+        rowLink({ href: "#types", ic: "grid", text: "診断結果の一覧" }),
+        rowLink({ href: "#images", ic: "sparkle", text: "診断結果の絵の一覧" }),
+        rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" }))),
+    helpFoot()));
+}
+
+/** 絵（飾り。alt は空。下に傾向の名前を付けない） */
+function copyHero(r) {
+  let art = null;
+  try { art = heroArt3copy(r); } catch (err) { console.error(err); }
+  if (!art?.file) return null;
+  return h("figure", { class: "a-dg-hero a-d4-copy-hero", "data-key": art.key, "data-art": art.id },
+    h("div", { class: "a-dg-hero-pic" },
+      h("img", { src: art.file, alt: "", width: ART_SIZE, height: ART_SIZE, decoding: "async", fetchpriority: "high" })));
+}
+
+/** 回答の内訳（閉じた状態）。8つの領域の名前・A と B の名前・選んだ数（％・強さの数は出さない）。結果の文は再掲しない */
+function breakdown3(r) {
+  return h("details", { class: "a-d4-bd", id: "a-d3-bd" },
+    h("summary", { class: "a-d4-bd-sum" }, h("span", null, BREAKDOWN_LABEL4), icon("chevron-right", { size: 18 })),
+    h("div", { class: "a-d4-bd-body" },
+      h("p", { class: "a-d4-bd-legend" }, BREAKDOWN_LEGEND3),
+      h("ul", { class: "a-d4-bd-list" }, Object.keys(DOMAINS).map(Number).sort((x, y) => x - y).map((d) => breakdownRow3(r, d))),
+      h("p", { class: "a-note a-d4-bd-note" }, BREAKDOWN_NOTE3)));
+}
+
+/** 選んだ数の1行（例「選んだ数：向き合う 5・距離を取る 2」） */
+export function countLine3(d, st) {
+  const D = DOMAINS[d];
+  const n = (x) => (Number.isFinite(+x) && +x > 0 ? Math.round(+x) : 0);
+  return `選んだ数：${D.a} ${n(st?.a)}・${D.b} ${n(st?.b)}`;
+}
+
+function breakdownRow3(r, d) {
+  const D = DOMAINS[d];
+  return h("li", { class: "a-d4-bd-dom", "data-domain": d },
+    h("p", { class: "a-d4-bd-name" }, `${d} ${D.name}`),
+    h("p", { class: "a-d4-bd-ab" }, h("span", { class: "a-nowrap" }, `A：${D.a}`), "　", h("span", { class: "a-nowrap" }, `B：${D.b}`)),
+    h("p", { class: "a-d4-bd-count" }, countLine3(d, r.states?.[d])));
+}
+
+/** 安全の1行（決定 U47 の三択版）：領域3か6が状態 "1" のときだけ。見出しの無い小さな囲み（24問と同じ文・同じ形） */
+function safetyBox3(r) {
+  let note = null;
+  try { note = safetyNote3(r); } catch (err) { console.error(err); }
+  if (!note) return null;
+  return h("div", { class: "a-safety-note a-d4-safety", role: "note", "data-domains": note.domains.join(" ") },
+    h("p", null, note.texts.join("")),
+    h("p", null, note.tail, helpLink()));
+}
+
+// シェア（決定 U45・U49）：文「喧嘩の答えで診断しました。」＋改行＋タイトル、リンクは app/?from=share
+function shareButtonCopy(copy) {
+  return h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm a-dg-share", id: "a-dg-share", onclick: () => shareResult({ text: shareTextCopy3(copy) }) },
+    icon("share", { size: 20 }), h("span", null, "シェア"));
+}
+
+// ================================================================ 前の形（?rc3=old。今までの画面そのまま）
+function renderOld(root) {
   restore3();
   const r = store3.result;
   if (!r) { root.append(emptyView()); return; }

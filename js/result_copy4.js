@@ -28,6 +28,15 @@
 //   domainCopy4(d, st)    … 領域ごとの文 { id, title, body }（7dd は専用の文、incomplete は未回答の文）。標準の画面には並べない
 //   copyChars4(copy)      … 本文＋補足＋一言の字数
 //   firstSentence4(text)  … 最初の1文（「」の中では切らない）
+//
+// ■ 三択（80問）とも共有する組み立て（決定 U49。js/result_copy3.js が使う）
+//   resultCopyFromStates(states, opts) … 状態の表 { 1: "1", … } から結果の文を1セット（上の2〜5）。resultCopy4 はこれを呼ぶだけ
+//     opts.order(x, y)     … 同じ段（1／3 → 2／4 → 1w／3w）の中の並べ方（主軸と補足の候補の両方）。既定は領域の番号の順（24問）
+//     opts.bridgeOk(d, st) … 補足の候補にしてよいか（既定はどれも可）
+//     opts.pairOk(states)  … 特別の組 PAIR-7B-8B にしてよいか（既定は可。領域7・8が B 側で主軸が7か8、の条件は共通）
+//     opts.copyVersion     … 出力の copyVersion（既定 RESULT_COPY_VERSION4。三択は "result-v3.1"）
+//     opts.maxChars        … 字数の上限（既定 260）
+//   24問は opts を渡さないので、出力は U46 のまま（tests/result_copy4.test.mjs）
 import { DOMAIN_IDS4 } from "./engine4.js";
 import {
   RESULT_COPY_VERSION4, DOMAIN_COPY4, SIDE_COPY4, THEME_GROUPS4, PAIR_7B_8B, OVERALL_COPY4,
@@ -74,15 +83,18 @@ export function copyStatesOf4(r) {
   return Object.fromEntries(DOMAIN_IDS4.map((d) => [d, copyStateOf4(doms[d])]));
 }
 
-/** 候補の領域を、1／3 → 2／4 → 1w／3w → 領域の番号の順に */
-function ranked(states, allowed) {
+/** 同じ段の中の既定の並べ方：領域の番号の小さい順（24問） */
+const byNumber = (x, y) => x - y;
+
+/** 候補の領域を、1／3 → 2／4 → 1w／3w → 同じ段の中は order（既定は領域の番号の順）に */
+function ranked(states, allowed, order = byNumber) {
   return DOMAIN_IDS4.filter((d) => allowed.includes(states[d]))
-    .sort((x, y) => (TIER[states[x]] - TIER[states[y]]) || (x - y));
+    .sort((x, y) => (TIER[states[x]] - TIER[states[y]]) || order(x, y) || (x - y));
 }
 
-/** 主軸 { domain, state, side }（候補が無ければ null） */
-export function primaryOf4(states) {
-  const d = ranked(states || {}, PRIMARY_STATES4)[0];
+/** 主軸 { domain, state, side }（候補が無ければ null）。order は同じ段の中の並べ方（三択だけが渡す） */
+export function primaryOf4(states, { order = byNumber } = {}) {
+  const d = ranked(states || {}, PRIMARY_STATES4, order)[0];
   return d ? { domain: d, state: states[d], side: copySide4(states[d]) } : null;
 }
 
@@ -137,8 +149,8 @@ export function firstSentence4(text) {
   return s;
 }
 
-const out = (o) => Object.freeze({
-  copyVersion: RESULT_COPY_VERSION4,
+const out = (o, copyVersion = RESULT_COPY_VERSION4) => Object.freeze({
+  copyVersion,
   copyId: o.copyId,
   kind: o.kind,
   primaryDomain: o.primaryDomain ?? null,
@@ -151,11 +163,12 @@ const out = (o) => Object.freeze({
   claimTags: Object.freeze([...(o.claimTags || [])]),
 });
 
-/** 補足の1文 { domain, text } か null（主軸 p、状態 states） */
-function bridgeOf(p, states) {
+/** 補足の1文 { domain, text } か null（主軸 p、状態 states。order・bridgeOk は resultCopyFromStates の opts） */
+function bridgeOf(p, states, { order = byNumber, bridgeOk = null } = {}) {
   const tags = claimTagsOf4(p.domain, p.state);
-  for (const d of ranked(states, BRIDGE_STATES4)) {
+  for (const d of ranked(states, BRIDGE_STATES4, order)) {
     if (d === p.domain) continue;
+    if (bridgeOk && !bridgeOk(d, states[d])) continue;
     const side = copySide4(states[d]);
     const t = themeOf(d, side);
     if (!t || sameTheme4(t, tags)) continue;
@@ -172,23 +185,34 @@ function bridgeOf(p, states) {
  *   主軸なし：kind "mixed"（状態5がある）・"hold"（答えがそろった領域はある）・"none"（無い。action も null）
  */
 export function resultCopy4(r, { maxChars = COPY_MAX_CHARS4 } = {}) {
-  const states = copyStatesOf4(r);
-  const p = primaryOf4(states);
+  return resultCopyFromStates(copyStatesOf4(r), { maxChars });
+}
+
+/**
+ * 状態の表（{ 1: "1", 2: "7", … }。値は原稿の状態・"7dd"・"incomplete"）から、結果の文を1セット。24問と三択（決定 U49）で共有する
+ *   opts（上の「三択（80問）とも共有する組み立て」）を渡さなければ、24問の決まりのまま
+ */
+export function resultCopyFromStates(states, {
+  maxChars = COPY_MAX_CHARS4, copyVersion = RESULT_COPY_VERSION4, order = byNumber, bridgeOk = null, pairOk = null,
+} = {}) {
+  const st = states && typeof states === "object" ? states : {};
+  const done = (o) => out(o, copyVersion);
+  const p = primaryOf4(st, { order });
   if (!p) {
-    const five = DOMAIN_IDS4.find((d) => states[d] === "5");
+    const five = DOMAIN_IDS4.find((d) => st[d] === "5");
     if (five) {
       const c = DOMAIN_COPY4[five][5];
-      return out({ kind: "mixed", copyId: OVERALL_COPY4.mixed.id, title: OVERALL_COPY4.mixed.title, paragraphs: [c.body], action: OVERALL_COPY4.mixed.action });
+      return done({ kind: "mixed", copyId: OVERALL_COPY4.mixed.id, title: OVERALL_COPY4.mixed.title, paragraphs: [c.body], action: OVERALL_COPY4.mixed.action });
     }
-    if (DOMAIN_IDS4.some((d) => states[d] !== "incomplete")) {
+    if (DOMAIN_IDS4.some((d) => st[d] && st[d] !== "incomplete")) {
       const o = OVERALL_COPY4.hold;
-      return out({ kind: "hold", copyId: o.id, title: o.title, paragraphs: [o.body], action: o.action });
+      return done({ kind: "hold", copyId: o.id, title: o.title, paragraphs: [o.body], action: o.action });
     }
     const o = OVERALL_COPY4.none;
-    return out({ kind: "none", copyId: o.id, title: o.title, paragraphs: [o.body] });
+    return done({ kind: "none", copyId: o.id, title: o.title, paragraphs: [o.body] });
   }
-  if ((p.domain === 7 || p.domain === 8) && B_SIDE.has(states[7]) && B_SIDE.has(states[8])) {
-    return out({
+  if ((p.domain === 7 || p.domain === 8) && B_SIDE.has(st[7]) && B_SIDE.has(st[8]) && (!pairOk || pairOk(st))) {
+    return done({
       kind: "pair", copyId: PAIR_7B_8B.id, primaryDomain: p.domain, side: "B",
       title: PAIR_7B_8B.title, paragraphs: PAIR_7B_8B.paragraphs, action: PAIR_7B_8B.action,
       claimTags: [themeOf(7, "B"), themeOf(8, "B")],
@@ -201,7 +225,7 @@ export function resultCopy4(r, { maxChars = COPY_MAX_CHARS4 } = {}) {
     action: SIDE_COPY4[`${p.domain}${p.side}`].action,
     claimTags: claimTagsOf4(p.domain, p.state),
   };
-  const b = bridgeOf(p, states);
-  if (b && copyChars4({ ...base, bridge: b.text }) <= maxChars) return out({ ...base, bridge: b.text, bridgeDomain: b.domain });
-  return out(base);
+  const b = bridgeOf(p, st, { order, bridgeOk });
+  if (b && copyChars4({ ...base, bridge: b.text }) <= maxChars) return done({ ...base, bridge: b.text, bridgeDomain: b.domain });
+  return done(base);
 }

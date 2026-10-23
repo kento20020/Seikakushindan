@@ -22,6 +22,9 @@
 //     axisArt4(d, dom) … 8つの領域の1行の絵。heroArt4(r) … 主軸の領域の絵（主軸が無ければ null）
 //     結果の出し方（決定 U46。app/js/result_copy_version.js）：既定は結果の文（js/result_copy4.js）の主軸の、選ばれた側の絵
 //       （A 側は A寄り、B 側は B寄り）。?rc=u44 では前のとおり js/engine4.js の主軸（primaryDomainId）の、A の割合で選んだ絵
+//   三択（v3）の結果の出し方（決定 U49。result_copy_version.js の ?rc3=）：既定（"copy"）は結果の文（js/result_copy3.js）の主軸の、
+//     選ばれた側の絵（heroArt3copy。24問の heroArt4 と同じ決め方）。主軸が無ければ null。?rc3=old では前のとおり heroTendency から（下の heroArt）
+//     heroArt(r, { rc3 })・slotMarks(r, { rc3 }) で版を渡せる（テスト用。省略すると URL ＞ 既定）
 //
 // 絵を差し替えるときは、app/img/axes/ の同じ名前のファイルを上書きする（絵の中身が変われば、下の alt も直す）。
 //   まんなかの絵（<軸>-mid.jpg）の作り方は tools/make_axis_mid.sh（横長の8枚並びのまとめ画像から切り出す。U36）
@@ -30,7 +33,8 @@ import { DOMAINS } from "../../js/engine3.js";
 import { heroTendency, TYPE_IMAGES } from "../../js/data/type_images.js";
 import { axisView } from "./summary.js";
 import { resultCopy4 } from "../../js/result_copy4.js";
-import { resultCopyVersion } from "./result_copy_version.js";
+import { resultCopy3 } from "../../js/result_copy3.js";
+import { resultCopyVersion, resultCopy3Version } from "./result_copy_version.js";
 
 /** B 側の紺（絵の紺のリボン・8つの軸の B 側の●と帯） */
 export const NAVY = "#22315A";
@@ -122,14 +126,17 @@ const chosenOf = (r) => (Array.isArray(r?.select?.chosen) ? r.select.chosen.filt
 
 /**
  * 結果の一番上・ホームの一番上（診断後）の絵
+ *   24問の結果は heroArt4。三択の結果は、既定（rc3 "copy"。決定 U49）では heroArt3copy（結果の文の主軸の、選ばれた側の絵）。
+ *   前の形（rc3 "old"）では下の1〜3：
  *   1. 主軸に合う傾向を heroTendency で選ぶ（16すべてに絵がある前提）。例 "2B"（熟考）
  *   2. その軸の●で選んだパターンの絵（axisArt）
  *      まんなか（●がちょうど 50%）なら、その軸の mid の絵（bySide: false）
  *   3. その軸に答えが無い（または選んだパターンの絵が無い）なら、主軸に合う傾向の側（A なら a、B なら b）の絵（bySide: true）
  *   返す形：{ id, domain, side, file, alt, color, deep, key, tendency, reason, bySide }。主軸が無い・選べないときは null
  */
-export function heroArt(r) {
+export function heroArt(r, { rc3 = resultCopy3Version() } = {}) {
   if (r?.diagnosisVersion === "v4") return heroArt4(r);
+  if (rc3 !== "old") return heroArt3copy(r);
   let pick = null;
   try { pick = r?.profile3 ? heroTendency(r.profile3, chosenOf(r), ALL_READY) : null; } catch { pick = null; }
   if (!pick || !/^[1-8][AB]$/.test(String(pick.key))) return null;
@@ -141,6 +148,21 @@ export function heroArt(r) {
   const bySide = !art?.file;
   if (bySide) art = artOf(d, lead === "A" ? "a" : "b");
   return { ...art, key: pick.key, tendency: lead === "A" ? D.a : D.b, reason: pick.reason, bySide };
+}
+
+/**
+ * 三択の結果の文（js/result_copy3.js の resultCopy3。決定 U49）の主軸の、選ばれた側の絵（A 側は a、B 側は b）。主軸が無ければ null
+ *   返す形は heroArt と同じ（bySide は false。主軸はまんなかにならないので mid にはならない）
+ */
+export function heroArt3copy(r) {
+  let copy = null;
+  try { copy = r && typeof r === "object" && r.states ? resultCopy3(r) : null; } catch { copy = null; }
+  const d = Number(copy?.primaryDomain);
+  if (!AXIS_ART[d] || (copy.side !== "A" && copy.side !== "B")) return null;
+  const art = artOf(d, copy.side === "A" ? "a" : "b");
+  if (!art?.file) return null;
+  const D = DOMAINS[d];
+  return { ...art, key: `${d}${copy.side}`, tendency: copy.side === "A" ? D.a : D.b, reason: "主軸の領域（三択・結果の文）", bySide: false };
 }
 
 // ---------------------------------------------------------------- 絵の一覧の画面（#images。§14）
@@ -173,9 +195,10 @@ export function axisArtSlots() {
  *   picked … 8つの軸の行に選ばれる枠の id（artSide(axisView(r, d))。軸の順。答えの無い軸は入れない）。
  *            まんなかの軸は "<軸>-mid"（例 "1-mid"）。絵が無い枠でも入る（そのとき行には番号の丸が出る）
  *   hero   … 結果の一番上・ホームの一番上（診断後）の絵の枠の id（heroArt。代わりの側の絵ならその枠）。出せなければ null
+ *            三択の既定（決定 U49）では結果の文の主軸の、選ばれた側の枠。opts（{ rc3 }）は heroArt に渡す
  *   art    … heroArt(r) の結果そのもの（bySide などを見るため）か null
  */
-export function slotMarks(r) {
+export function slotMarks(r, opts) {
   if (!r) return { picked: [], hero: null, art: null };
   if (r.diagnosisVersion === "v4") return slotMarks4(r);
   const picked = [];
@@ -185,7 +208,7 @@ export function slotMarks(r) {
     if (side) picked.push(`${t.domain}-${side}`);
   }
   let art = null;
-  try { art = heroArt(r); } catch { art = null; }
+  try { art = heroArt(r, opts); } catch { art = null; }
   return { picked, hero: art?.id ?? null, art };
 }
 

@@ -1,5 +1,5 @@
 // 相談の外の安全と人目の守り（決定 U47）。DOM を使わない（Node のテストで読む）。仕様：docs/app-screens.md §23
-//   窓口のページ（#help。app/js/help.js）・24問の結果の安全の1行・#types の下の注・履歴の一覧に相談で書いた文の冒頭を出すかの設定・小さな文の足し、の定数と関数
+//   窓口のページ（#help。app/js/help.js）・24問の結果の安全の1行（と三択の結果の安全の1行。決定 U49）・#types の下の注・履歴の一覧に相談で書いた文の冒頭を出すかの設定・小さな文の足し、の定数と関数
 //   窓口の名前・番号・注は相談の画面と同じ js/consult/texts.js の SAFETY_RESOURCES から読む（ここに番号を書き写さない）。
 //   ただし app/sw.js の「つながっていません」の画面はモジュールを読めないので、番号を文字で持つ（同じであることを tests/app_safety.test.mjs で確かめる）
 //   どこにも何も送らない。何も保存しない（「履歴の冒頭」の設定は app/js/local.js）
@@ -82,6 +82,23 @@ export function safetyDomains4(result) {
 /** 安全の囲みの文 { domains, texts: [領域の文…], tail }。出さないときは null */
 export function safetyNote4(result) {
   const domains = safetyDomains4(result);
+  if (!domains.length) return null;
+  return { domains, texts: domains.map((d) => SAFETY_NOTE4[d]), tail: SAFETY_NOTE_TAIL4 };
+}
+
+// ---------------------------------------------------------------- 三択（80問。v3）の結果の安全の1行（決定 U49。持ち主の原稿の形のときだけ）
+//   条件：領域3か領域6が状態 "1"（js/engine3.js の domainStates3。左右で A が優勢で、A の強さが高く B の強さが低い＝A が明確に優勢）
+//   文と囲みは24問と同じ（SAFETY_NOTE4・SAFETY_NOTE_TAIL4）。前の形（?rc3=old）の三択の結果には出さない（U47 のまま）
+/** 三択の安全の1行を出す領域：[3] | [6] | [3, 6] | []（三択の結果。r.states を読む。形が違えば []） */
+export function safetyDomains3(result) {
+  const states = result && typeof result === "object" ? result.states : null;
+  if (!states || typeof states !== "object") return [];
+  return SAFETY_DOMAINS4.filter((d) => states[d]?.state === "1");
+}
+
+/** 三択の安全の囲みの文 { domains, texts, tail }。出さないときは null */
+export function safetyNote3(result) {
+  const domains = safetyDomains3(result);
   if (!domains.length) return null;
   return { domains, texts: domains.map((d) => SAFETY_NOTE4[d]), tail: SAFETY_NOTE_TAIL4 };
 }

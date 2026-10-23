@@ -1290,7 +1290,7 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 /* ======================================================================
    画面：診断結果の一覧（#types。8つの軸 × 3つの型のタイプ図鑑。docs/app-screens.md §16。app/js/types.js）
      軸の色は、目次のボタンと軸の節（.a-ty-axis）に --axis（絵の色）・--axis-deep（点の色）をインラインで渡す。無ければ墨系の中立色
-     スマホ：型のカードは縦に並べ、左に小さな絵・右に文、下に「この型に近い見出し」
+     スマホ：型のカードは縦に並べ、左に小さな絵・右に文、下に「この型に近い見出し」（?tc=old）か原稿の文 .a-ty-copy（既定。決定 U49。§24）
      PC（960px 以上）：この画面だけ中央の列を広げ（1040px）、カードを3列にする（上に絵・下に文）
      あなたの型：「あなたの型」の印（文字とアイコン）と、カードの輪（色だけに頼らない）
    ====================================================================== */
@@ -1415,6 +1415,24 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   background: var(--axis-deep);
 }
 .a-ty-foot { margin-top: var(--sp-10); }
+/* 原稿の文（決定 U49。?tc=old 以外）：名前の行の下に、横いっぱいで原稿の題（太字の段落。見出しにしない）・本文・一言（A寄り・B寄りだけ） */
+.a-ty-copy { grid-column: 1 / -1; padding-top: var(--sp-3); border-top: 1px solid var(--line); }
+.a-ty-copy-title { font-size: var(--fs-base); font-weight: 700; line-height: 1.7; letter-spacing: 0.05em; color: var(--ink); word-break: auto-phrase; text-wrap: pretty; }
+.a-ty-copy-body { margin-top: var(--sp-2); font-family: var(--sans); font-weight: 400; font-size: var(--fs-md); line-height: 1.85; letter-spacing: 0.03em; color: var(--ink-2); }
+.a-ty-copy-action { margin-top: var(--sp-3); }
+.a-ty-copy-lead { font-size: var(--fs-xs); line-height: 1.6; letter-spacing: 0.08em; color: var(--muted); }
+.a-ty-copy-quote {
+  margin-top: 4px;
+  padding: 1px 0 1px var(--sp-3);
+  border-left: 2px solid var(--line-strong);
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: var(--fs-sm);
+  line-height: 1.75;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  word-break: auto-phrase;
+}
 
 @media (max-width: 359px) {
   /* とても狭い画面では絵を小さくして、右の文の幅を取る */

@@ -5,6 +5,8 @@
 //    見出しの半角の引用符を「」にする（jpQuotes）
 //  - app/js/axis_art.js：軸の絵（8軸×3パターン。§13）。axisArt の a・b・mid・答えなし、heroArt が軸の絵を返すこと、ホームの絵（home.js の homePics）
 //  - 診断結果の絵の一覧（#images。§14）：axis_art.js の axisArtSlots・slotMarks、images.js の typeImageSlots（今の画面の傾向の絵）
+//  - 三択の履歴の形・heroArt・slotMarks の「いちばん上の絵」は、前の形（?rc3=old）を { rc3: "old" } で確かめる。
+//    既定（持ち主の原稿の形。決定 U49）は tests/result_copy3.test.mjs
 // Node には localStorage が無いので、useStorage で入れ物を差し替える。時刻は ISO（UTC）で渡すので時差に依存しない
 import assert from "node:assert/strict";
 import { STORAGE_KEY, useStorage, loadRecords, getRecord, addRecord, removeRecord, clearRecords, clearAll, getMarks, setMarks, MAX_ITEMS } from "../app/js/local.js";
@@ -187,10 +189,10 @@ test("結果の key：同じ結果なら同じ、違う回答なら違う", () =
   assert.match(resultKey(r1), /^d1-v3-[0-9a-z]+$/);
 });
 
-test("履歴に足す形と、同じ結果を2回足さないこと", () => {
+test("履歴に足す形（前の形 ?rc3=old）と、同じ結果を2回足さないこと", () => {
   useStorage(memory());
   const { r } = results[0];
-  const rec = diagnosisRecord(r);
+  const rec = diagnosisRecord(r, { rc3: "old" });
   assert.equal(rec.kind, "diagnosis");
   assert.equal(rec.title, mainPattern(r).headline);
   assert.equal(rec.data.key, resultKey(r));
@@ -317,10 +319,11 @@ test("axisArt：A の割合が 50% より多ければ a、少なければ b、�
 // 16の傾向すべてに絵がある前提の images（テストの側でも作って、heroArt の選び方と比べる）
 const allReady = Object.fromEntries(Object.entries(TYPE_IMAGES).map(([k, e]) => [k, { ...e, status: "ready", file: `x/${k}.jpg` }]));
 
-test("heroArt：主軸に合う傾向（16すべてに絵がある前提の heroTendency）の軸の、●で選んだ絵を返す", () => {
+// heroArt の三択の前の形（?rc3=old）。既定（持ち主の原稿の形。決定 U49）は tests/result_copy3.test.mjs
+test("heroArt（前の形 ?rc3=old）：主軸に合う傾向（16すべてに絵がある前提の heroTendency）の軸の、●で選んだ絵を返す", () => {
   let other = 0;
   for (const { name, r } of results) {
-    const art = heroArt(r);
+    const art = heroArt(r, { rc3: "old" });
     const pick = heroTendency(r.profile3, r.select.chosen, allReady);
     if (!pick) { assert.equal(art, null, name); continue; }
     assert.ok(art, name);
@@ -343,28 +346,30 @@ test("heroArt：主軸に合う傾向（16すべてに絵がある前提の hero
     if (!isReady(TYPE_IMAGES[pick.key])) other++;
   }
   assert.ok(other > 0, "今の傾向の絵が無い傾向（例 1B・2A）も選ばれる");
+  assert.equal(heroArt(null, { rc3: "old" }), null);
+  assert.equal(heroArt({}, { rc3: "old" }), null);
   assert.equal(heroArt(null), null);
   assert.equal(heroArt({}), null);
 });
 
-test("heroArt：その軸の●がまんなかならその軸の mid の絵、答えなしなら主軸に合う傾向の側の絵", () => {
+test("heroArt（前の形 ?rc3=old）：その軸の●がまんなかならその軸の mid の絵、答えなしなら主軸に合う傾向の側の絵", () => {
   const { r } = results[0];
-  const base = heroArt(r);
+  const base = heroArt(r, { rc3: "old" });
   const d = base.domain;
   const lead = base.key.endsWith("A") ? "a" : "b";
-  const tie = heroArt({ ...r, states: { ...r.states, [d]: { ...r.states[d], a: 2, b: 2 } } });
+  const tie = heroArt({ ...r, states: { ...r.states, [d]: { ...r.states[d], a: 2, b: 2 } } }, { rc3: "old" });
   assert.equal(tie.key, base.key);
   assert.equal(tie.side, "mid");
   assert.equal(tie.id, `${d}-mid`);
   assert.equal(tie.file, `img/axes/${d}-mid.jpg`);
   assert.equal(tie.bySide, false);
   assert.equal(tie.tendency, base.tendency, "傾向の名前は主軸に合う傾向のまま");
-  const none = heroArt({ ...r, states: { ...r.states, [d]: { ...r.states[d], a: 0, b: 0 } } });
+  const none = heroArt({ ...r, states: { ...r.states, [d]: { ...r.states[d], a: 0, b: 0 } } }, { rc3: "old" });
   assert.equal(none.side, lead);
   assert.equal(none.bySide, true);
   // ●が傾向と逆の側なら、●の側の絵（§13.3：●で選んだパターン）
   const flip = lead === "a" ? { a: 1, b: 3 } : { a: 3, b: 1 };
-  const opp = heroArt({ ...r, states: { ...r.states, [d]: { ...r.states[d], ...flip } } });
+  const opp = heroArt({ ...r, states: { ...r.states, [d]: { ...r.states[d], ...flip } } }, { rc3: "old" });
   assert.equal(opp.side, lead === "a" ? "b" : "a");
   assert.equal(opp.tendency, base.tendency, "傾向の名前は主軸に合う傾向のまま");
 });
@@ -415,15 +420,15 @@ test("絵の一覧の24枠：軸の順・各軸は a → mid → b、ready の�
   assert.ok(slots.filter(s => !s.ready).every(s => s.side === "mid"));
 });
 
-test("絵の一覧の印：8つの軸の行に選ばれる枠（artSide）と、いちばん上の絵の枠（heroArt）", () => {
+test("絵の一覧の印（前の形 ?rc3=old）：8つの軸の行に選ばれる枠（artSide）と、いちばん上の絵の枠（heroArt）", () => {
   assert.deepEqual(slotMarks(null), { picked: [], hero: null, art: null });
   const ids = new Set(axisArtSlots().map(s => s.id));
   for (const { name, r } of results) {
-    const m = slotMarks(r);
+    const m = slotMarks(r, { rc3: "old" });
     const want = Object.keys(AXIS_ART).map(Number).map(d => [d, artSide(axisView(r, d))]).filter(([, side]) => side).map(([d, side]) => `${d}-${side}`);
     assert.deepEqual(m.picked, want, `${name}：選ばれる枠`);
     assert.ok(m.picked.every(id => ids.has(id)), `${name}：一覧にある枠`);
-    const art = heroArt(r);
+    const art = heroArt(r, { rc3: "old" });
     assert.equal(m.hero, art?.id ?? null, `${name}：いちばん上の絵の枠`);
     if (m.hero) {
       const slot = axisArtSlots().find(s => s.id === m.hero);
@@ -433,9 +438,9 @@ test("絵の一覧の印：8つの軸の行に選ばれる枠（artSide）と、
   }
   // まんなかの軸は "<軸>-mid" に印が付き、いちばん上もその枠（まんなかの絵が無い軸なら代わりの側）
   const { r } = results[0];
-  const d = heroArt(r).domain;
+  const d = heroArt(r, { rc3: "old" }).domain;
   const tie = { ...r, states: { ...r.states, [d]: { ...r.states[d], a: 2, b: 2 } } };
-  const m = slotMarks(tie);
+  const m = slotMarks(tie, { rc3: "old" });
   assert.ok(m.picked.includes(`${d}-mid`));
   if (AXIS_ART[d].mid == null) assert.notEqual(m.hero, `${d}-mid`, "まんなかの絵が無いあいだは、いちばん上は代わりの側");
   else {

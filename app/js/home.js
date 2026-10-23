@@ -11,14 +11,16 @@
 //       上の絵は結果の画面のいちばん上と同じ（axis_art.js の heroArt。結果の文の主軸の、選ばれた側の絵）
 //     v4 の診断後のカード（前の形。?rc=u44）：小さく「今回の回答で目立つ傾向」、大きく冒頭の見出し（主軸の状態の見出し）、その本文、主な傾向（主軸と補足）
 //     診断前のカードの「8〜10分」は、新しく始める診断が v4 のときは「24問」（時間は測っていないので出さない）
+//   三択（v3）の診断後のカード（持ち主の原稿の形。決定 U49。既定）：24問と同じ形（「今回の診断結果」・結果の画面と同じタイトル〔summary.js の copyCard3〕・
+//     本文の最初の1文・丸い →）。上の絵は結果の画面のいちばん上と同じ（heroArt → heroArt3copy）。?rc3=old では前の形（あなたの主軸・主な傾向）
 //   いちばん下（タブの上）に静かな1行「危ないときは：相談できる窓口 ›」（ui.js の helpFoot → #help。決定 U47）
 //   共有のリンクから来た人（決定 U45。app/js/share.js の fromShare。このタブの間だけの印）：診断がまだ終わっていない（"before"・"mid"）ときだけ、
 //     並びを「上 → 診断 → 相談」にし、診断の見出しの下・カードの上に静かな箱「送られてきた診断です」を1つ出す。"done" のときはいつものホーム
 import { h, eyebrow, sectionHead, badge, roundArrow, rowLink, artPic, icon, go, helpFoot } from "./ui.js";
 import { restore3 } from "../../js/ui/three_store.js";
-import { mainPattern, topTendencies, recordDiagnosis } from "./summary.js";
+import { mainPattern, topTendencies, recordDiagnosis, copyCard3 } from "./summary.js";
 import { leadOf4, tendencies4, recordDiagnosis4, copyCard4 } from "./summary4.js";
-import { isCopyResult } from "./result_copy_version.js";
+import { isCopyResult, isCopyResult3 } from "./result_copy_version.js";
 import { heroArt, artOf, ART_SIZE, AXIS_ART, NAVY } from "./axis_art.js";
 import { currentStatus, discardCurrent, newDiagnosisVersion } from "./diagnosis_version.js";
 import { fromShare } from "./share.js";
@@ -74,7 +76,7 @@ export function render(root) {
   const build = (s) => {
     const pics = homePics(s, main);
     const first = shared && s !== "done";
-    return { pics, first, diag: s === "done" ? (v4 ? (isCopyResult() ? doneSectionCopy4(r) : doneSection4(r)) : doneSection(r)) : diagnoseSection(s, pics.diagnose, s === "mid" ? st.answered : 0, first) };
+    return { pics, first, diag: s === "done" ? (v4 ? (isCopyResult() ? doneSectionCopy4(r) : doneSection4(r)) : (isCopyResult3() ? doneSectionCopy3(r) : doneSection(r))) : diagnoseSection(s, pics.diagnose, s === "mid" ? st.answered : 0, first) };
   };
   let view;
   try {
@@ -204,9 +206,21 @@ function doneSection(r) {
 function doneSectionCopy4(r) {
   const c = copyCard4(r);
   if (!c) throw new Error("24問の結果の文を作れませんでした");
+  return doneSectionCopy(c, "v4");
+}
+
+// 三択（v3）の診断後（持ち主の原稿の形。決定 U49）：24問と同じ形
+function doneSectionCopy3(r) {
+  const c = copyCard3(r);
+  if (!c) throw new Error("三択の結果の文を作れませんでした");
+  return doneSectionCopy(c, "v3");
+}
+
+/** 診断後のカード（持ち主の原稿の形）。c は copyCard4・copyCard3 の形、dv は "v4" | "v3" */
+function doneSectionCopy(c, dv) {
   return h("section", { class: "a-home-sec", "aria-labelledby": "a-home-diag" },
     sectionHead("診断結果", { id: "a-home-diag", aside: "もっとあなたを見る", href: "#result" }),
-    h("div", { class: "a-card a-card-split a-diag-done a-diag-copy", "data-dv": "v4", "data-kind": c.kind },
+    h("div", { class: "a-card a-card-split a-diag-done a-diag-copy", "data-dv": dv, "data-kind": c.kind },
       h("a", { class: "a-card-main a-card-link", href: "#result" },
         h("p", { class: "a-kicker" }, "今回の診断結果"),
         h("div", { class: "a-diag-copy-main" },

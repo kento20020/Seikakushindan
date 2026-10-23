@@ -30,6 +30,8 @@
                  .a-d4-copy-body（本文の段落・補足 .a-d4-copy-bridge）→ .a-d4-copy-action（.a-d4-copy-lead ＋ blockquote.a-d4-copy-quote）→
                  details.a-d4-bd（「回答の内訳を見る」。.a-d4-bd-sum・.a-d4-bd-list > .a-d4-bd-dom）→ .a-dg-res-foot（操作）
                前の形（?rc=u44）：.a-d4-res（三択の結果の部品 .a-dg-hero・.a-dg-pc を使う）
+     三択の結果（決定 U49。既定）：.a-dg-res.a-d4-copy.a-d3-copy[data-dv="v3"] … 24問の持ち主の原稿の形と同じ部品（内訳は名前・A と B・選んだ数だけ）。
+               サンプルの結果のときだけ操作の上に小さな注 .a-d3-sample。前の形（?rc3=old）は今までの .a-dg-res のまま
                 .a-d4-doms：三択の「8つの軸」の部品（.a-dg-axis-list > .a-dg-axis.is-a|is-b|is-mid|is-none・.a-dg-axis-ends・.a-dg-track・
                   .a-dg-axis-share）＋ .a-d4-dom-title（状態の見出し）・.a-d4-dom-body（状態の本文）
    決まり：押せる部品は 44px 以上、焦点は app.css の輪、動きを減らす設定では動かさない、横スクロールを出さない */
@@ -916,6 +918,7 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
 .a-d4-bd-hold { color: var(--muted); }
 .a-d4-bd-note { margin-top: var(--sp-3); }
 .a-d4-copy .a-dg-res-foot { margin-top: var(--sp-6); }
+.a-d3-sample { margin-top: var(--sp-6); }   /* 三択（決定 U49）：サンプルの結果のときだけ */
 
 /* 8つの領域（U44）：三択の「8つの軸」の行に、状態の見出しと本文を足す */
 .a-d4-dom { padding-bottom: var(--sp-4); }

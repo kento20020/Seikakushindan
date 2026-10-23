@@ -7,13 +7,22 @@
 //                              app/ の画面は使わない（軸の絵 app/js/axis_art.js の heroArt を使う。§13）
 //   axisView(result, d)      … 結果の「8つの軸」の1本（●の位置・「熟考寄り 75%」・強さ・読み上げの文）。docs/app-screens.md §12 の2
 //   resultKey(result)        … 結果の key（同じ回答・同じ選ばれたパターンなら同じ）。履歴の重なりの判定と、結果の印の key に使う
-//   diagnosisRecord(result)  … 履歴に足す形 { kind, title, sub, data }
+//   diagnosisRecord(result)  … 履歴に足す形 { kind, title, sub, data }（結果の出し方の版で変わる。下の「持ち主の原稿の形」）
 //   recordDiagnosis(result)  … 履歴に足す（同じ結果は足さない）→ id か null
+//
+// 持ち主の原稿の形（決定 U49。既定。?rc3=old で前の形。app/js/result_copy_version.js）
+//   isResult3(r)             … 三択の結果か（r.states があり、24問の結果ではない）
+//   copyOf3(r)               … 結果の文の1セット（js/result_copy3.js の resultCopy3）。結果の画面・ホーム・履歴・シェアの題は、どれもこの title
+//   copyCard3(r)             … ホームの診断後のカードの中身 { title, sentence（本文の最初の1文）, kind }（24問の copyCard4 と同じ形）
+//   履歴の記録：題＝copy の title、sub＝本文の最初の1文、data に copyVersion・copyId。key は前と同じ resultKey（前に記録した物はそのまま読め、同じ答えなら足さない）
 import { PATTERN_BY_ID } from "../../js/data/patterns.js";
 import { byRole } from "../../js/ui/result.js";
 import { DOMAINS } from "../../js/engine3.js";
 import { domainTendencies3, heroTendency, TYPE_IMAGES, isReady } from "../../js/data/type_images.js";
 import { addRecord } from "./local.js";
+import { resultCopy3 } from "../../js/result_copy3.js";
+import { firstSentence4 } from "../../js/result_copy4.js";
+import { resultCopy3Version } from "./result_copy_version.js";
 
 /**
  * 半角の引用符 "X" を「X」にする（明朝では浮いて見え、変な所で折り返すため。新しい画面の表示だけ）
@@ -113,8 +122,49 @@ export function resultKey(r) {
   return `d1-${r?.version ?? ""}-${fnv1a(`${recs}|${ids}`)}`;
 }
 
-/** 履歴に足す形。title＝主軸の見出し、sub＝その1〜2行 */
-export function diagnosisRecord(r) {
+/** 三択の結果か（r.states があり、24問の結果〔diagnosisVersion "v4"〕ではない） */
+export const isResult3 = (r) => !!r && typeof r === "object" && r.diagnosisVersion !== "v4" && !!r.states && typeof r.states === "object";
+
+/** 結果の文の1セット（三択の結果でなければ null）。決定 U49 */
+export function copyOf3(r) {
+  return isResult3(r) ? resultCopy3(r) : null;
+}
+
+/** ホームの診断後のカード：題・本文の最初の1文（文の途中で切らない）。答えがそろった領域が無いとき（三択では起きない）は題だけ */
+export function copyCard3(r, c = copyOf3(r)) {
+  if (!c) return null;
+  return { title: c.title, sentence: c.kind === "none" ? "" : firstSentence4(c.paragraphs[0] ?? ""), kind: c.kind };
+}
+
+/**
+ * 履歴に足す形
+ *   持ち主の原稿の形（既定。決定 U49）：title＝copy の title、sub＝本文の最初の1文、data に copyVersion・copyId・主軸（copy の主軸）。主な傾向の一覧は入れない
+ *   前の形（rc3 "old"）：title＝主軸の見出し、sub＝その1〜2行、主な傾向
+ *   key はどちらも resultKey（同じ答えの記録が前からあれば、足さない）
+ */
+export function diagnosisRecord(r, { rc3 = resultCopy3Version() } = {}) {
+  if (rc3 !== "old") {
+    const copy = copyOf3(r);
+    const c = copyCard3(r, copy);
+    const main = mainPattern(r);
+    const src = r?.source || {};
+    return {
+      kind: "diagnosis",
+      title: c?.title || "診断結果",
+      sub: c?.sentence || "",
+      data: {
+        key: resultKey(r),
+        version: r?.version ?? null,
+        copyVersion: copy?.copyVersion ?? null,
+        copyId: copy?.copyId ?? null,
+        primaryDomainId: copy?.primaryDomain ?? null,
+        mainId: main?.id ?? null,
+        tendencies: [],
+        answered: Array.isArray(r?.records) ? r.records.length : 0,
+        ...(src.type && src.type !== "session" ? { sample: String(src.name || src.type) } : {}),
+      },
+    };
+  }
   const main = mainPattern(r);
   const top = topTendencies(r, 3);
   const src = r?.source || {};
