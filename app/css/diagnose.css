@@ -1028,3 +1028,12 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
 .a-story-context { font-size: 13px; margin: 10px 0 20px; opacity: .75; }
 .a-story-body { margin: 0 0 20px; }
 @media (max-width: 360px) { .a-story-scenes { padding: 14px; } }
+
+/* U57：分析本文と反例。既存の字体・余白を使い、長い結果でも読み分けられる。 */
+.a-story-analysis { margin: 24px 0; }
+.a-story-analysis > p:not(.a-story-caption) { margin: 0; }
+.a-story-nuance { margin: 24px 0; padding-left: 16px; border-left: 2px solid rgba(88,104,115,.35); }
+.a-story-nuance > p:not(.a-story-caption) { margin: 0 0 12px; }
+.a-d4-copy > .a-dg-axes { margin-top: 40px; }
+.a-axis-note { margin: 0 0 16px; }
+.a-axis-caution { margin: 12px 0 0; }
