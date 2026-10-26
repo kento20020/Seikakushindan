@@ -40,7 +40,11 @@ const SHELL = [
   "./css/app.css",
   "./css/diagnose.css",
   "./css/consult.css",
+  "./css/consult_chat.css",     // 相談のチャットの形（決定 U51。index.html が読む）
   "./js/main.js",
+  "./js/consult_version.js",    // main.js が読む相談の形の切り替え（決定 U51）
+  "./js/consult_chat.js",       // 相談のチャットの形（既定）と、その DOM の無い部分
+  "./js/consult_chat_logic.js",
   "./js/ui.js",
   "./js/pwa.js",
   "./js/home.js",

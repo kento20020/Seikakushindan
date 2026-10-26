@@ -317,14 +317,19 @@ export const HIT_LABELS = {
 // ---------------------------------------------------------------- カードの中身（統合1・統合3 で共通。並べ方だけが違う）
 /**
  * 判定 → 文型のカード → 試作で足す欄。
- * @param {{ known: object, extra?: object, text?: string, now: Date, tzOffset?: number, safetyContinue?: boolean, safety?: object }} a
+ * @param {{ known: object, extra?: object, text?: string, now: Date, tzOffset?: number, safetyContinue?: boolean, safety?: object, self?: object, selfMain?: object }} a
  *   known：判定の入力の一部（読み取り＋直し＋答え）。extra：カードで足した差分（［ちがう］［もっと合わせる］）
+ *   self・selfMain（省いてよい）：本人の8領域（js/consult/from_diagnosis.js の形）と主軸。そのまま buildContext に渡す
+ *     （新しい画面のチャットの相談が、診断の結果を判定の入力に使うとき。決定 U51）。省いたときは今までと1字も同じ結果
  */
-export function buildPoc({ known = {}, extra = {}, text = "", now, tzOffset, safetyContinue = false, safety } = {}) {
+export function buildPoc({ known = {}, extra = {}, text = "", now, tzOffset, safetyContinue = false, safety, self, selfMain } = {}) {
   const tz = tzOf(now, tzOffset);
   const base = finalInput({ lateNight: isLateNight(now, tz), ...known });
   const input = applyPatch(base, extra);
-  const ctx = buildContext({ input, consultText: text, now, tzOffset: tz, safety });
+  const more = {};
+  if (self !== undefined) more.self = self;
+  if (selfMain !== undefined) more.selfMain = selfMain;
+  const ctx = buildContext({ input, consultText: text, now, tzOffset: tz, safety, ...more });
   const card = templateRespond(ctx);
   const r = ctx.result;
   const mode = cardMode(r);

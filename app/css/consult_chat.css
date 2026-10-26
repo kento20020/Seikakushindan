@@ -1,0 +1,324 @@
+/* app/css/consult_chat.css — 相談のチャットの形（#consult の既定。決定 U51。画面は app/js/consult_chat.js）
+   今までの形（?cv=card）の app/css/consult.css の部品（a-cs-）はそのまま使い、ここではチャットの並びだけを足す。クラスは a-ch- で始める。
+   色・文字・角・余白は app/css/app.css の変数だけ（直の色は書かない）。焦点の輪は app.css の決まりのまま。
+   動きは transform と opacity だけ（新しく足した吹き出しが上から順に出る）。動きを減らす設定では止める。
+   並び：上の題 →（最初のカードのあと）上に留まる帯「いまの一手」と「いまの状況」→ やりとり → 下に固定の入力の欄（ボタンの列・書く欄と送る・小さな1行）。
+   下の欄の高さ（--a-ch-dock-h）と帯の高さ（--a-ch-band-h）は JS（ResizeObserver）が入れる */
+
+/* ---------------------------------------------------------------- やりとり */
+.a-ch-thread {
+  padding: var(--sp-3) 0 calc(var(--a-ch-dock-h, 180px) + var(--sp-4));
+}
+.a-ch-thread > li,
+.a-ch .a-cs-headline {
+  scroll-margin-top: calc(var(--a-ch-band-h, 0px) + var(--sp-3));
+  scroll-margin-bottom: calc(var(--a-ch-dock-h, 0px) + var(--sp-3));
+}
+.a-ch-thread > li:focus { outline: none; }
+.a-ch .a-cs-msg-opts { align-items: center; }
+.a-ch .a-cs-msg-opts.is-group { align-items: flex-start; }
+.a-ch-opts .a-cs-chip-row { max-width: 100%; }
+/* 「今、危ない」（止める意味の色。相談の画面の --cs-stop と同じ値の --help-ink） */
+.a-ch .a-cs-chip.a-ch-stop { border: 1.5px solid var(--help-ink); color: var(--help-ink); font-weight: 700; }
+.a-ch .a-cs-safety-line { max-width: 100%; }
+.a-ch-row { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-5); }
+.a-ch-row .a-link { font-size: var(--fs-sm); }
+.a-ch-under { padding-left: 2px; }
+
+/* 新しく足した物（上から順に。動きを減らす設定では出さない） */
+@keyframes a-ch-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.a-ch-in { animation: a-ch-in 0.26s var(--ease) both; animation-delay: calc(var(--a-ch-i, 0) * 70ms); }
+
+/* 始める前：診断を使うか・例文・書き方の例 */
+.a-ch-start { display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; padding: var(--sp-1) 0 0 2px; }
+.a-ch-dx {
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: var(--fs-sm);
+  line-height: 1.9;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+.a-ch-examples { display: flex; flex-direction: column; gap: var(--sp-2); }
+.a-ch .a-cs-chip.a-ch-ex { font-size: var(--fs-sm); }
+.a-ch-mini { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.1em; line-height: 1.6; color: var(--muted); }
+.a-ch-guide-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); width: 100%; }
+.a-ch-guide-wrap .a-cs-guide { width: 100%; margin-top: 0; }
+.a-ch .a-cs-toggle.a-ch-guide-btn,
+.a-ch .a-cs-toggle.a-ch-fix-btn,
+.a-ch .a-cs-toggle.a-ch-more { font-size: var(--fs-sm); }
+
+/* 受け止めの下：読み取ったことを直す */
+.a-ch-fix { width: 100%; padding-left: 2px; }
+
+/* カードの下：くわしく見る・返し方（最初のカードだけ） */
+.a-ch-card-foot { display: flex; flex-direction: column; align-items: flex-start; padding: 0 var(--sp-1); }
+.a-ch-card-foot > * { margin-top: var(--sp-2); }
+.a-ch-first { display: flex; flex-direction: column; gap: var(--sp-1); }
+.a-ch-style-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.a-ch .a-cs-chip.a-ch-small-chip { padding: 6px 14px; font-size: var(--fs-sm); }
+
+/* (b) 返し方が「短く」のカード：理由と下の段（相手はたぶん・その後・道のり・確かさ）を隠す。［くわしく見る］で全部 */
+.a-cs-card.a-ch-short .a-cs-reason-wrap,
+.a-cs-card.a-ch-short .a-cs-decide > .a-cs-reason,
+.a-cs-card.a-ch-short > .a-cs-rule,
+.a-cs-card.a-ch-short > .a-cs-later { display: none; }
+
+/* 上の「危ないときは」で出す安全のカード */
+.a-ch-view { padding-top: var(--sp-2); }
+
+/* ---------------------------------------------------------------- (a) 上に留まる帯「いまの一手」「いまの状況」 */
+.a-ch-band-slot {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: 0 calc(-1 * var(--gutter));
+}
+.a-ch-band {
+  padding: 2px var(--gutter) var(--sp-1);
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+/* 1行：左に「いまの一手」と見出し（押すとカードへ）、右に「状況」の開け閉め */
+.a-ch-band-row { display: flex; align-items: center; gap: var(--sp-2); }
+.a-ch-now {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  min-height: 44px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+.a-ch-now-label { flex: none; font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0.1em; color: var(--rose-ink); }
+.a-ch-now-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-md);
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+}
+.a-ch-st-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 6px 0 10px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: none;
+  color: var(--rose-ink);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.a-ch-st-btn .a-ic { color: var(--ink-2); }
+.a-ch-st-btn[aria-expanded="true"] .a-ic { transform: rotate(180deg); }
+/* 開いた「いまの状況」：帯の1行の下。下の欄に隠れない高さまで（中で動かせる。64px は帯の1行ぶん） */
+.a-ch-band .a-ch-status-panel {
+  max-height: min(50vh, calc(100vh - var(--a-ch-dock-h, 0px) - 64px));
+  max-height: min(50dvh, calc(100dvh - var(--a-ch-dock-h, 0px) - 64px));
+  overflow-y: auto;
+  padding: var(--sp-2) 4px var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+
+/* ---------------------------------------------------------------- 下に固定の入力の欄 */
+.a-ch-dock {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 15;
+  padding: var(--sp-2) var(--gutter) calc(var(--sp-2) + env(safe-area-inset-bottom));
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+.a-ch-dock-in { display: flex; flex-direction: column; gap: var(--sp-2); max-width: var(--col); margin: 0 auto; }
+.a-ch-slot:empty { display: none; }
+
+/* ボタンの列（場面で入れ替え。2列に並べ、文が長ければ中で折り返す） */
+.a-ch-acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
+.a-ch-act {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 4px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  text-align: left;
+  word-break: auto-phrase;
+}
+.a-ch-act > span { min-width: 0; }
+.a-ch-act .a-ic { flex: none; color: var(--ink-2); }
+.a-ch-act:hover { border-color: var(--field); }
+.a-ch-act[aria-expanded="true"] { background: var(--rose-soft); border-color: var(--rose); color: var(--rose-ink); }
+.a-ch-act[aria-expanded="true"] .a-ic { color: var(--rose-ink); }
+.a-ch-acts.is-end { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-4); }
+.a-ch-acts.is-end .a-link { font-size: var(--fs-sm); }
+
+/* 相手の返事を貼っています［やめる］ */
+.a-ch-modebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--rose-ink);
+}
+.a-ch-modebar .a-link { font-size: var(--fs-sm); font-weight: 500; }
+
+/* 書く欄（1行から6行ほどまで伸びる）と送る */
+.a-ch-compose { display: flex; align-items: flex-end; gap: var(--sp-2); }
+.a-textarea.a-ch-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  max-height: calc(6 * 1.75em + 22px);
+  padding: 10px 14px;
+  line-height: 1.75;
+  resize: none;
+  overflow-y: auto;
+}
+.a-textarea.a-ch-input:disabled { background: var(--surface); border-color: var(--line-strong); cursor: not-allowed; }
+.a-ch-send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--rose);
+  color: var(--surface-2);
+  transition: transform var(--dur) var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.a-ch-send:hover { background: var(--rose-hover); }
+.a-ch-send:active { transform: scale(0.94); }
+.a-ch-send:disabled { background: var(--line-strong); cursor: not-allowed; transform: none; }
+.a-ch-send .a-ic { width: 22px; height: 22px; }
+
+/* 小さな1行（始める前：書いた文の扱い・返し方と診断／カードのあと：あと n 回・返し方と診断・相談を終える） */
+.a-ch-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--sp-3);
+  padding-top: 2px;
+  font-size: var(--fs-xs);
+  line-height: 1.75;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.a-ch-foot .a-link { font-size: var(--fs-xs); color: var(--ink-2); }
+.a-ch-foot .a-link-tap { padding: 12px 2px; margin: -12px 0; }
+.a-ch-foot .a-link:hover { color: var(--rose-ink); }
+.a-ch-privacy { flex: 1 1 16em; min-width: 0; padding: var(--sp-1) 0; line-height: 1.7; }
+.a-ch-left { font-variant-numeric: tabular-nums; }
+.a-ch-cur { color: var(--muted); }
+
+/* 下の欄の上に開く欄（返し方と診断・送る一文を直す） */
+.a-ch-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-height: min(46vh, 400px);
+  max-height: min(46dvh, 400px);
+  overflow-y: auto;
+  padding: var(--sp-2) var(--sp-4) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.a-ch-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); min-height: 44px; }
+.a-ch-panel-h { font-size: var(--fs-md); font-weight: 700; letter-spacing: 0.08em; line-height: 1.5; color: var(--ink); }
+.a-ch-close { font-size: var(--fs-sm); }
+.a-ch-choices { display: flex; flex-direction: column; gap: var(--sp-2); }
+.a-ch-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--field);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--ink);
+  text-align: left;
+}
+.a-ch-choice:hover { border-color: var(--line-strong); }
+.a-ch-choice[aria-pressed="true"] { background: var(--rose-soft); border-color: var(--rose); }
+.a-ch-choice-name { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-md); font-weight: 700; letter-spacing: 0.06em; line-height: 1.5; }
+.a-ch-choice[aria-pressed="true"] .a-ch-choice-name { color: var(--rose-ink); }
+.a-ch-choice-name .a-ic { flex: none; }
+.a-ch-choice-desc, .a-ch-note {
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+.a-ch-panel .a-ch-mini { margin-top: var(--sp-1); }
+.a-textarea.a-ch-draft-input { min-height: 96px; resize: vertical; }
+.a-ch-panel-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+/* 低い画面（小さなスマホ）：ボタンの列は1行にし、その行の中だけ横に動かす（ページは横に動かない。最後のボタンが少し切れて見え、続きがあると分かる）。
+   カードのあとの小さな1行は1行に（入らない分は返し方の添え書きを「…」で切る） */
+@media (max-height: 700px) {
+  .a-ch-acts:not(.is-end) {
+    display: flex;
+    gap: var(--sp-2);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    margin: 0 calc(-1 * var(--gutter));
+    padding: 0 var(--gutter);
+    scroll-padding: 0 var(--gutter);
+  }
+  .a-ch-acts:not(.is-end)::-webkit-scrollbar { display: none; }
+  .a-ch-acts:not(.is-end) .a-ch-act { flex: none; white-space: nowrap; scroll-snap-align: start; }
+  .a-ch-foot.is-meta { flex-wrap: nowrap; }
+  .a-ch-foot.is-meta > * { flex: none; }
+  .a-ch-foot.is-meta .a-ch-set { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+}
+
+/* とても狭い画面（320px など）：ボタンの列のアイコンと、小さな1行の返し方の添え書きを外す（文が途中で折れないように。返し方は「返し方と診断」の欄で見える） */
+@media (max-width: 359px) {
+  .a-ch-act { padding: 4px 10px; }
+  .a-ch-act .a-ic { display: none; }
+  .a-ch-cur { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .a-ch-in { animation: none; }
+  .a-ch-send { transition: none; }
+  .a-ch-send:active { transform: none; }
+}

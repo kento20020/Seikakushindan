@@ -15,9 +15,11 @@
 //     印があって診断がまだ終わっていなければ、ホームの並びを変える（home.js）
 //   診断の版（決定 U42。app/js/diagnosis_version.js）：#diagnose は新しく始める版（?dv= ＞ 既定 v4）、#diagnose/q・#result は今の診断の版で、
 //     v4 なら diagnose4.js・result4.js、v3 なら今までの diagnose.js・result.js を読む
+//   相談の形（決定 U51。app/js/consult_version.js）：#consult は ?cv= ＞ 既定 chat で、chat ならチャットの形 consult_chat.js、card なら今までの consult.js を読む
 import { tabBar } from "./ui.js";
 import { initPwa } from "./pwa.js";
 import { currentVersion, newDiagnosisVersion } from "./diagnosis_version.js";
+import { consultVersion } from "./consult_version.js";
 import { readFromShare, markFromShare } from "./share.js";
 
 const SITE = "喧嘩の答え";   // サービス名（決定 U43）。タブの題は「喧嘩の答え（試作）」・「画面の題｜喧嘩の答え（試作）」
@@ -26,7 +28,7 @@ const ROUTES = {
   diagnose: { load: () => (newDiagnosisVersion() === "v4" ? import("./diagnose4.js") : import("./diagnose.js")), title: "診断" },
   "diagnose/q": { load: () => (currentVersion() === "v4" ? import("./diagnose4.js") : import("./diagnose.js")), title: "診断" },
   result: { load: () => (currentVersion() === "v4" ? import("./result4.js") : import("./result.js")), title: "診断結果" },
-  consult: { load: () => import("./consult.js"), title: "相談" },
+  consult: { load: () => (consultVersion() === "card" ? import("./consult.js") : import("./consult_chat.js")), title: "相談" },
   account: { load: () => import("./account.js"), title: "アカウント" },
   history: { load: () => import("./history.js"), tab: "history", title: "履歴" },
   mypage: { load: () => import("./mypage.js"), tab: "mypage", title: "マイページ" },

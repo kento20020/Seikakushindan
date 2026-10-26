@@ -15,7 +15,7 @@
 //   checkReply(action, kind)       答え合わせの1行 { result: "near" | "different", text }
 //   actionChanged(prev, next)      一手か安全の扱いが変わったか
 //   statusLines(known)             「いまの状況」の3行
-//   rejudge(a)                     判定し直す（buildPoc と同じ。一手は今のカードと同じ手順で決まる）
+//   rejudge(a)                     判定し直す（buildPoc と同じ。一手は今のカードと同じ手順で決まる。省いてよい self・selfMain は buildPoc へ）
 //   readReply(raw) / replyText(raw)  貼った相手の返事を読む（`相手から「…」と返事が来た` の形にして readText へ）
 //   talkAccept(read)               ［もう少し話したい］の受け止め（気持ちの部分だけ）
 //   keepText(model)                一手が変わらないときの吹き出し
@@ -204,11 +204,12 @@ export function splitExtra(known = {}, extra = {}) {
 /**
  * 判定し直す。最初のカードと同じ道（buildPoc：needed.js の finalInput → judge → 文型）で、一手は今のカードと同じ手順で決まる。
  * 深夜かどうかは now から（lateNight を渡せばそれを使う）
- * @param {{ known: object, extra?: object, text?: string, now: Date, tzOffset?: number, safetyContinue?: boolean, safety?: object, lateNight?: boolean }} a
+ * self・selfMain（省いてよい）：本人の8領域と主軸。そのまま buildPoc に渡す（チャットの相談が診断の結果を使うとき。決定 U51）。省けば今までと同じ
+ * @param {{ known: object, extra?: object, text?: string, now: Date, tzOffset?: number, safetyContinue?: boolean, safety?: object, lateNight?: boolean, self?: object, selfMain?: object }} a
  */
-export function rejudge({ known = {}, extra = {}, text = "", now, tzOffset, safetyContinue = false, safety, lateNight } = {}) {
+export function rejudge({ known = {}, extra = {}, text = "", now, tzOffset, safetyContinue = false, safety, lateNight, self, selfMain } = {}) {
   const late = typeof lateNight === "boolean" ? lateNight : isLateNight(now, Number.isFinite(tzOffset) ? tzOffset : -now.getTimezoneOffset());
-  return M.buildPoc({ known: { ...known, lateNight: late }, extra, text, now, tzOffset, safetyContinue, safety });
+  return M.buildPoc({ known: { ...known, lateNight: late }, extra, text, now, tzOffset, safetyContinue, safety, self, selfMain });
 }
 
 const actionOf = (m) => m?.result?.action ?? m?.action ?? null;
