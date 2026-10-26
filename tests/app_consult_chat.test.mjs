@@ -5,6 +5,7 @@
 //  - 診断の結果 → 判定に渡す本人の8領域（selfFromStatus：24問・三択・診断前・向きなし）、終わったあとの診断の案内（dxInvite）
 //  - 判定に診断を渡す：buildPoc・rejudge に self を渡すと判定の入力に入る／省くと今までと同じ
 //  - カードより前のやりとりを記録に残す形（安全の確認は残さない）
+//  - 上の帯に常に出す、いまの状況の要約（statusSummary。言葉は「いまの状況」の3行と同じ）と、帯の2行目・低い画面の1行の決まり
 //  - つなぎ（main.js の振り分け・index.html の CSS・sw.js の殻）と、CSS の決まり（直の色なし・動きは transform と opacity だけ）
 // 時刻は UTC で渡し、時差は tzOffset（日本時間 540）で固定するので、実行環境の時差に依存しない
 import assert from "node:assert/strict";
@@ -255,6 +256,79 @@ test("prePersist：自分・アプリの吹き出しだけ { who, text, at, labe
   ]);
   assert.deepEqual(L.prePersist(null), []);
   assert.deepEqual(L.preFrom(L.prePersist(items)), L.prePersist(items));
+});
+
+// ---------------------------------------------------------------- 上の帯の「いまの状況」の要約
+test("statusSummary：言い合いの最中・最後に送った人・どれくらい前か・気持ち・したいことを「・」でつなぐ", () => {
+  assert.equal(L.statusSummary({ ongoing: true, elapsed: "lt3h", selfTemp: "high", intent: "apologize" }), "いま言い合いの最中・3時間以内・まだ熱い・謝りたい");
+  assert.equal(L.statusSummary({ lastSender: "self", elapsed: "3h_12h", selfTemp: "cooling", goal: "reconcile" }), "最後に送ったのは自分・半日以内・落ち着いてきた・仲直りしたい");
+  assert.equal(L.statusSummary({ lastSender: "partner", partnerLast: "attack", elapsed: "12h_2d" }), "最後は相手から・1〜2日", "最後が相手のときは相手の言葉の補足を足さない");
+  assert.equal(L.statusSummary({ lastSender: "none", elapsed: "ge3d", selfTemp: "calm" }), "どちらも送っていない・3日以上・落ち着いている");
+  // ongoing が true なら、最後に送った人の言葉は出さない（statusLines と同じ先の決まり）
+  assert.equal(L.statusSummary({ ongoing: true, lastSender: "self" }), "いま言い合いの最中");
+  // ongoing が false なら最後に送った人
+  assert.equal(L.statusSummary({ ongoing: false, lastSender: "self" }), "最後に送ったのは自分");
+});
+test("statusSummary：自分が最後で、相手の言葉が「距離を置きたい」「別れ話」なら相手の言葉を足す（最後が相手のときは足さない）", () => {
+  assert.equal(L.statusSummary({ lastSender: "self", partnerLast: "space", elapsed: "12h_2d" }), "最後に送ったのは自分・相手の言葉：距離を置きたい・1〜2日");
+  assert.equal(L.statusSummary({ lastSender: "self", partnerLast: "breakup" }), "最後に送ったのは自分・相手の言葉：別れ話");
+  assert.equal(L.statusSummary({ partnerLast: "space", elapsed: "lt3h" }), "相手の言葉：距離を置きたい・3時間以内", "最後に送った人が分からなくても、相手の言葉は足す");
+  assert.equal(L.statusSummary({ ongoing: true, partnerLast: "breakup" }), "いま言い合いの最中・相手の言葉：別れ話");
+  assert.equal(L.statusSummary({ lastSender: "partner", partnerLast: "space" }), "最後は相手から");
+  assert.equal(L.statusSummary({ lastSender: "self", partnerLast: "attack" }), "最後に送ったのは自分", "責める・謝ってきた などは足さない");
+  assert.equal(L.statusSummary({ lastSender: "self", partnerLast: "none" }), "最後に送ったのは自分");
+});
+test("statusSummary：もう仲直りしたは先頭に。したいこと（intent）が「特になし」ならゴール。未知（undefined・null）は出さない", () => {
+  assert.equal(L.statusSummary({ afterMakeup: true, lastSender: "partner", elapsed: "lt3h" }), "もう仲直りした・最後は相手から・3時間以内");
+  assert.equal(L.statusSummary({ afterMakeup: false, lastSender: "self" }), "最後に送ったのは自分", "仲直りしていない（false）は出さない");
+  assert.equal(L.statusSummary({ intent: "none", goal: "understood" }), "分かってほしい");
+  assert.equal(L.statusSummary({ intent: "tell", goal: "understood" }), "伝えたいことがある", "intent があればゴールは出さない");
+  assert.equal(L.statusSummary({ intent: null, goal: "settle", selfTemp: null, elapsed: undefined }), "ちゃんと決着をつけたい");
+  assert.equal(L.statusSummary({ intent: "none" }), L.STATUS_SUMMARY_NONE);
+  assert.equal(L.statusSummary({ goal: "space", intent: "request_space" }), "距離を置きたいと伝えたい");
+});
+test("statusSummary：何も分からなければ「最後に送ったのは：分からない」（statusLines の1行目と同じ）。壊れた入力でも文字列を返す", () => {
+  assert.equal(L.statusSummary({}), "最後に送ったのは：分からない");
+  assert.equal(L.statusSummary(), "最後に送ったのは：分からない");
+  assert.equal(L.statusSummary(null), "最後に送ったのは：分からない");
+  assert.equal(L.statusSummary("x"), "最後に送ったのは：分からない");
+  assert.equal(L.statusSummary({}), F.statusLines({})[0]);
+  assert.equal(L.statusSummary({ lastSender: "self", elapsed: "bogus", selfTemp: "bogus" }), "最後に送ったのは自分", "選択肢に無い値は「分からない」と出さずに外す");
+});
+test("statusSummary：読み取りの結果・例文の状況でも使える（言葉は statusLines と同じ項目の言葉）", () => {
+  const t = "昨日の夜に喧嘩して、私が謝りのLINEを送ったけど既読のまま返事が来ない。";
+  const known = { ...readText(t).fields };
+  const s = L.statusSummary(known);
+  assert.equal(typeof s, "string");
+  assert.ok(s.length > 0 && !s.includes("undefined") && !s.includes("null"), s);
+  for (const ex of CONSULT_EXAMPLES) {
+    const r = L.statusSummary({ ...readText(ex.text).fields });
+    assert.ok(typeof r === "string" && r && !/undefined|null|\[object/.test(r), `${ex.text}: ${r}`);
+    // 3行のどれかに出ている言葉だけを使う（要約の各部分は statusLines のいずれかの行に含まれる）
+    const lines = F.statusLines({ ...readText(ex.text).fields }).join("。");
+    for (const part of r.split("・").filter(p => p !== L.STATUS_SUMMARY_NONE)) {
+      const word = part.replace(/^相手の言葉：/, "");
+      assert.ok(lines.includes(word), `${ex.text}: 「${part}」が3行に無い`);
+    }
+  }
+});
+test("上の帯：背の高い画面は2行目に要約（a-ch-sum）、max-height: 700px では今までの1行（右の小さな「状況」）。開け閉めは1つの状態で、パネルの高さは帯の上の部分から引く", () => {
+  const js = read("app/js/consult_chat.js");
+  assert.match(js, /class: "a-ch-sum", "aria-expanded": String\(S\.statusOpen\), "aria-controls": "a-ch-status-panel"/);
+  assert.match(js, /h\("span", \{ class: "a-ch-sum-label" \}, "いまの状況"\)/);
+  assert.match(js, /h\("span", \{ class: "a-ch-sum-text" \}, L\.statusSummary\(S\.fu\.known\)\)/);
+  assert.match(js, /toggle\.addEventListener\("click", flip\);\s*sum\.addEventListener\("click", flip\);/);
+  assert.match(js, /toggle\.setAttribute\("aria-expanded", String\(S\.statusOpen\)\);\s*sum\.setAttribute\("aria-expanded", String\(S\.statusOpen\)\);/);
+  assert.match(js, /--a-ch-band-head-h/);
+  const css = read("app/css/consult_chat.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(css, /\.a-ch-st-btn \{\s*display: none;/, "背の高い画面では小さな「状況」を出さない（読み上げからも外す）");
+  assert.match(css, /@media \(max-height: 700px\) \{\s*\.a-ch-sum \{ display: none; \}\s*\.a-ch-st-btn \{ display: inline-flex; \}\s*\}/);
+  assert.match(css, /\.a-ch-sum \{[^}]*min-height: 44px;/);
+  assert.match(css, /\.a-ch-sum-text \{[^}]*-webkit-line-clamp: 2;[^}]*line-clamp: 2;[^}]*overflow: hidden;/);
+  assert.match(css, /\.a-ch-band \.a-ch-status-panel \{[^}]*var\(--a-ch-band-head-h/);
+  assert.doesNotMatch(css, /\b64px\b/, "帯の高さの決め打ち（64px）は使わない");
+  // 低い画面の1行の帯は今までどおり（ボタンの大きさ）
+  assert.match(css, /\.a-ch-st-btn \{[^}]*min-width: 44px;[^}]*min-height: 44px;/);
 });
 
 // ---------------------------------------------------------------- 文

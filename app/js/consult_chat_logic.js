@@ -11,8 +11,10 @@
 //   hasSide(domains) / selfFromStatus(status)  診断の結果 → 判定に渡す本人の8領域（向きが1つも無ければ null）
 //   dxInvite(outcome, status)  終わったあとに診断を案内するか（［仲直りできた］［まだ］で、診断が終わっていない人だけ）
 //   prePersist(items) / preFrom(raw)  カードより前のやりとりを、記録に残す形に／記録から戻す形に
+//   statusSummary(known)       上の帯に常に出す、いまの状況の1〜2行（「・」でつないだ短い言葉。言葉は「いまの状況」の3行と同じ）
 import { domainsFromResult4 } from "../../js/consult/from_diagnosis4.js";
 import { domainsFromProfile3 } from "../../js/consult/from_diagnosis.js";
+import { valueLabel } from "./consult_followup.js";
 
 export const MAX_CHARS = 2000;
 
@@ -172,4 +174,37 @@ export function prePersist(items) {
 /** 記録から戻す形（形の違う項目は外す） */
 export function preFrom(raw) {
   return prePersist(raw);
+}
+
+// ---------------------------------------------------------------- 上の帯の「いまの状況」の要約
+const isKnown = (v) => v !== undefined && v !== null;
+/** 状況の項目の言葉。値が選択肢に無ければ（「分からない」になるので）null */
+const labelOf = (key, v) => {
+  if (!isKnown(v)) return null;
+  const t = valueLabel(key, v);
+  return t && t !== "分からない" ? t : null;
+};
+export const STATUS_SUMMARY_NONE = "最後に送ったのは：分からない";
+/**
+ * 上の帯（背の高い画面）に常に出す、いまの状況の要約。言葉は「いまの状況」の3行（consult_followup.js の statusLines）と同じ。
+ *   もう仲直りした → 「いま言い合いの最中」「最後に送ったのは自分」「最後は相手から」「どちらも送っていない」
+ *   → （自分が最後で、相手の言葉が距離・別れ話なら）相手の言葉 → どれくらい前か → いまの気持ち → したいこと（無ければゴール）
+ *   を、分かっているものだけ「・」でつなぐ。1つも無ければ「最後に送ったのは：分からない」
+ */
+export function statusSummary(known) {
+  const k = known && typeof known === "object" ? known : {};
+  const parts = [];
+  if (k.afterMakeup === true) parts.push("もう仲直りした");
+  if (k.ongoing === true) parts.push("いま言い合いの最中");
+  else if (k.lastSender === "self") parts.push("最後に送ったのは自分");
+  else if (k.lastSender === "partner") parts.push("最後は相手から");
+  else if (k.lastSender === "none") parts.push("どちらも送っていない");
+  if (k.lastSender !== "partner" && (k.partnerLast === "space" || k.partnerLast === "breakup")) parts.push(`相手の言葉：${valueLabel("partnerLast", k.partnerLast)}`);
+  const elapsed = labelOf("elapsed", k.elapsed);
+  if (elapsed) parts.push(elapsed);
+  const temp = labelOf("selfTemp", k.selfTemp);
+  if (temp) parts.push(temp);
+  const want = isKnown(k.intent) && k.intent !== "none" ? labelOf("intent", k.intent) : isKnown(k.goal) ? labelOf("goal", k.goal) : null;
+  if (want) parts.push(want);
+  return parts.length ? parts.join("・") : STATUS_SUMMARY_NONE;
 }

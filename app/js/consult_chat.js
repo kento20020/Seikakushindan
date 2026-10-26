@@ -170,10 +170,14 @@ export function render(root) {
     wrap.style.setProperty("--a-ch-dock-h", `${Math.ceil(dock.hidden ? 0 : dock.getBoundingClientRect().height)}px`);
     const b = bandSlot.firstElementChild;
     wrap.style.setProperty("--a-ch-band-h", `${b ? Math.ceil(b.getBoundingClientRect().height) : 0}px`);
+    // 開いた「いまの状況」の高さの上限に使う、帯の上の部分（1〜2行）だけの高さ
+    const hd = b?.querySelector(".a-ch-band-head");
+    wrap.style.setProperty("--a-ch-band-head-h", `${hd ? Math.ceil(hd.getBoundingClientRect().height) : 0}px`);
   }
   const ro = typeof ResizeObserver === "function" ? new ResizeObserver(sizeVars) : null;
   ro?.observe(dock);
   ro?.observe(bandSlot);
+  const headRo = typeof ResizeObserver === "function" ? new ResizeObserver(sizeVars) : null;   // 帯の上の部分の高さが変わったとき（要約が折り返すなど）
 
   /** 書く欄の高さ（1行から6行くらいまで。上限は CSS の max-height） */
   function fit() {
@@ -1291,10 +1295,17 @@ export function render(root) {
       el.scrollIntoView({ block: "start", behavior: reduceMotion() ? "auto" : "smooth" });
       el.focus({ preventScroll: true });
     });
-    const { toggle, panel } = statusBand();
-    return h("section", { class: "a-ch-band", "aria-label": T.nowLabel }, h("div", { class: "a-ch-band-row" }, now, toggle), panel);
+    const { toggle, sum, panel } = statusBand();
+    // 背の高い画面では2行目に状況の要約（sum）、背の低い画面（max-height: 700px）では1行目の右の小さな「状況」（toggle）。どちらも同じ開け閉め
+    const top = h("div", { class: "a-ch-band-head" }, h("div", { class: "a-ch-band-row" }, now, toggle), sum);
+    headRo?.disconnect();
+    headRo?.observe(top);
+    return h("section", { class: "a-ch-band", "aria-label": T.nowLabel }, top, panel);
   }
-  /** 帯の右の小さな開け閉め（見える文字は「状況」、読み上げは「いまの状況」）と、開くと帯の下に出る「いまの状況」の3行・［ちがうところがある］ */
+  /**
+   * 帯の「いまの状況」：2行目の要約（背の高い画面。常に1〜2行で見える）と、1行目の右の小さな開け閉め（背の低い画面。見える文字は「状況」、読み上げは「いまの状況」）。
+   * どちらを押しても、帯の下に「いまの状況」の3行・［ちがうところがある］が開く（S.statusOpen。2つの aria-expanded はそろえる）
+   */
   function statusBand() {
     const lines = F.statusLines(S.fu.known);
     const panel = h("div", { class: "a-cs-status-panel a-ch-status-panel", id: "a-ch-status-panel", role: "group", "aria-label": "いまの状況", hidden: !S.statusOpen },
@@ -1302,12 +1313,25 @@ export function render(root) {
       statusEditor());
     const toggle = h("button", { type: "button", class: "a-ch-st-btn", "aria-label": "いまの状況", "aria-expanded": String(S.statusOpen), "aria-controls": "a-ch-status-panel" },
       h("span", { "aria-hidden": "true" }, "状況"), icon("chevron-down", { size: 16 }));
-    toggle.addEventListener("click", () => {
+    const sum = h("button", { type: "button", class: "a-ch-sum", "aria-expanded": String(S.statusOpen), "aria-controls": "a-ch-status-panel" },
+      h("span", { class: "a-ch-sum-label" }, "いまの状況"),
+      h("span", { class: "a-ch-sum-text" }, L.statusSummary(S.fu.known)),
+      icon("chevron-down", { size: 16 }));
+    const flip = () => {
       S.statusOpen = !S.statusOpen;
       panel.hidden = !S.statusOpen;
       toggle.setAttribute("aria-expanded", String(S.statusOpen));
-    });
-    return { toggle, panel };
+      sum.setAttribute("aria-expanded", String(S.statusOpen));
+      // 背の高い画面（要約の行が見えている）で、帯がまだ上に留まっていない（ページの先頭に近い）ときは、帯が上に付く位置までページを動かす
+      // （開いた欄の高さの上限は、帯が上に付いている前提で、下の欄に隠れない高さにしてあるため。背の低い画面は今までどおり動かさない）
+      if (S.statusOpen && sum.getClientRects().length) {
+        const top = bandSlot.getBoundingClientRect().top;
+        if (top > 1) window.scrollBy(0, top);
+      }
+    };
+    toggle.addEventListener("click", flip);
+    sum.addEventListener("click", flip);
+    return { toggle, sum, panel };
   }
   function statusEditor() {
     const id = "a-ch-status-edit";
@@ -1414,6 +1438,7 @@ export function render(root) {
     clearInterval(tick);
     timers.clear();
     ro?.disconnect();
+    headRo?.disconnect();
     window.removeEventListener("popstate", onPop);
     activeStore.set(null);
   };
