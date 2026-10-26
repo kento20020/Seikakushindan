@@ -1,3 +1,4 @@
+// U55：既定は主軸の具体例・クロス・特殊。U54 は ?rd=axes、短い版は ?rd=compact。
 // 24問版（v4）の診断結果（#result）。決定 U42・U44・U46。仕様：docs/diagnosis-v4.md §6
 //   三択（v3）の結果は今までどおり result.js（どちらを出すかは main.js が今の診断の版で決める）
 //   出し方は2つ（app/js/result_copy_version.js。既定は "v4.1"、URL の ?rc=u44 で前の形）
@@ -48,6 +49,7 @@ import { shareResult, shareText4, shareTextCopy4 } from "./share.js";
 import { isCopyResult } from "./result_copy_version.js";
 import { safetyNote4, CONSULT_ROW_SUB } from "./safety.js";
 import { showResultDetails, detailModel, supportingDetails, detailedAxes } from "./result_details.js";
+import { showResultStory, resultStory, primaryStory, storyCards } from "./result_story.js";
 
 export const RESULT_TITLE4 = "今回の回答で目立つ傾向";
 export const RESULT_NOTE4 = "今回の回答から見た傾向です。相手や状況によって変わることがあります。";
@@ -68,22 +70,25 @@ function renderCopy(root) {
   if (!r) { root.append(emptyView()); return; }
   try { recordDiagnosis4(r); } catch (err) { console.error(err); }
   const copy = copyOf4(r);
-  const details = showResultDetails() ? detailModel(r, copy) : null;
+  const story = showResultStory() ? resultStory(r, copy) : null;
+  const details = !story && showResultDetails() ? detailModel(r, copy) : null;
   const none = copy.kind === "none";
   root.append(h("div", { class: "a-dg-res a-d4-res a-d4-copy", "data-dv": "v4", "data-kind": copy.kind },
     topBar({ title: "診断結果", right: shareButtonCopy(copy) }),
     copyHero(r),
     h("h1", { class: "result-title", id: "a-d4-title" }, copy.title),
+    story?.main ? h("p", { class: "a-story-main-label" }, badge("主軸", { tone: "ink" }), "あなたの動きの中心") : null,
     h("div", { class: "a-d4-copy-body", id: "result-main-copy" },
-      copy.paragraphs.map((p) => h("p", null, p)),
-      !details && copy.bridge ? h("p", { class: "a-d4-copy-bridge" }, copy.bridge) : null),
-    details ? supportingDetails(details) : null,
+      (story ? story.intro : copy.paragraphs).map((p) => h("p", null, p)),
+      !story && !details && copy.bridge ? h("p", { class: "a-d4-copy-bridge" }, copy.bridge) : null),
+    story ? primaryStory(story) : details ? supportingDetails(details) : null,
+    story ? storyCards(story) : null,
     copy.action
       ? h("div", { class: "a-d4-copy-action" },
         h("p", { class: "a-d4-copy-lead" }, ACTION_LEAD4),
         h("blockquote", { class: "a-d4-copy-quote" }, h("p", null, `「${copy.action}」`)))
       : null,
-    details ? detailedAxes(details) : breakdown(r),
+    story ? null : details ? detailedAxes(details) : breakdown(r),
     safetyBox(r),
     h("div", { class: "a-dg-res-foot" },
       h("div", { class: "a-card a-rows a-dg-res-rows" }, none
