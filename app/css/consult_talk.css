@@ -1,0 +1,206 @@
+/* app/css/consult_talk.css — 相談のふつうのチャットの形（#consult の既定。決定 U54。画面は app/js/consult_talk.js）
+   今の部品（app/css/consult.css の a-cs-：吹き出し・送る文の吹き出し・コピーの札・安全のカードと窓口の1行・チップ）はそのまま使い、
+   ここではこの形の並びだけを足す。クラスは a-tk- で始める（上の題に足す .a-tk-top も）。ボタンつきのチャット（a-ch-）と今までの形には効かない。
+   色・文字・角・余白は app/css/app.css の変数だけ（直の色は書かない）。焦点の輪は app.css の決まりのまま（:focus-visible）。
+   動きは transform と opacity だけ（新しく足した吹き出しが上から順に出る）。動きを減らす設定では止める。押せる物は 44px 以上。
+   並び：上の題（← 相談・新しく相談・危ないときは）→ 上に留まる帯「いまの状況」の3行 → やりとり → 下に固定の書く欄（書く欄と送る・小さな1行）。
+   下の欄の高さ（--a-tk-dock-h）・帯の高さ（--a-tk-band-h）・帯の元の位置（--a-tk-band-y0）は JS（ResizeObserver）が入れる */
+
+/* ---------------------------------------------------------------- 上の題：右に「新しく相談」と「危ないときは」
+   右の列は中身の幅より狭くしない（題に重ねない）。狭い画面では題の左右の線を短く、とても狭い画面では線を外す（文は短くしない） */
+.a-top.a-tk-top { grid-template-columns: minmax(44px, 1fr) auto minmax(max-content, 1fr); }
+.a-tk-top .a-top-right { gap: 0; }
+.a-top.a-tk-top.has-new { column-gap: var(--sp-2); }
+.a-tk-new {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.a-tk-new:hover { background: var(--surface); color: var(--ink); }
+@media (max-width: 519px) {
+  .a-top.a-tk-top.has-new .a-top-title { gap: 10px; }
+  .a-top.a-tk-top.has-new .a-top-title::before, .a-top.a-tk-top.has-new .a-top-title::after { width: clamp(12px, 4vw, 52px); }
+}
+@media (max-width: 399px) {
+  .a-top.a-tk-top.has-new .a-top-title { letter-spacing: 0.12em; }
+  .a-top.a-tk-top.has-new .a-top-title::before, .a-top.a-tk-top.has-new .a-top-title::after { display: none; }
+  .a-tk-top.has-new .a-tk-new, .a-tk-top.has-new .a-cs-danger { padding: 0 6px; letter-spacing: 0.02em; }
+}
+
+/* ---------------------------------------------------------------- やりとり */
+.a-tk-thread {
+  padding: var(--sp-3) 0 calc(var(--a-tk-dock-h, 140px) + var(--sp-4));
+}
+.a-tk-thread > li {
+  scroll-margin-top: calc(var(--a-tk-band-h, 0px) + var(--sp-3));
+  scroll-margin-bottom: calc(var(--a-tk-dock-h, 0px) + var(--sp-3));
+}
+.a-tk-thread > li:focus { outline: none; }
+.a-tk-under { padding-left: 2px; }
+.a-tk .a-cs-safety-line { max-width: 100%; }
+/* 安全の確かめのボタン（ボタンはここだけ）。「今、危ない」は止める意味の色（相談の画面の --cs-stop と同じ値の --help-ink） */
+.a-tk-opts { align-items: center; }
+.a-tk .a-cs-chip.a-tk-stop { border: 1.5px solid var(--help-ink); color: var(--help-ink); font-weight: 700; }
+
+/* 新しく足した物（上から順に。動きを減らす設定では出さない） */
+@keyframes a-tk-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.a-tk-in { animation: a-tk-in 0.26s var(--ease) both; animation-delay: calc(var(--a-tk-i, 0) * 70ms); }
+
+/* 一手の吹き出し：段落の間を少しあける。太字の一手・小さな見出しつきの文・送る一文（今のカードの送る文の吹き出しと同じ色） */
+.a-cs-msg-bubble.a-tk-move { gap: var(--sp-2); max-width: 94%; }
+.a-tk-head { font-weight: 700; color: var(--ink); line-height: 1.75; word-break: auto-phrase; }
+.a-tk-p { margin: 0; }
+.a-tk-lead { font-weight: 700; color: var(--ink); }
+.a-tk-lead.is-stop { color: var(--help-ink); }
+.a-tk-draft { display: flex; flex-direction: column; gap: var(--sp-1); margin: var(--sp-1) 0; }
+.a-tk-draft .a-cs-send-top { padding-right: 0; }
+.a-tk-draft .a-cs-bubble.a-tk-quote { margin: var(--sp-1) 10px 0 0; font-size: var(--fs-base); line-height: 1.8; }
+.a-tk-move .a-cs-safety-line { margin-bottom: var(--sp-1); }
+
+/* 上の「危ないときは」で出す安全のカード */
+.a-tk-view { padding-top: var(--sp-2); }
+
+/* ---------------------------------------------------------------- 上に留まる帯「いまの状況」（3行。右の小さな開け閉め）
+   見出し・文の大きさと色は U53 の帯と同じ（見出し 12px 太字・薄い文字、文 13px）。たたむと1行目（やりとり）だけを1行で。
+   帯の高さの上限は、画面の高さから下の欄（--a-tk-dock-h）と帯の元の位置（--a-tk-band-y0。上の題の下）を引いた高さ。入らない分は3行の中だけで縦に動かす */
+.a-tk-band-slot {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: 0 calc(-1 * var(--gutter));
+}
+.a-tk-band {
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--gutter);
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.a-tk-band-in { display: flex; align-items: flex-start; gap: var(--sp-2); min-height: 0; }
+.a-tk-st-rows {
+  --a-tk-st-hw: 3.5rem;
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--a-tk-st-hw) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 2px var(--sp-3);
+  min-width: 0;
+  max-height: calc(100vh - var(--a-tk-dock-h, 0px) - var(--a-tk-band-y0, 0px) - var(--sp-2) - 1px);
+  max-height: calc(100dvh - var(--a-tk-dock-h, 0px) - var(--a-tk-band-y0, 0px) - var(--sp-2) - 1px);
+  margin: 0;
+  padding: var(--sp-3) 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.a-tk-st-rows dt {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.55;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.a-tk-st-rows dd {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  letter-spacing: 0.02em;
+  word-break: auto-phrase;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+.a-tk-band.is-collapsed .a-tk-st-rows > :not([data-row="exchange"]) { display: none; }
+.a-tk-band.is-collapsed .a-tk-st-rows dd { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.a-tk-st-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 4px 0 10px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: none;
+  color: var(--rose-ink);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.a-tk-st-btn .a-ic { color: var(--ink-2); }
+.a-tk-st-btn[aria-expanded="true"] .a-ic { transform: rotate(180deg); }
+.a-tk-st-btn:hover { color: var(--ink); }
+/* 焦点の輪：帯は画面のいちばん上に付くので、輪が切れないように内側寄りに出す */
+.a-tk-st-btn:focus-visible { outline-offset: -1px; }
+
+/* ---------------------------------------------------------------- 下に固定の書く欄 */
+.a-tk-dock {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 15;
+  padding: var(--sp-2) var(--gutter) calc(var(--sp-2) + env(safe-area-inset-bottom));
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+.a-tk-dock-in { display: flex; flex-direction: column; gap: var(--sp-1); max-width: var(--col); margin: 0 auto; }
+.a-tk-slot:empty { display: none; }
+.a-tk-compose { display: flex; align-items: flex-end; gap: var(--sp-2); }
+.a-textarea.a-tk-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  max-height: calc(6 * 1.75em + 22px);
+  padding: 10px 14px;
+  line-height: 1.75;
+  resize: none;
+  overflow-y: auto;
+}
+.a-textarea.a-tk-input:disabled { background: var(--surface); border-color: var(--line-strong); cursor: not-allowed; }
+.a-tk-send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--rose);
+  color: var(--surface-2);
+  transition: transform var(--dur) var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.a-tk-send:hover { background: var(--rose-hover); }
+.a-tk-send:active { transform: scale(0.94); }
+.a-tk-send:disabled { background: var(--line-strong); cursor: not-allowed; transform: none; }
+.a-tk-send .a-ic { width: 22px; height: 22px; }
+/* 小さな1行（始める前：書いた文の扱い／始めたあと：あと n 回） */
+.a-tk-foot {
+  padding: 2px 2px 0;
+  font-size: var(--fs-xs);
+  line-height: 1.75;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.a-tk-left { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .a-tk-in { animation: none; }
+  .a-tk-send { transition: none; }
+  .a-tk-send:active { transform: none; }
+}
