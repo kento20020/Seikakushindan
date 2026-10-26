@@ -1,3 +1,4 @@
+// U57：動きの内側・循環・回答の反例を詳述。旧版の8軸を結果の末尾に復活。
 // U55：既定は主軸の具体例・クロス・特殊。U54 は ?rd=axes、短い版は ?rd=compact。
 // 24問版（v4）の診断結果（#result）。決定 U42・U44・U46。仕様：docs/diagnosis-v4.md §6
 //   三択（v3）の結果は今までどおり result.js（どちらを出すかは main.js が今の診断の版で決める）
@@ -103,6 +104,7 @@ function renderCopy(root) {
           rowLink({ href: "#images", ic: "sparkle", text: "診断結果の絵の一覧" }),
           rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" }),
         ])),
+    story?.analysisVersion ? domainsSection(r, { compact: true }) : null,
     helpFoot()));
 }
 
@@ -257,10 +259,11 @@ function domainCard(r, d, main) {
 const AXIS_PIC = { pos: "52% 40%", zoom: 1.35 };
 const SIDE_CLASS = { A: "is-a", B: "is-b", mid: "is-mid" };
 
-function domainsSection(r) {
+function domainsSection(r, { compact = false } = {}) {
   return h("section", { class: "a-dg-axes a-d4-doms", "aria-labelledby": "a-d4-doms-h" },
-    sectionHead("8つの領域", { id: "a-d4-doms-h" }),
-    h("ul", { class: "a-card a-dg-axis-list" }, DOMAIN_IDS4.map((d) => domainRow(r, d))));
+    sectionHead(compact ? "8つの軸" : "8つの領域", { id: "a-d4-doms-h" }),
+    compact ? h("p", { class: "a-note a-axis-note" }, "●と％は、答えた問で選んだ割合です。性格の強さや診断の確かさを表す数字ではありません。") : null,
+    h("ul", { class: "a-card a-dg-axis-list" }, DOMAIN_IDS4.map((d) => domainRow(r, d, compact))));
 }
 
 /**
@@ -269,7 +272,7 @@ function domainsSection(r) {
  *   両はしの傾向名 → 横軸と● → 「向き合う寄り 67%」（三択と同じ部品 a-dg-axis-ends・a-dg-track・a-dg-axis-share）→ 状態の本文
  *   横軸の部分は読み上げを1文にまとめる（role="img"）。見出しと本文はふつうの文として読む
  */
-function domainRow(r, d) {
+function domainRow(r, d, compact = false) {
   const D = DOMAINS[d];
   const dom = r.domains[d];
   const v = axisView4(r, d);
@@ -291,7 +294,7 @@ function domainRow(r, d) {
     pic,
     h("div", { class: "a-d4-dom-titles" },
       h("p", { class: "a-dg-axis-name" }, h("span", { class: "a-nowrap" }, `${d} ${D.name}`)),
-      h("h3", { class: "a-d4-dom-title", id: hid }, t.title))),
+      compact ? h("p", { class: "a-dg-axis-lv" }, `選んだ数：${D.a} ${dom.a}・${D.b} ${dom.b}`) : h("h3", { class: "a-d4-dom-title", id: hid }, t.title))),
   h("div", { class: "a-dg-axis-view a-d4-dom-view", role: "img", "aria-label": v.label },
     h("div", { class: "a-dg-axis-ends" },
       h("span", { class: ["a-dg-end", "a-dg-end-a", v.side === "A" && "is-lead"] }, D.a),
@@ -300,7 +303,10 @@ function domainRow(r, d) {
     h("p", { class: "a-dg-axis-share" }, h("span", null,
       v.pos == null ? null : h("i", { class: "a-dg-share-dot", "aria-hidden": "true" }),
       v.text))),
-  h("p", { class: "a-d4-dom-body" }, t.body));
+  compact
+    ? dom.differentDirections ? h("p", { class: "a-note a-axis-caution" }, "普段と場面では逆の側を選んでいます。線は回答数を示し、解釈は片側にまとめていません。")
+      : dom.n < 3 ? h("p", { class: "a-note a-axis-caution" }, dom.n < 2 ? "答えた問が少ないため、位置の判定は保留しています。" : "答えられた2問での割合です。") : null
+    : h("p", { class: "a-d4-dom-body" }, t.body));
   row.style.setProperty("--axis", art?.color ?? NAVY);
   row.style.setProperty("--axis-deep", art?.deep ?? NAVY);
   row.style.setProperty("--x", `${x}%`);

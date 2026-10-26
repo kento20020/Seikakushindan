@@ -1,3 +1,4 @@
+// U57：動きの内側・循環・回答の反例を詳述。旧版の8軸を結果の末尾に復活。
 // U55：既定は主軸の具体例・クロス・特殊。U54 は ?rd=axes、短い版は ?rd=compact。
 // 三択（80問。v3）の診断結果（#result。画像6）。仕様：docs/app-screens.md §4.4・§24
 //   出し方は2つ（app/js/result_copy_version.js。既定は "copy"、URL の ?rc3=old で前の形）。24問の結果は result4.js
@@ -100,6 +101,7 @@ function renderCopy(root) {
         rowLink({ href: "#types", ic: "grid", text: "診断結果の一覧" }),
         rowLink({ href: "#images", ic: "sparkle", text: "診断結果の絵の一覧" }),
         rowLink({ href: "#home", ic: "home", text: "ホームへ戻る" }))),
+    story?.analysisVersion ? axesSection(r) : null,
     helpFoot()));
 }
 

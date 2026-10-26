@@ -1,4 +1,4 @@
-// U55：主軸・クロス・特殊を読む結果。表示専用。採点／保存には手を入れない。
+// U55・U57：主軸・クロス・特殊を読む結果。表示専用。採点／保存には手を入れない。
 import { DOMAINS, DOM_OF } from './engine.js';
 import { PATTERNS, PATTERN_BY_ID } from './data/patterns.js';
 import { copyStatesOf4, copySide4, firstSentence4 } from './result_copy4.js';
@@ -6,6 +6,7 @@ import { copyStatesOf3 } from './result_copy3.js';
 import { scenesFor } from './three_version.js';
 import { idsOfDomain4, ITEMS4 } from './data/questions4.js';
 import { SIDE_STORY, CROSS_STEP, SPECIAL_STORY } from './data/result_story.js';
+import { deepenStory } from './result_analysis.js';
 
 const ids = Object.keys(DOMAINS).map(Number);
 const sideKey = t => `${DOM_OF[t]}${DOMAINS[DOM_OF[t]]?.a === t ? 'A' : 'B'}`;
@@ -36,20 +37,20 @@ function directionStory(r) {
   const name = k => D[x.picks[k] === 'A' ? 'a' : 'b'];
   return {
     id: `context-${d}`, kind: 'special', domains: [d], label: '特殊', context: `${D.name}・普段と場面の違い`,
-    paragraphs: [`普段の自分には「${name('U')}」を選んだ一方、具体的な2つの場面では「${name('P')}」を選んでいました。頭ではこうしたいと思っていても、相手を前にすると別の動きが出る。あなたの中には、その両方があるのかもしれません。`],
+    paragraphs: [`普段の自分には「${name('U')}」を選んだ一方、具体的な2つの場面では「${name('P')}」を選んでいました。普段を振り返った答えと、場面を思い浮かべた答えは違っています。どちらかが本音で、もう一方が建前とは決めず、何があると動きが変わるのかを見たいところです。`],
     scenes: ['P', 'N'].map(k => {
       const q = ITEMS4[qids[k]];
       return `${q.scene} → 今回選んだのは「${x.picks[k] === 'A' ? q.a : q.b}」。`;
     }),
     strength: 'いつもの自分というイメージだけで答えず、その場の自分の動きまで見つめられています。場面によって変わることに気づけるのは、伝え方を選び直す手掛かりです。',
-    risk: `ただ、自分では「${name('U')}つもり」でも、相手が受け取るのは実際の動き。「いつも言っていることと違う」と受け取られるすれ違いは起こりそうです。`,
+    risk: `ただ、普段の動き方だけ伝えていても、場面によって別の動きをすると、「いつも言っていることと違う」と受け取られるすれ違いは起こりそうです。`,
     step: '話す前に「普段はこうしたいけど、今はこうなっている」と二つを分けて伝えてみて。自分にも相手にも、今できる話し方が見えやすくなります。',
     actual: true,
   };
 }
 
 /** main は原稿の主軸と一貫させ、追加は条件を満たす旧版パターンから選ぶ。 */
-export function resultStory(r, copy) {
+export function resultStory(r, copy, { deep = true } = {}) {
   const four = r?.diagnosisVersion === 'v4';
   const states = four ? copyStatesOf4(r) : copyStatesOf3(r);
   const d = copy.primaryDomain, side = copy.side;
@@ -110,5 +111,6 @@ export function resultStory(r, copy) {
   if (special) { special.paragraphs = fresh(special.paragraphs); special.scenes = fresh(special.scenes); cards.push(special); }
   else if (specialHit) cards.push(card(specialHit.p));
   // 成立しない分類を穴埋めしない。データ不足なら元の保留原稿を読める。
-  return { main, cards, intro: copy.kind === 'primary' ? [firstSentence4(copy.paragraphs[0])] : copy.paragraphs, note: '場面例は、今回の回答から考えられる動き方です。自分に重なるところから読んでみてください。' };
+  const model = { main, cards, intro: copy.kind === 'primary' ? [firstSentence4(copy.paragraphs[0])] : copy.paragraphs, note: '場面例は、今回の回答から考えられる動き方です。自分に重なるところから読んでみてください。' };
+  return deep ? deepenStory(r, model) : model;
 }
