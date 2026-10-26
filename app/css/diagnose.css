@@ -1011,3 +1011,20 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
   .a-dg-qcard[class*="a-dg-enter-"], .a-dg-qcard[class*="a-dg-enter-"] > * { animation: none !important; }
   .a-dg-progress > i { transition: none; }
 }
+
+/* U55：具体例から読む、主軸・クロス・特殊。大きな診断タイトルは1つ。 */
+.a-story-main-label { display: flex; align-items: center; gap: 10px; margin: 24px 0 12px; font-size: 13px; }
+.a-story-primary, .a-story-card { font-size: 16px; line-height: 1.9; overflow-wrap: anywhere; }
+.a-story-note { margin: 12px 0 24px; }
+.a-story-scenes { margin: 24px 0; padding: 18px 20px; background: rgba(149,111,98,.055); border-left: 2px solid rgba(149,111,98,.35); border-radius: 0 8px 8px 0; }
+.a-story-caption { display: block; font-size: 13px; font-weight: 600; letter-spacing: .04em; margin: 0 0 8px; }
+.a-story-scenes ul { padding-left: 1.15em; margin: 0; }
+.a-story-scenes li + li { margin-top: 16px; }
+.a-story-balance > p { margin: 24px 0; }
+.a-story-step { padding: 16px 18px; border: 1px solid rgba(149,111,98,.2); border-radius: 8px; }
+.a-story-cards { margin-top: 36px; }
+.a-story-card { padding-top: 28px; margin-top: 32px; border-top: 1px solid rgba(149,111,98,.25); }
+.a-story-label { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-family: inherit; font-size: 13px; font-weight: 500; line-height: 1.6; margin: 0; }
+.a-story-context { font-size: 13px; margin: 10px 0 20px; opacity: .75; }
+.a-story-body { margin: 0 0 20px; }
+@media (max-width: 360px) { .a-story-scenes { padding: 14px; } }
