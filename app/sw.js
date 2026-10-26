@@ -41,10 +41,10 @@ const SHELL = [
   "./css/diagnose.css",
   "./css/consult.css",
   "./css/consult_chat.css",     // 相談のチャットの形（決定 U51。index.html が読む）
-  "./css/consult_talk.css",     // 相談のふつうのチャットの形（決定 U54。index.html が読む）
+  "./css/consult_talk.css",     // 相談のふつうのチャットの形（決定 U55。index.html が読む）
   "./js/main.js",
   "./js/consult_version.js",    // main.js が読む相談の形の切り替え（決定 U51）
-  "./js/consult_talk.js",       // 相談のふつうのチャットの形（既定。決定 U54）と、その DOM の無い部分
+  "./js/consult_talk.js",       // 相談のふつうのチャットの形（既定。決定 U55）と、その DOM の無い部分
   "./js/consult_talk_logic.js",
   "./js/consult_chat.js",       // 相談のボタンつきのチャットの形（?cv=chat）と、その DOM の無い部分（talk も読む）
   "./js/consult_chat_logic.js",

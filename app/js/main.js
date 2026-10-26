@@ -15,7 +15,7 @@
 //     印があって診断がまだ終わっていなければ、ホームの並びを変える（home.js）
 //   診断の版（決定 U42。app/js/diagnosis_version.js）：#diagnose は新しく始める版（?dv= ＞ 既定 v4）、#diagnose/q・#result は今の診断の版で、
 //     v4 なら diagnose4.js・result4.js、v3 なら今までの diagnose.js・result.js を読む
-//   相談の形（決定 U51・U54。app/js/consult_version.js）：#consult は ?cv= ＞ 既定 talk で、talk ならふつうのチャットの形 consult_talk.js、
+//   相談の形（決定 U51・U55。app/js/consult_version.js）：#consult は ?cv= ＞ 既定 talk で、talk ならふつうのチャットの形 consult_talk.js、
 //     chat ならボタンつきのチャットの形 consult_chat.js、card なら段階ごとの consult.js を読む
 import { tabBar } from "./ui.js";
 import { initPwa } from "./pwa.js";

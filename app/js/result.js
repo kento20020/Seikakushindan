@@ -15,6 +15,7 @@
 //     9 いちばん下に「危ないときは：相談できる窓口 ›」
 //   外したもの（データは消さない）：主軸・補強・矛盾・地のカード、解釈パターンの見出し・太字の要約・本文・場面例、「違うと思う文をタップ」
 //     「ありそう／なさそう」、8つの軸の線と「〜寄り 67%」、見出し「あなたを表す解釈」
+//   U54：既定では補足の詳しい本文と8軸一覧（割合の数字なし）を表示する（result_details.js）。上記の短い表示は ?rd=compact。
 //
 // ■ 前の形（?rc3=old。renderOld。下のコメントのまま。画素まで今までと同じ）
 //   上：「←」・中央「診断結果」・右に枠だけの「シェア」（app/js/share.js。文はサービス名と主軸の見出し、リンクは app/?from=share。決定 U45）
@@ -50,6 +51,7 @@ import { shareResult, shareText3, shareTextCopy3 } from "./share.js";
 import { isCopyResult3 } from "./result_copy_version.js";
 import { safetyNote3, CONSULT_ROW_SUB } from "./safety.js";
 import { ACTION_LEAD4, BREAKDOWN_LABEL4 } from "../../js/data/result_copy4.js";
+import { showResultDetails, detailModel, supportingDetails, detailedAxes } from "./result_details.js";
 
 const ROLE_TONE = { "主軸": "ink", "補強": "rose", "矛盾": "slate", "地（形状）": "line" };
 
@@ -68,20 +70,22 @@ function renderCopy(root) {
   if (!r) { root.append(emptyView()); return; }
   try { recordDiagnosis(r); } catch (err) { console.error(err); }   // 履歴にまだ無ければ足す（同じ答えの記録があれば足さない）
   const copy = copyOf3(r);
+  const details = showResultDetails() ? detailModel(r, copy) : null;
   const sample = r.source && r.source.type && r.source.type !== "session";
   root.append(h("div", { class: "a-dg-res a-d4-copy a-d3-copy", "data-dv": "v3", "data-kind": copy.kind },
     topBar({ title: "診断結果", right: shareButtonCopy(copy) }),
     copyHero(r),
     h("h1", { class: "result-title", id: "a-d3-title" }, copy.title),
-    h("div", { class: "a-d4-copy-body" },
+    h("div", { class: "a-d4-copy-body", id: "result-main-copy" },
       copy.paragraphs.map((p) => h("p", null, p)),
-      copy.bridge ? h("p", { class: "a-d4-copy-bridge" }, copy.bridge) : null),
+      !details && copy.bridge ? h("p", { class: "a-d4-copy-bridge" }, copy.bridge) : null),
+    details ? supportingDetails(details) : null,
     copy.action
       ? h("div", { class: "a-d4-copy-action" },
         h("p", { class: "a-d4-copy-lead" }, ACTION_LEAD4),
         h("blockquote", { class: "a-d4-copy-quote" }, h("p", null, `「${copy.action}」`)))
       : null,
-    breakdown3(r),
+    details ? detailedAxes(details) : breakdown3(r),
     safetyBox3(r),
     sample ? h("p", { class: "a-note a-d3-sample" }, "サンプルの回答から作った結果です（試作の確認用）。") : null,
     h("div", { class: "a-dg-res-foot" },
