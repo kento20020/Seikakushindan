@@ -122,8 +122,10 @@ test("?tc=：既定は原稿の文（copy）。?tc=old で前の一覧、知ら�
   assert.equal(isCopyTypes({ url: "old" }), false);
 });
 
-test("前置き（新しい一覧）：説明は診断の結果と同じ文だと一言。型の決まり方は結果の画面の形に頼らない言い方", () => {
-  assert.ok(TYPES_LEAD_COPY.includes("説明の文は、診断の結果に出る文と同じです。"));
+test("前置き（新しい一覧）：軸の基本説明と個別の具体例を区別し、型の決まり方は結果画面に頼らない", () => {
+  assert.ok(TYPES_LEAD_COPY.includes("各軸の基本の説明"));
+  assert.ok(TYPES_LEAD_COPY.includes("傾向の組み合わせは診断結果"));
+  assert.ok(!TYPES_LEAD_COPY.includes("同じです"));
   assert.ok(!HOW_V3_COPY.includes("8つの軸"), "結果の画面の「8つの軸」（?rc3=old だけにある）に頼らない");
   assert.ok(HOW_V3_COPY.includes("よい・わるいはありません"));
   for (const x of [TYPES_LEAD_COPY, HOW_V3_COPY]) assert.ok(!/な人|%|％/.test(x));

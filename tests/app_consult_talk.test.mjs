@@ -1,11 +1,11 @@
 // node tests/app_consult_talk.test.mjs
-// 新しい画面（app/）の相談の「ふつうのチャット」の形（決定 U55）のうち、DOM の無い部分のテスト。画面そのもの（app/js/consult_talk.js）は Playwright で確かめる
+// 新しい画面（app/）の相談の「ふつうのチャット」の形（決定 U56）のうち、DOM の無い部分のテスト。画面そのもの（app/js/consult_talk.js）は Playwright で確かめる
 //  - 相談の形の切り替え（app/js/consult_version.js）：既定 talk、?cv=chat（ボタンつきのチャット）、?cv=card（段階ごとの画面）、知らない値は既定
 //  - 書いた答え → 選択肢（matchAnswer）：各問の典型・言い換え（仕様のよくある短い答え）・読み取りでの当てはめ・当たらない
 //  - 一手のあとに書いた文の種類（classifyFollow）：「」『』あり・送った・まだ来ない（送ったあとだけ）・それ以外
 //  - 一手の吹き出しの中身（moveText）：送る一手・待つ一手（戻る時刻・待つ間に）・安全のモード・履歴の写しからも同じ
 //  - 一手が変わらないときの文（keepText）・答え方の例・聞き直しの文
-//  - TALK_TEXTS が仕様（U55）に書いた文のまま
+//  - TALK_TEXTS が仕様（U56）に書いた文のまま
 //  - 記録の形（talkPersist・pendPersist）：安全の確かめは残さない。?cv=chat・?cv=card が読む形（fu.thread）とぶつからない
 //  - つなぎ（main.js・index.html・sw.js）と CSS の決まり（直の色なし・クラスは a-tk-・動きは transform と opacity・動きを減らす設定で止める）
 //  - 外した足し物（返し方・例文・文を自分で直す・相談を終える・ちがうところがある・診断の案内）が画面のコードに無い
@@ -215,7 +215,7 @@ test("keepText：一手が変わらないとき。送る一文があれば前の
 });
 
 // ---------------------------------------------------------------- 文
-test("TALK_TEXTS：仕様（U55）に書いた文のまま", () => {
+test("TALK_TEXTS：仕様（U56）に書いた文のまま", () => {
   const T = L.TALK_TEXTS;
   assert.equal(T.greet, "いま、何があったか、そのまま書いてください。全部そろっていなくても大丈夫です。足りないところは、あとで少しだけ聞きます。");
   assert.equal(T.quoteGuide, "相手から来た文や、相手に言われた言葉は「」で囲んで書いてください。");

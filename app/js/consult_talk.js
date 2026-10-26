@@ -1,4 +1,4 @@
-// 相談（#consult）の「ふつうのチャット」の形（既定。決定 U55）。ボタンつきのチャットは app/js/consult_chat.js（?cv=chat）、段階ごとの画面は app/js/consult.js（?cv=card）。
+// 相談（#consult）の「ふつうのチャット」の形（既定。決定 U56）。ボタンつきのチャットは app/js/consult_chat.js（?cv=chat）、段階ごとの画面は app/js/consult.js（?cv=card）。
 //   切り替えは app/js/consult_version.js。DOM の無い部分は app/js/consult_talk_logic.js、見た目は app/css/consult_talk.css（クラスは a-tk-）。
 //
 //   ChatGPT や Claude のような会話の形：やりとりを1本の列にし（自分＝右・アプリ＝左の吹き出し。絵なし）、下に固定の書く欄。選ぶボタンは出さない。

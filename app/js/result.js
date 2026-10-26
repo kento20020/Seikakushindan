@@ -1,3 +1,4 @@
+// U55：既定は主軸の具体例・クロス・特殊。U54 は ?rd=axes、短い版は ?rd=compact。
 // 三択（80問。v3）の診断結果（#result。画像6）。仕様：docs/app-screens.md §4.4・§24
 //   出し方は2つ（app/js/result_copy_version.js。既定は "copy"、URL の ?rc3=old で前の形）。24問の結果は result4.js
 //
@@ -52,6 +53,7 @@ import { isCopyResult3 } from "./result_copy_version.js";
 import { safetyNote3, CONSULT_ROW_SUB } from "./safety.js";
 import { ACTION_LEAD4, BREAKDOWN_LABEL4 } from "../../js/data/result_copy4.js";
 import { showResultDetails, detailModel, supportingDetails, detailedAxes } from "./result_details.js";
+import { showResultStory, resultStory, primaryStory, storyCards } from "./result_story.js";
 
 const ROLE_TONE = { "主軸": "ink", "補強": "rose", "矛盾": "slate", "地（形状）": "line" };
 
@@ -70,22 +72,25 @@ function renderCopy(root) {
   if (!r) { root.append(emptyView()); return; }
   try { recordDiagnosis(r); } catch (err) { console.error(err); }   // 履歴にまだ無ければ足す（同じ答えの記録があれば足さない）
   const copy = copyOf3(r);
-  const details = showResultDetails() ? detailModel(r, copy) : null;
+  const story = showResultStory() ? resultStory(r, copy) : null;
+  const details = !story && showResultDetails() ? detailModel(r, copy) : null;
   const sample = r.source && r.source.type && r.source.type !== "session";
   root.append(h("div", { class: "a-dg-res a-d4-copy a-d3-copy", "data-dv": "v3", "data-kind": copy.kind },
     topBar({ title: "診断結果", right: shareButtonCopy(copy) }),
     copyHero(r),
     h("h1", { class: "result-title", id: "a-d3-title" }, copy.title),
+    story?.main ? h("p", { class: "a-story-main-label" }, badge("主軸", { tone: "ink" }), "あなたの動きの中心") : null,
     h("div", { class: "a-d4-copy-body", id: "result-main-copy" },
-      copy.paragraphs.map((p) => h("p", null, p)),
-      !details && copy.bridge ? h("p", { class: "a-d4-copy-bridge" }, copy.bridge) : null),
-    details ? supportingDetails(details) : null,
+      (story ? story.intro : copy.paragraphs).map((p) => h("p", null, p)),
+      !story && !details && copy.bridge ? h("p", { class: "a-d4-copy-bridge" }, copy.bridge) : null),
+    story ? primaryStory(story) : details ? supportingDetails(details) : null,
+    story ? storyCards(story) : null,
     copy.action
       ? h("div", { class: "a-d4-copy-action" },
         h("p", { class: "a-d4-copy-lead" }, ACTION_LEAD4),
         h("blockquote", { class: "a-d4-copy-quote" }, h("p", null, `「${copy.action}」`)))
       : null,
-    details ? detailedAxes(details) : breakdown3(r),
+    story ? null : details ? detailedAxes(details) : breakdown3(r),
     safetyBox3(r),
     sample ? h("p", { class: "a-note a-d3-sample" }, "サンプルの回答から作った結果です（試作の確認用）。") : null,
     h("div", { class: "a-dg-res-foot" },

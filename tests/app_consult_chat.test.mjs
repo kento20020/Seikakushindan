@@ -1,6 +1,6 @@
 // node tests/app_consult_chat.test.mjs
 // 新しい画面（app/）の相談のチャットの形（決定 U51）のうち、DOM の無い部分のテスト。画面そのもの（app/js/consult_chat.js）は Playwright で確かめる
-//  - 相談の形の切り替え（app/js/consult_version.js）：既定 talk（決定 U55）、?cv=chat、?cv=card、知らない値は既定
+//  - 相談の形の切り替え（app/js/consult_version.js）：既定 talk（決定 U56）、?cv=chat、?cv=card、知らない値は既定
 //  - 返し方（app/js/consult_chat_logic.js）：おまかせの決め方（短く・じっくり・ふつう）、表示、受け止めの最初の1文、相談の文のつなぎ（2000字で切る）
 //  - 診断の結果 → 判定に渡す本人の8領域（selfFromStatus：24問・三択・診断前・向きなし）、終わったあとの診断の案内（dxInvite）
 //  - 判定に診断を渡す：buildPoc・rejudge に self を渡すと判定の入力に入る／省くと今までと同じ
@@ -34,7 +34,7 @@ const NOON = new Date("2026-10-18T03:00:00Z");    // 日本時間の 12:00
 const NIGHT = new Date("2026-10-18T16:30:00Z");   // 日本時間の 1:30（深夜）
 
 // ---------------------------------------------------------------- 相談の形の切り替え
-test("consult_version：既定は talk（決定 U55）。?cv=chat でこのチャットの形、?cv=card で今までの形。知らない値・無しは既定", () => {
+test("consult_version：既定は talk（決定 U56）。?cv=chat でこのチャットの形、?cv=card で今までの形。知らない値・無しは既定", () => {
   assert.equal(V.DEFAULT_CONSULT_VERSION, "talk");
   assert.deepEqual([...V.CONSULT_VERSIONS], ["talk", "chat", "card"]);
   assert.equal(V.consultVersionFrom(""), "talk");
@@ -392,7 +392,7 @@ test("CHAT_TEXTS：仕様（U51）に書いた文のまま。です・ます", (
 test("main.js：#consult は版で consult_talk.js・consult_chat.js・consult.js。index.html は consult.css のあとに consult_chat.css。sw.js の殻に新しいファイル", () => {
   const main = read("app/js/main.js");
   assert.match(main, /import \{ consultVersion \} from "\.\/consult_version\.js";/);
-  // 決定 U55 で既定を talk に（?cv=chat でこのチャットの形、?cv=card で今までの形）
+  // 決定 U56 で既定を talk に（?cv=chat でこのチャットの形、?cv=card で今までの形）
   assert.match(main, /consult: \{ load: \(\) => \{ const v = consultVersion\(\); return v === "card" \? import\("\.\/consult\.js"\) : v === "chat" \? import\("\.\/consult_chat\.js"\) : import\("\.\/consult_talk\.js"\); \}/);
   const html = read("app/index.html");
   const a = html.indexOf('href="./css/consult.css"'), b = html.indexOf('href="./css/consult_chat.css"');

@@ -1,4 +1,4 @@
-/* app/css/consult_talk.css — 相談のふつうのチャットの形（#consult の既定。決定 U55。画面は app/js/consult_talk.js）
+/* app/css/consult_talk.css — 相談のふつうのチャットの形（#consult の既定。決定 U56。画面は app/js/consult_talk.js）
    今の部品（app/css/consult.css の a-cs-：吹き出し・送る文の吹き出し・コピーの札・安全のカードと窓口の1行・チップ）はそのまま使い、
    ここではこの形の並びだけを足す。クラスは a-tk- で始める（上の題に足す .a-tk-top も）。ボタンつきのチャット（a-ch-）と今までの形には効かない。
    色・文字・角・余白は app/css/app.css の変数だけ（直の色は書かない）。焦点の輪は app.css の決まりのまま（:focus-visible）。

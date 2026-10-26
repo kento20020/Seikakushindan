@@ -1,8 +1,8 @@
-// 相談の「ふつうのチャット」の形（app/js/consult_talk.js。決定 U55）のうち、DOM を使わない部分。node でテストできる（tests/app_consult_talk.test.mjs）
+// 相談の「ふつうのチャット」の形（app/js/consult_talk.js。決定 U56）のうち、DOM を使わない部分。node でテストできる（tests/app_consult_talk.test.mjs）
 //   選ぶボタンは出さない（安全の確かめだけ残す）。足りないことは文で聞き、文で答えてもらう。一手はカードでなく吹き出しの文章。
 //   返事は今の規則と決まった文（読み取り readText・足りない問 nextQuestion・判定 buildPoc・往復 consult_followup.js）。ここは、その間をつなぐ小さな決まりだけ
 //
-//   TALK_TEXTS                    この形で新しく足した決まった文（仕様 U55 に書いた文だけ）
+//   TALK_TEXTS                    この形で新しく足した決まった文（仕様 U56 に書いた文だけ）
 //   normalizeAnswer(text)         答えを比べる形に（全角・半角をそろえ、空白・句読点・括弧を外す）
 //   exampleLine(q) / retryText(q) 問いの下の答え方の例（「（例：A／B／C）」）／読み取れなかったときの聞き直し
 //   matchAnswer(q, text)          書いた答え → 選択肢の差分 { patch, label } | null（言い方の一覧 ANSWER_WORDS も）
@@ -20,7 +20,7 @@ import { REPLY_KIND_QUESTION } from "./consult_followup.js";
 
 export const MAX_CHARS = 2000;
 
-/** この形で新しく足した文（仕様 U55 に書いた文だけ。ほかは今の consult_chat.js・consult_followup.js・model.js の文を使う） */
+/** この形で新しく足した文（仕様 U56 に書いた文だけ。ほかは今の consult_chat.js・consult_followup.js・model.js の文を使う） */
 export const TALK_TEXTS = Object.freeze({
   greet: "いま、何があったか、そのまま書いてください。全部そろっていなくても大丈夫です。足りないところは、あとで少しだけ聞きます。",
   quoteGuide: "相手から来た文や、相手に言われた言葉は「」で囲んで書いてください。",
@@ -73,7 +73,7 @@ export function retryText(q) {
 
 // ---------------------------------------------------------------- 書いた答え → 選択肢
 /**
- * よくある短い答え（仕様 U55 §4.1 に書いたものだけ）。[言い方, 値]。値は、その問いの項目の値（選択肢の patch の値）
+ * よくある短い答え（仕様 U56 §4.1 に書いたものだけ）。[言い方, 値]。値は、その問いの項目の値（選択肢の patch の値）
  *   最後に送った人（lastSender）・いまの気持ち（selfTemp）・どうしたいか（intent）
  */
 export const ANSWER_WORDS = Object.freeze({
@@ -147,7 +147,7 @@ export function matchAnswer(q, text) {
   return { patch: { [field]: v }, label: o ? o.label : null };
 }
 
-/** 相手の返事の種類を文で聞く問（選択肢は今の F.REPLY_KIND_QUESTION と同じ。文だけ U55 の言い方） */
+/** 相手の返事の種類を文で聞く問（選択肢は今の F.REPLY_KIND_QUESTION と同じ。文だけ U56 の言い方） */
 export const REPLY_KIND_Q = Object.freeze({ id: "replyKind", text: TALK_TEXTS.replyKindQ, options: REPLY_KIND_QUESTION.options });
 
 // ---------------------------------------------------------------- 一手のあとに書いた文の種類
@@ -186,7 +186,7 @@ export function quotesOf(text) {
   return { quoted: quoted.map(s => s.trim()).filter(Boolean), rest: rest.join("").trim() };
 }
 /**
- * 一手のあとに書いた文の種類（仕様 U55 §4.2）
+ * 一手のあとに書いた文の種類（仕様 U56 §4.2）
  *   「」『』がある → "reply"（相手の返事。中身は quoted）
  *   送ったあと（sent）で、返事が来ないことを書いている → "noreply"（送ったあとに「送ったけど返事が来ない」と書いたときも）
  *   送ったことを書いている → "sent"
@@ -205,7 +205,7 @@ export function classifyFollow(text, { sent = false } = {}) {
 
 // ---------------------------------------------------------------- 一手の吹き出し
 /**
- * 一手の吹き出しの中身（カードの中身を文に並べ直す。文の中身は今の model の文だけ。仕様 U55 §5）。上から、無い物は飛ばす：
+ * 一手の吹き出しの中身（カードの中身を文に並べ直す。文の中身は今の model の文だけ。仕様 U56 §5）。上から、無い物は飛ばす：
  *   いまの一手：{見出し}（太字の1行）→ 送る時の行 →（待つ一手で戻る時刻があれば）{戻る時刻}：{時刻} → 理由の1行目
  *   →（待つ一手）{待つ間に}：{すること} → 送る一文（小さな見出しと引用の箱）→ 足さない方がいい一言：… → 相手はたぶん、…
  * m は buildPoc の結果か、履歴の写し（snapshotOf）。安全のモードは文章にしない（{ safety: true }。画面が安全のカードを置く）
@@ -241,7 +241,7 @@ export function partsText(parts) {
   return (parts || []).map(p => p.k === "draft" ? `${p.label ? `${p.label}\n` : ""}${p.text}` : `${p.lead ?? ""}${p.text ?? ""}`).filter(Boolean).join("\n");
 }
 
-/** 判定し直して一手が変わらないとき（仕様 U55 §3.3）：送る一文があれば前の見出しを、待つ一手なら戻る時刻を添える */
+/** 判定し直して一手が変わらないとき（仕様 U56 §3.3）：送る一文があれば前の見出しを、待つ一手なら戻る時刻を添える */
 export function keepText(m) {
   const T = TALK_TEXTS;
   if (m?.mode === "wait") return m.ret ? `${T.keep}${fillText(T.keepWait, { 時刻: timeLabel(m.result?.action ?? m.action) })}` : T.keep;
