@@ -5,7 +5,7 @@
 //  - 診断の結果 → 判定に渡す本人の8領域（selfFromStatus：24問・三択・診断前・向きなし）、終わったあとの診断の案内（dxInvite）
 //  - 判定に診断を渡す：buildPoc・rejudge に self を渡すと判定の入力に入る／省くと今までと同じ
 //  - カードより前のやりとりを記録に残す形（安全の確認は残さない）
-//  - 上の帯に常に出す、いまの状況の要約（statusSummary。言葉は「いまの状況」の3行と同じ）と、帯の2行目・低い画面の1行の決まり
+//  - 上の帯の「いまの状況」の3行（statusRows：やりとり・時間・気持ち。言葉は「いまの状況」の3行と同じ項目の言葉）と、帯の決まり（どの画面の高さでも同じ・開いた形が既定・たたむのはこの相談の間だけ）
 //  - つなぎ（main.js の振り分け・index.html の CSS・sw.js の殻）と、CSS の決まり（直の色なし・動きは transform と opacity だけ）
 // 時刻は UTC で渡し、時差は tzOffset（日本時間 540）で固定するので、実行環境の時差に依存しない
 import assert from "node:assert/strict";
@@ -258,77 +258,114 @@ test("prePersist：自分・アプリの吹き出しだけ { who, text, at, labe
   assert.deepEqual(L.preFrom(L.prePersist(items)), L.prePersist(items));
 });
 
-// ---------------------------------------------------------------- 上の帯の「いまの状況」の要約
-test("statusSummary：言い合いの最中・最後に送った人・どれくらい前か・気持ち・したいことを「・」でつなぐ", () => {
-  assert.equal(L.statusSummary({ ongoing: true, elapsed: "lt3h", selfTemp: "high", intent: "apologize" }), "いま言い合いの最中・3時間以内・まだ熱い・謝りたい");
-  assert.equal(L.statusSummary({ lastSender: "self", elapsed: "3h_12h", selfTemp: "cooling", goal: "reconcile" }), "最後に送ったのは自分・半日以内・落ち着いてきた・仲直りしたい");
-  assert.equal(L.statusSummary({ lastSender: "partner", partnerLast: "attack", elapsed: "12h_2d" }), "最後は相手から・1〜2日", "最後が相手のときは相手の言葉の補足を足さない");
-  assert.equal(L.statusSummary({ lastSender: "none", elapsed: "ge3d", selfTemp: "calm" }), "どちらも送っていない・3日以上・落ち着いている");
-  // ongoing が true なら、最後に送った人の言葉は出さない（statusLines と同じ先の決まり）
-  assert.equal(L.statusSummary({ ongoing: true, lastSender: "self" }), "いま言い合いの最中");
-  // ongoing が false なら最後に送った人
-  assert.equal(L.statusSummary({ ongoing: false, lastSender: "self" }), "最後に送ったのは自分");
+// ---------------------------------------------------------------- 上の帯の「いまの状況」の3行
+const rowsOf = (k) => L.statusRows(k).map(r => [r.key, r.label, r.text]);
+test("statusRows：見出しは やりとり・時間・気持ち の3つ（この順）。やりとりの文は statusLines の1行目そのまま", () => {
+  const k = { ongoing: true, elapsed: "lt3h", selfTemp: "high", intent: "apologize" };
+  assert.deepEqual(rowsOf(k), [
+    ["exchange", "やりとり", "いま言い合いの最中"],
+    ["time", "時間", "最後のやりとりから 3時間以内"],
+    ["feel", "気持ち", "まだ熱い・謝りたい"],
+  ]);
+  for (const kk of [k, {}, { lastSender: "self", selfLast: "hold" }, { lastSender: "partner", partnerLast: "attack" }, { lastSender: "none" }]) {
+    assert.equal(L.statusRows(kk)[0].text, F.statusLines(kk)[0]);
+  }
+  assert.deepEqual(rowsOf({ lastSender: "self", selfLast: "hold", elapsed: "3h_12h", selfTemp: "cooling" }), [
+    ["exchange", "やりとり", "最後に送ったのは自分（「落ち着いたら話そう」など）"],
+    ["time", "時間", "最後のやりとりから 半日以内"],
+    ["feel", "気持ち", "落ち着いてきた"],
+  ]);
+  // 言い合いの最中なら、最後に送った人の言葉は出さない（statusLines と同じ）
+  assert.equal(L.statusRows({ ongoing: true, lastSender: "self", selfLast: "apology" })[0].text, "いま言い合いの最中");
+  assert.equal(L.statusRows({ ongoing: false, lastSender: "partner", partnerLast: "attack" })[0].text, "最後は相手から（責める・「もういい」）");
 });
-test("statusSummary：自分が最後で、相手の言葉が「距離を置きたい」「別れ話」なら相手の言葉を足す（最後が相手のときは足さない）", () => {
-  assert.equal(L.statusSummary({ lastSender: "self", partnerLast: "space", elapsed: "12h_2d" }), "最後に送ったのは自分・相手の言葉：距離を置きたい・1〜2日");
-  assert.equal(L.statusSummary({ lastSender: "self", partnerLast: "breakup" }), "最後に送ったのは自分・相手の言葉：別れ話");
-  assert.equal(L.statusSummary({ partnerLast: "space", elapsed: "lt3h" }), "相手の言葉：距離を置きたい・3時間以内", "最後に送った人が分からなくても、相手の言葉は足す");
-  assert.equal(L.statusSummary({ ongoing: true, partnerLast: "breakup" }), "いま言い合いの最中・相手の言葉：別れ話");
-  assert.equal(L.statusSummary({ lastSender: "partner", partnerLast: "space" }), "最後は相手から");
-  assert.equal(L.statusSummary({ lastSender: "self", partnerLast: "attack" }), "最後に送ったのは自分", "責める・謝ってきた などは足さない");
-  assert.equal(L.statusSummary({ lastSender: "self", partnerLast: "none" }), "最後に送ったのは自分");
+test("statusRows：自分が最後で、相手の言葉が「距離を置きたい」「別れ話」なら、やりとりに相手の言葉を足す（最後が相手のときは括弧の中だけ）", () => {
+  assert.equal(L.statusRows({ lastSender: "self", partnerLast: "space", elapsed: "12h_2d" })[0].text, "最後に送ったのは自分。相手の言葉：距離を置きたい");
+  assert.equal(L.statusRows({ lastSender: "self", selfLast: "hold", partnerLast: "breakup" })[0].text, "最後に送ったのは自分（「落ち着いたら話そう」など）。相手の言葉：別れ話");
+  assert.equal(L.statusRows({ partnerLast: "space" })[0].text, "最後に送ったのは：分からない。相手の言葉：距離を置きたい");
+  assert.equal(L.statusRows({ ongoing: true, partnerLast: "breakup" })[0].text, "いま言い合いの最中。相手の言葉：別れ話");
+  assert.equal(L.statusRows({ lastSender: "partner", partnerLast: "space" })[0].text, "最後は相手から（距離を置きたい）");
+  assert.equal(L.statusRows({ lastSender: "self", partnerLast: "attack" })[0].text, "最後に送ったのは自分", "責める などは足さない");
+  assert.equal(L.statusRows({ lastSender: "self", partnerLast: "space", elapsed: "12h_2d" })[1].text, "最後のやりとりから 1〜2日");
 });
-test("statusSummary：もう仲直りしたは先頭に。したいこと（intent）が「特になし」ならゴール。未知（undefined・null）は出さない", () => {
-  assert.equal(L.statusSummary({ afterMakeup: true, lastSender: "partner", elapsed: "lt3h" }), "もう仲直りした・最後は相手から・3時間以内");
-  assert.equal(L.statusSummary({ afterMakeup: false, lastSender: "self" }), "最後に送ったのは自分", "仲直りしていない（false）は出さない");
-  assert.equal(L.statusSummary({ intent: "none", goal: "understood" }), "分かってほしい");
-  assert.equal(L.statusSummary({ intent: "tell", goal: "understood" }), "伝えたいことがある", "intent があればゴールは出さない");
-  assert.equal(L.statusSummary({ intent: null, goal: "settle", selfTemp: null, elapsed: undefined }), "ちゃんと決着をつけたい");
-  assert.equal(L.statusSummary({ intent: "none" }), L.STATUS_SUMMARY_NONE);
-  assert.equal(L.statusSummary({ goal: "space", intent: "request_space" }), "距離を置きたいと伝えたい");
+test("statusRows：もう仲直りしたは、やりとりの頭に（statusLines と同じ）。仲直りしていない（false）は足さない", () => {
+  assert.equal(L.statusRows({ afterMakeup: true, lastSender: "partner", partnerLast: "apology", elapsed: "lt3h" })[0].text, "もう仲直りした。最後は相手から（謝ってきた）");
+  assert.equal(L.statusRows({ afterMakeup: true })[0].text, "もう仲直りした。最後に送ったのは：分からない");
+  assert.equal(L.statusRows({ afterMakeup: false, lastSender: "self" })[0].text, "最後に送ったのは自分");
 });
-test("statusSummary：何も分からなければ「最後に送ったのは：分からない」（statusLines の1行目と同じ）。壊れた入力でも文字列を返す", () => {
-  assert.equal(L.statusSummary({}), "最後に送ったのは：分からない");
-  assert.equal(L.statusSummary(), "最後に送ったのは：分からない");
-  assert.equal(L.statusSummary(null), "最後に送ったのは：分からない");
-  assert.equal(L.statusSummary("x"), "最後に送ったのは：分からない");
-  assert.equal(L.statusSummary({}), F.statusLines({})[0]);
-  assert.equal(L.statusSummary({ lastSender: "self", elapsed: "bogus", selfTemp: "bogus" }), "最後に送ったのは自分", "選択肢に無い値は「分からない」と出さずに外す");
+test("statusRows：分からない項目は「分からない」（時間・気持ち）。やりとりは statusLines の分からないときの文。壊れた入力・選択肢に無い値でも3行を返す", () => {
+  const none = [["exchange", "やりとり", "最後に送ったのは：分からない"], ["time", "時間", L.STATUS_NONE], ["feel", "気持ち", L.STATUS_NONE]];
+  assert.equal(L.STATUS_NONE, "分からない");
+  assert.deepEqual(rowsOf({}), none);
+  assert.deepEqual(rowsOf(), none);
+  assert.deepEqual(rowsOf(null), none);
+  assert.deepEqual(rowsOf("x"), none);
+  assert.deepEqual(rowsOf({ elapsed: null, selfTemp: undefined, intent: null, goal: null }), none);
+  assert.deepEqual(rowsOf({ elapsed: "bogus", selfTemp: "bogus", intent: "bogus", goal: "bogus" }), none, "選択肢に無い値は「分からない」");
+  assert.equal(L.statusRows({ elapsed: "ge3d" })[1].text, "最後のやりとりから 3日以上");
+  assert.equal(L.statusRows({ selfTemp: "calm" })[2].text, "落ち着いている");
+  for (const r of L.statusRows({ lastSender: "self", elapsed: "lt3h", selfTemp: "high", intent: "tell" })) {
+    assert.ok(typeof r.text === "string" && r.text && !/undefined|null|\[object|：$/.test(r.text), r.text);
+    assert.doesNotMatch(r.text, /^(時間|気持ち|いまの気持ち)：/, "見出しの言葉を文の頭にくり返さない");
+  }
 });
-test("statusSummary：読み取りの結果・例文の状況でも使える（言葉は statusLines と同じ項目の言葉）", () => {
-  const t = "昨日の夜に喧嘩して、私が謝りのLINEを送ったけど既読のまま返事が来ない。";
-  const known = { ...readText(t).fields };
-  const s = L.statusSummary(known);
-  assert.equal(typeof s, "string");
-  assert.ok(s.length > 0 && !s.includes("undefined") && !s.includes("null"), s);
+test("statusRows：気持ちは いまの気持ち → したいこと。したいことが「特になし」・分からないならゴール。したいことがあればゴールは出さない", () => {
+  const feel = (k) => L.statusRows(k)[2].text;
+  assert.equal(feel({ selfTemp: "high", intent: "apologize", goal: "reconcile" }), "まだ熱い・謝りたい");
+  assert.equal(feel({ selfTemp: "cooling", intent: "none", goal: "reconcile" }), "落ち着いてきた・仲直りしたい");
+  assert.equal(feel({ selfTemp: "calm", goal: "settle" }), "落ち着いている・ちゃんと決着をつけたい");
+  assert.equal(feel({ intent: "tell", goal: "understood" }), "伝えたいことがある");
+  assert.equal(feel({ intent: "none", goal: "understood" }), "分かってほしい");
+  assert.equal(feel({ intent: null, goal: "space" }), "少し距離を置きたい");
+  assert.equal(feel({ intent: "request_space" }), "距離を置きたいと伝えたい");
+  assert.equal(feel({ intent: "none" }), L.STATUS_NONE, "「特になし」だけなら分からない");
+  assert.equal(feel({ selfTemp: "high", intent: "none" }), "まだ熱い");
+});
+test("statusRows：読み取りの結果・例文の状況でも3行（言葉は statusLines と同じ項目の言葉）", () => {
   for (const ex of CONSULT_EXAMPLES) {
-    const r = L.statusSummary({ ...readText(ex.text).fields });
-    assert.ok(typeof r === "string" && r && !/undefined|null|\[object/.test(r), `${ex.text}: ${r}`);
-    // 3行のどれかに出ている言葉だけを使う（要約の各部分は statusLines のいずれかの行に含まれる）
-    const lines = F.statusLines({ ...readText(ex.text).fields }).join("。");
-    for (const part of r.split("・").filter(p => p !== L.STATUS_SUMMARY_NONE)) {
-      const word = part.replace(/^相手の言葉：/, "");
-      assert.ok(lines.includes(word), `${ex.text}: 「${part}」が3行に無い`);
+    const k = { ...readText(ex.text).fields };
+    const rows = L.statusRows(k);
+    assert.deepEqual(rows.map(r => r.label), ["やりとり", "時間", "気持ち"]);
+    const lines = F.statusLines(k).join("。");
+    assert.equal(rows[0].text, F.statusLines(k)[0]);
+    for (const r of rows.slice(1)) {
+      assert.ok(typeof r.text === "string" && r.text && !/undefined|null|\[object/.test(r.text), `${ex.text}: ${r.text}`);
+      if (r.text === L.STATUS_NONE) continue;
+      for (const part of r.text.replace(/^最後のやりとりから /, "").split("・")) assert.ok(lines.includes(part), `${ex.text}: 「${part}」が3行に無い`);
     }
   }
 });
-test("上の帯：背の高い画面は2行目に要約（a-ch-sum）、max-height: 700px では今までの1行（右の小さな「状況」）。開け閉めは1つの状態で、パネルの高さは帯の上の部分から引く", () => {
+test("上の帯：どの画面の高さでも同じ（1行目＋「いまの状況」の3行）。開いた形が既定で、右の小さなボタンでたたむ（この相談の間だけ）。帯の高さは下の欄に隠れない上限", () => {
   const js = read("app/js/consult_chat.js");
-  assert.match(js, /class: "a-ch-sum", "aria-expanded": String\(S\.statusOpen\), "aria-controls": "a-ch-status-panel"/);
-  assert.match(js, /h\("span", \{ class: "a-ch-sum-label" \}, "いまの状況"\)/);
-  assert.match(js, /h\("span", \{ class: "a-ch-sum-text" \}, L\.statusSummary\(S\.fu\.known\)\)/);
-  assert.match(js, /toggle\.addEventListener\("click", flip\);\s*sum\.addEventListener\("click", flip\);/);
-  assert.match(js, /toggle\.setAttribute\("aria-expanded", String\(S\.statusOpen\)\);\s*sum\.setAttribute\("aria-expanded", String\(S\.statusOpen\)\);/);
-  assert.match(js, /--a-ch-band-head-h/);
+  assert.match(js, /bandCollapsed: false,/, "新しい相談・読み込み直しでは開いた形（fresh0）");
+  assert.doesNotMatch(js, /statusOpen|statusSummary|a-ch-sum|--a-ch-band-head-h|scrollBy/, "前の要約の行・開け閉めの欄の名残を残さない");
+  // 読み上げの名前は見える字そのもの（aria-label で上書きしない。見える字を言えば音声で押せる）
+  assert.match(js, /class: "a-ch-st-btn", "aria-controls": STATUS_ID \}/);
+  assert.match(js, /const word = h\("span", \{ class: "a-ch-st-word" \}\);/, "見える字を読み上げから隠さない");
+  assert.match(js, /toggle\.setAttribute\("aria-expanded", String\(open\)\);\s*word\.textContent = open \? "たたむ" : "状況";/);
+  assert.match(js, /toggle\.addEventListener\("click", \(\) => \{ S\.bandCollapsed = !S\.bandCollapsed; sync\(\); \}\);/);
+  assert.match(js, /h\("dl", \{ class: "a-ch-st-rows" \}, rows\.flatMap\(r => \[h\("dt", \{ "data-row": r\.key \}, r\.label\), h\("dd", \{ "data-row": r\.key \}, r\.text\)\]\)\)/);
+  assert.match(js, /const rows = L\.statusRows\(S\.fu\.known\);/);
+  assert.match(js, /--a-ch-band-y0/);
+  assert.doesNotMatch(read("app/js/consult_chat_logic.js"), /statusSummary|STATUS_SUMMARY_NONE/);
   const css = read("app/css/consult_chat.css").replace(/\/\*[\s\S]*?\*\//g, "");
-  assert.match(css, /\.a-ch-st-btn \{\s*display: none;/, "背の高い画面では小さな「状況」を出さない（読み上げからも外す）");
-  assert.match(css, /@media \(max-height: 700px\) \{\s*\.a-ch-sum \{ display: none; \}\s*\.a-ch-st-btn \{ display: inline-flex; \}\s*\}/);
-  assert.match(css, /\.a-ch-sum \{[^}]*min-height: 44px;/);
-  assert.match(css, /\.a-ch-sum-text \{[^}]*-webkit-line-clamp: 2;[^}]*line-clamp: 2;[^}]*overflow: hidden;/);
-  assert.match(css, /\.a-ch-band \.a-ch-status-panel \{[^}]*var\(--a-ch-band-head-h/);
+  for (const m of css.matchAll(/@media \(max-height: 700px\) \{([\s\S]*?)\n\}/g)) {
+    assert.doesNotMatch(m[1], /a-ch-band|a-ch-st-|a-ch-status|a-ch-now/, "帯は背の低い画面でも同じ形（max-height: 700px で変えない）");
+  }
+  assert.doesNotMatch(css, /a-ch-sum|a-ch-status-panel|--a-ch-band-head-h/);
+  assert.match(css, /\.a-ch-st-btn \{\s*display: inline-flex;[^}]*min-width: 44px;[^}]*min-height: 44px;/);
+  assert.match(css, /\.a-ch-band \{[^}]*max-height: calc\(100dvh - var\(--a-ch-dock-h, 0px\) - var\(--a-ch-band-y0, 0px\) - var\(--sp-2\)\);/);
+  assert.match(css, /\.a-ch-status \{[^}]*overflow-y: auto;[^}]*overscroll-behavior: contain;/);
+  assert.match(css, /\.a-ch-st-rows \{[^}]*display: grid;[^}]*grid-template-columns: var\(--a-ch-st-hw\) minmax\(0, 1fr\);/);
+  assert.doesNotMatch(css.match(/\.a-ch-st-rows dd \{[^}]*\}/)[0], /nowrap|ellipsis|line-clamp/, "文は切らずに折り返す");
+  assert.match(css, /\.a-ch-status \.a-cs-status-fix \{[^}]*margin: [^;]*calc\(var\(--a-ch-st-hw\) \+ var\(--sp-3\)\);/, "［ちがうところがある］は文の列にそろえる");
   assert.doesNotMatch(css, /\b64px\b/, "帯の高さの決め打ち（64px）は使わない");
-  // 低い画面の1行の帯は今までどおり（ボタンの大きさ）
-  assert.match(css, /\.a-ch-st-btn \{[^}]*min-width: 44px;[^}]*min-height: 44px;/);
+  // 小さな文字（帯の3行・開け閉め）の字の間は 0.04em まで
+  for (const sel of [".a-ch-st-rows dt", ".a-ch-st-rows dd", ".a-ch-st-btn"]) {
+    const block = css.match(new RegExp(sel.replace(/[.]/g, "\\.") + " \\{[^}]*\\}"))[0];
+    const ls = block.match(/letter-spacing: ([0-9.]+)em/);
+    assert.ok(ls && Number(ls[1]) <= 0.04, `${sel} の字の間：${ls?.[1]}`);
+  }
 });
 
 // ---------------------------------------------------------------- 文

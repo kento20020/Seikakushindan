@@ -30,6 +30,7 @@ const MAX_CHARS = L.MAX_CHARS;
 const DRAFT_KEY = "seikaku16:app:consult-draft";       // 今の consult.js と同じ（最初の相談の文の書きかけ）
 const ACTIVE_KEY = "seikaku16:app:consult-active";     // 今の consult.js と同じ（読み込み直したときに続きから）
 const TITLE_CHARS = 32;
+const STATUS_ID = "a-ch-status";                       // 上の帯の「いまの状況」（3行と［ちがうところがある］）
 /** 書き方の例（今の consult.js の GUIDE_ROWS と同じ） */
 const GUIDE_ROWS = [
   ["いつ・どこで", "（例：|昨日の夜|23時ごろ、|LINEで）"],
@@ -127,7 +128,7 @@ export function render(root) {
     safetyFrom: null,
     fuSafetyCard: false,   // 続きの安全の確認で「今、危ない」を選んだ
     offer: null,
-    statusOpen: false,
+    bandCollapsed: false,  // 上の帯の「いまの状況」をたたんだか（この相談の間だけ。新しい相談・読み込み直し・続きから開いたときは開いた形に戻る）
     panel: null,           // 下の欄の上に開いている欄 "settings" | "draft"
     draftEdit: null,
     shortOpen: false,      // 短いカードの［くわしく見る］を開いたか
@@ -165,19 +166,18 @@ export function render(root) {
   });
   sendBtn.addEventListener("click", send);
 
-  // 下の欄・上の帯の高さを CSS の変数に（やりとりの下の余白・動かしたときに帯で隠れない余白）
+  // 下の欄・上の帯の高さを CSS の変数に（やりとりの下の余白・動かしたときに帯で隠れない余白）。
+  // --a-ch-band-y0：帯の元の位置（上の題の下。ページのいちばん上にいるとき、帯はここから下に出る）。帯の高さの上限に使う（帯がどの位置でも下の欄に隠れない）
   function sizeVars() {
     wrap.style.setProperty("--a-ch-dock-h", `${Math.ceil(dock.hidden ? 0 : dock.getBoundingClientRect().height)}px`);
     const b = bandSlot.firstElementChild;
     wrap.style.setProperty("--a-ch-band-h", `${b ? Math.ceil(b.getBoundingClientRect().height) : 0}px`);
-    // 開いた「いまの状況」の高さの上限に使う、帯の上の部分（1〜2行）だけの高さ
-    const hd = b?.querySelector(".a-ch-band-head");
-    wrap.style.setProperty("--a-ch-band-head-h", `${hd ? Math.ceil(hd.getBoundingClientRect().height) : 0}px`);
+    wrap.style.setProperty("--a-ch-band-y0", `${Math.max(0, Math.ceil(topSlot.getBoundingClientRect().bottom + window.scrollY))}px`);
   }
   const ro = typeof ResizeObserver === "function" ? new ResizeObserver(sizeVars) : null;
   ro?.observe(dock);
   ro?.observe(bandSlot);
-  const headRo = typeof ResizeObserver === "function" ? new ResizeObserver(sizeVars) : null;   // 帯の上の部分の高さが変わったとき（要約が折り返すなど）
+  ro?.observe(topSlot);
 
   /** 書く欄の高さ（1行から6行くらいまで。上限は CSS の max-height） */
   function fit() {
@@ -675,7 +675,6 @@ export function render(root) {
     if (v === null) delete k[key]; else k[key] = v;
     S.fu.known = k;
     push({ who: "me", text: `直した：${F.editName(key)}は「${F.valueLabel(key, v)}」` });
-    S.statusOpen = false;
     const changed = settle();
     logTurn({ btn: "edit", key, value: v }, changed);
     commit();
@@ -1282,7 +1281,12 @@ export function render(root) {
     }
   }
 
-  /** (a) 上の帯：「いまの一手」（押すとカードへ）と「いまの状況」（たたむと1行） */
+  /**
+   * (a) 上の帯（最初のカードのあと。どの画面の高さでも同じ）：
+   *   1行目 「いまの一手」と見出し（押すとカードへ）＋ 右の小さな開け閉め（見える文字は開いているとき「たたむ」・たたんだとき「状況」。読み上げは「いまの状況」）
+   *   その下 「いまの状況」の3行（見出し やりとり・時間・気持ち と文。L.statusRows）と［ちがうところがある］（文の列にそろえる）
+   *   開いた形が既定。たたむのはこの相談の間だけ（S.bandCollapsed。残さない）。描き直すたびに今の状況で作り直す
+   */
   function bandView() {
     const m = S.model;
     const head = m.mode === "safety" ? T.nowSafety : m.headline;
@@ -1295,43 +1299,26 @@ export function render(root) {
       el.scrollIntoView({ block: "start", behavior: reduceMotion() ? "auto" : "smooth" });
       el.focus({ preventScroll: true });
     });
-    const { toggle, sum, panel } = statusBand();
-    // 背の高い画面では2行目に状況の要約（sum）、背の低い画面（max-height: 700px）では1行目の右の小さな「状況」（toggle）。どちらも同じ開け閉め
-    const top = h("div", { class: "a-ch-band-head" }, h("div", { class: "a-ch-band-row" }, now, toggle), sum);
-    headRo?.disconnect();
-    headRo?.observe(top);
-    return h("section", { class: "a-ch-band", "aria-label": T.nowLabel }, top, panel);
-  }
-  /**
-   * 帯の「いまの状況」：2行目の要約（背の高い画面。常に1〜2行で見える）と、1行目の右の小さな開け閉め（背の低い画面。見える文字は「状況」、読み上げは「いまの状況」）。
-   * どちらを押しても、帯の下に「いまの状況」の3行・［ちがうところがある］が開く（S.statusOpen。2つの aria-expanded はそろえる）
-   */
-  function statusBand() {
-    const lines = F.statusLines(S.fu.known);
-    const panel = h("div", { class: "a-cs-status-panel a-ch-status-panel", id: "a-ch-status-panel", role: "group", "aria-label": "いまの状況", hidden: !S.statusOpen },
-      h("ul", { class: "a-cs-status-lines" }, lines.map(t => h("li", null, t))),
-      statusEditor());
-    const toggle = h("button", { type: "button", class: "a-ch-st-btn", "aria-label": "いまの状況", "aria-expanded": String(S.statusOpen), "aria-controls": "a-ch-status-panel" },
-      h("span", { "aria-hidden": "true" }, "状況"), icon("chevron-down", { size: 16 }));
-    const sum = h("button", { type: "button", class: "a-ch-sum", "aria-expanded": String(S.statusOpen), "aria-controls": "a-ch-status-panel" },
-      h("span", { class: "a-ch-sum-label" }, "いまの状況"),
-      h("span", { class: "a-ch-sum-text" }, L.statusSummary(S.fu.known)),
-      icon("chevron-down", { size: 16 }));
-    const flip = () => {
-      S.statusOpen = !S.statusOpen;
-      panel.hidden = !S.statusOpen;
-      toggle.setAttribute("aria-expanded", String(S.statusOpen));
-      sum.setAttribute("aria-expanded", String(S.statusOpen));
-      // 背の高い画面（要約の行が見えている）で、帯がまだ上に留まっていない（ページの先頭に近い）ときは、帯が上に付く位置までページを動かす
-      // （開いた欄の高さの上限は、帯が上に付いている前提で、下の欄に隠れない高さにしてあるため。背の低い画面は今までどおり動かさない）
-      if (S.statusOpen && sum.getClientRects().length) {
-        const top = bandSlot.getBoundingClientRect().top;
-        if (top > 1) window.scrollBy(0, top);
-      }
+    const block = statusBlock();
+    // 読み上げの名前は見える字そのもの（「たたむ」「状況」。音声の操作で見える字を言えば押せる）。開いているかは aria-expanded で伝える
+    const word = h("span", { class: "a-ch-st-word" });
+    const toggle = h("button", { type: "button", class: "a-ch-st-btn", "aria-controls": STATUS_ID }, word, icon("chevron-down", { size: 16 }));
+    const sync = () => {
+      const open = !S.bandCollapsed;
+      block.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
+      word.textContent = open ? "たたむ" : "状況";
     };
-    toggle.addEventListener("click", flip);
-    sum.addEventListener("click", flip);
-    return { toggle, sum, panel };
+    toggle.addEventListener("click", () => { S.bandCollapsed = !S.bandCollapsed; sync(); });
+    sync();
+    return h("section", { class: "a-ch-band", "aria-label": T.nowLabel }, h("div", { class: "a-ch-band-row" }, now, toggle), block);
+  }
+  /** 帯の「いまの状況」：3行（dt＝見出し・dd＝文。文は折り返して全部出す）と［ちがうところがある］ */
+  function statusBlock() {
+    const rows = L.statusRows(S.fu.known);
+    return h("div", { class: "a-ch-status", id: STATUS_ID, role: "group", "aria-label": "いまの状況" },
+      h("dl", { class: "a-ch-st-rows" }, rows.flatMap(r => [h("dt", { "data-row": r.key }, r.label), h("dd", { "data-row": r.key }, r.text)])),
+      statusEditor());
   }
   function statusEditor() {
     const id = "a-ch-status-edit";
@@ -1438,7 +1425,6 @@ export function render(root) {
     clearInterval(tick);
     timers.clear();
     ro?.disconnect();
-    headRo?.disconnect();
     window.removeEventListener("popstate", onPop);
     activeStore.set(null);
   };

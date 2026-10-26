@@ -70,7 +70,10 @@
 /* 上の「危ないときは」で出す安全のカード */
 .a-ch-view { padding-top: var(--sp-2); }
 
-/* ---------------------------------------------------------------- (a) 上に留まる帯「いまの一手」「いまの状況」 */
+/* ---------------------------------------------------------------- (a) 上に留まる帯「いまの一手」「いまの状況」
+   どの画面の高さでも同じ形：1行目に「いまの一手」と右の小さな開け閉め、その下に「いまの状況」の3行と［ちがうところがある］（開いた形が既定）。
+   帯の高さの上限は、画面の高さから下の欄（--a-ch-dock-h）と帯の元の位置（--a-ch-band-y0。上の題の下）を引いた高さ。
+   帯がページのどの位置にあっても下の欄に隠れない。入らない分は「いまの状況」の中だけで縦に動かす */
 .a-ch-band-slot {
   position: sticky;
   top: 0;
@@ -78,13 +81,16 @@
   margin: 0 calc(-1 * var(--gutter));
 }
 .a-ch-band {
-  padding: 2px var(--gutter) var(--sp-1);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--a-ch-dock-h, 0px) - var(--a-ch-band-y0, 0px) - var(--sp-2));
+  max-height: calc(100dvh - var(--a-ch-dock-h, 0px) - var(--a-ch-band-y0, 0px) - var(--sp-2));
+  padding: 2px var(--gutter) 0;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
-/* 1行目：左に「いまの一手」と見出し（押すとカードへ）、右に「状況」の開け閉め（背の低い画面だけ）。
-   2行目（背の高い画面）：「いまの状況」の要約（2行まで）。押すと、背の低い画面の「状況」と同じ開け閉め */
-.a-ch-band-row { display: flex; align-items: center; gap: var(--sp-2); }
+/* 1行目：左に「いまの一手」と見出し（押すとカードへ）、右に小さな開け閉め（「たたむ」／「状況」） */
+.a-ch-band-row { display: flex; flex: none; align-items: center; gap: var(--sp-2); }
 .a-ch-now {
   display: flex;
   flex: 1;
@@ -110,69 +116,77 @@
   line-height: 1.6;
   letter-spacing: 0.04em;
 }
-/* 2行目：背の高い画面で常に見える状況の要約。見出し（いまの状況）の字の大きさ・間は 1行目の「いまの一手」とそろえ、文の頭を縦にそろえる */
-.a-ch-sum {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  width: 100%;
-  min-height: 44px;
-  padding: 2px 4px;
-  border: 0;
-  border-radius: var(--r-md);
-  background: none;
-  color: var(--ink-2);
-  text-align: left;
-}
-.a-ch-sum-label { flex: none; font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0.1em; color: var(--ink-2); }
-.a-ch-sum-text {
-  flex: 1;
-  min-width: 0;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  font-size: var(--fs-sm);
-  line-height: 1.5;
-  letter-spacing: 0.04em;
-}
-.a-ch-sum .a-ic { flex: none; color: var(--ink-2); }
-.a-ch-sum[aria-expanded="true"] .a-ic { transform: rotate(180deg); }
-/* 1行目の右の小さな「状況」：背の高い画面では出さない（display:none で読み上げからも外す。開け閉めは 2行目の要約が受け持つ） */
 .a-ch-st-btn {
-  display: none;
+  display: inline-flex;
   flex: none;
   align-items: center;
   gap: 2px;
   min-width: 44px;
   min-height: 44px;
-  padding: 0 6px 0 10px;
+  padding: 0 4px 0 10px;
   border: 0;
   border-left: 1px solid var(--line);
   background: none;
   color: var(--rose-ink);
   font-size: var(--fs-sm);
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   white-space: nowrap;
 }
 .a-ch-st-btn .a-ic { color: var(--ink-2); }
 .a-ch-st-btn[aria-expanded="true"] .a-ic { transform: rotate(180deg); }
-/* 背の低い画面（max-height: 700px）：今までの1行の帯。要約の行は出さず、右の小さな「状況」を出す */
-@media (max-height: 700px) {
-  .a-ch-sum { display: none; }
-  .a-ch-st-btn { display: inline-flex; }
-}
-/* 開いた「いまの状況」：帯の上の部分（1〜2行。--a-ch-band-head-h）の下。下の欄に隠れない高さまで（中で動かせる。12px は帯の余白・線のぶん） */
-.a-ch-band .a-ch-status-panel {
-  max-height: min(50vh, calc(100vh - var(--a-ch-dock-h, 0px) - var(--a-ch-band-head-h, 52px) - 12px));
-  max-height: min(50dvh, calc(100dvh - var(--a-ch-dock-h, 0px) - var(--a-ch-band-head-h, 52px) - 12px));
+.a-ch-st-btn:hover { color: var(--ink); }
+/* 焦点の輪：帯は画面のいちばん上に付き、「いまの状況」は中で動かす欄なので、輪が切れないように内側寄りに出す */
+.a-ch-band-row > button:focus-visible { outline-offset: -1px; }
+.a-ch-status .a-cs-toggle:focus-visible { outline-offset: -4px; border-radius: var(--r-md); }
+.a-ch-status .a-cs-chip:focus-visible { outline-offset: 1px; }
+/* その下：「いまの状況」の3行。左に細い見出しの列（--a-ch-st-hw）、右に文（折り返して全部出す）。［ちがうところがある］は文の列にそろえる */
+.a-ch-status {
+  --a-ch-st-hw: 3.5rem;
+  min-height: 0;
   overflow-y: auto;
-  padding: var(--sp-2) 4px var(--sp-3);
+  overscroll-behavior: contain;
+  padding: var(--sp-2) 4px var(--sp-3);   /* 下は［ちがうところがある］の押せる範囲（上下に 12px 広げる）が中に収まる分 */
   border-top: 1px solid var(--line);
 }
+.a-ch-st-rows {
+  display: grid;
+  grid-template-columns: var(--a-ch-st-hw) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 2px var(--sp-3);
+  margin: 0;
+}
+.a-ch-st-rows dt {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.55;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.a-ch-st-rows dd {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  letter-spacing: 0.02em;
+  word-break: auto-phrase;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+.a-ch-status .a-cs-status-fix {
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 0 calc(var(--a-ch-st-hw) + var(--sp-3));
+}
+.a-ch-status .a-cs-toggle { min-height: 0; font-size: var(--fs-sm); }
+.a-ch-status .a-cs-toggle.a-link-tap { padding: 12px 6px; margin: -12px -6px; }
+.a-ch-status .a-cs-status-edit { gap: var(--sp-2); padding-bottom: var(--sp-1); }
+/* 開いた［ちがうところがある］：帯の中なので、説明・項目・選択肢は小さめの字（押せる高さは 44px のまま） */
+.a-ch-status .a-cs-status-edit > p { font-size: var(--fs-sm); line-height: 1.6; letter-spacing: 0.02em; }
+.a-ch-status .a-cs-chip { padding: 6px 14px; font-size: var(--fs-sm); letter-spacing: 0.02em; }
+.a-ch-status .a-cs-edit-q { font-size: var(--fs-sm); letter-spacing: 0.04em; }
 
 /* ---------------------------------------------------------------- 下に固定の入力の欄 */
 .a-ch-dock {

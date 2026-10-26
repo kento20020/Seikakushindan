@@ -11,10 +11,10 @@
 //   hasSide(domains) / selfFromStatus(status)  診断の結果 → 判定に渡す本人の8領域（向きが1つも無ければ null）
 //   dxInvite(outcome, status)  終わったあとに診断を案内するか（［仲直りできた］［まだ］で、診断が終わっていない人だけ）
 //   prePersist(items) / preFrom(raw)  カードより前のやりとりを、記録に残す形に／記録から戻す形に
-//   statusSummary(known)       上の帯に常に出す、いまの状況の1〜2行（「・」でつないだ短い言葉。言葉は「いまの状況」の3行と同じ）
+//   statusRows(known)          上の帯に出す「いまの状況」の3行（見出し やりとり・時間・気持ち と文。言葉は「いまの状況」の3行と同じ項目の言葉）
 import { domainsFromResult4 } from "../../js/consult/from_diagnosis4.js";
 import { domainsFromProfile3 } from "../../js/consult/from_diagnosis.js";
-import { valueLabel } from "./consult_followup.js";
+import { valueLabel, statusLines } from "./consult_followup.js";
 
 export const MAX_CHARS = 2000;
 
@@ -176,35 +176,30 @@ export function preFrom(raw) {
   return prePersist(raw);
 }
 
-// ---------------------------------------------------------------- 上の帯の「いまの状況」の要約
+// ---------------------------------------------------------------- 上の帯の「いまの状況」の3行
+/** 分からない項目の文 */
+export const STATUS_NONE = "分からない";
 const isKnown = (v) => v !== undefined && v !== null;
-/** 状況の項目の言葉。値が選択肢に無ければ（「分からない」になるので）null */
+/** 状況の項目の言葉。分からない（値が無い・選択肢に無い・言葉が「分からない」）なら null */
 const labelOf = (key, v) => {
   if (!isKnown(v)) return null;
   const t = valueLabel(key, v);
-  return t && t !== "分からない" ? t : null;
+  return t && t !== STATUS_NONE ? t : null;
 };
-export const STATUS_SUMMARY_NONE = "最後に送ったのは：分からない";
 /**
- * 上の帯（背の高い画面）に常に出す、いまの状況の要約。言葉は「いまの状況」の3行（consult_followup.js の statusLines）と同じ。
- *   もう仲直りした → 「いま言い合いの最中」「最後に送ったのは自分」「最後は相手から」「どちらも送っていない」
- *   → （自分が最後で、相手の言葉が距離・別れ話なら）相手の言葉 → どれくらい前か → いまの気持ち → したいこと（無ければゴール）
- *   を、分かっているものだけ「・」でつなぐ。1つも無ければ「最後に送ったのは：分からない」
+ * 上の帯に出す「いまの状況」の3行 [{ key, label, text }]（見出しの言葉は label。文は折り返して全部出す）：
+ *   やりとり（exchange）… 「いまの状況」の1行目（consult_followup.js の statusLines の1行目そのまま。分からないときの文・もう仲直りした・相手の言葉の補足も同じ）
+ *   時間（time）       … 「最後のやりとりから 3時間以内」。分からなければ「分からない」
+ *   気持ち（feel）     … いまの気持ち → したいこと（「特になし」ならゴール）の言葉を「・」でつなぐ。どれも分からなければ「分からない」
  */
-export function statusSummary(known) {
+export function statusRows(known) {
   const k = known && typeof known === "object" ? known : {};
-  const parts = [];
-  if (k.afterMakeup === true) parts.push("もう仲直りした");
-  if (k.ongoing === true) parts.push("いま言い合いの最中");
-  else if (k.lastSender === "self") parts.push("最後に送ったのは自分");
-  else if (k.lastSender === "partner") parts.push("最後は相手から");
-  else if (k.lastSender === "none") parts.push("どちらも送っていない");
-  if (k.lastSender !== "partner" && (k.partnerLast === "space" || k.partnerLast === "breakup")) parts.push(`相手の言葉：${valueLabel("partnerLast", k.partnerLast)}`);
   const elapsed = labelOf("elapsed", k.elapsed);
-  if (elapsed) parts.push(elapsed);
-  const temp = labelOf("selfTemp", k.selfTemp);
-  if (temp) parts.push(temp);
-  const want = isKnown(k.intent) && k.intent !== "none" ? labelOf("intent", k.intent) : isKnown(k.goal) ? labelOf("goal", k.goal) : null;
-  if (want) parts.push(want);
-  return parts.length ? parts.join("・") : STATUS_SUMMARY_NONE;
+  const want = (k.intent !== "none" ? labelOf("intent", k.intent) : null) ?? labelOf("goal", k.goal);
+  const feel = [labelOf("selfTemp", k.selfTemp), want].filter(Boolean);
+  return [
+    { key: "exchange", label: "やりとり", text: statusLines(k)[0] },
+    { key: "time", label: "時間", text: elapsed ? `最後のやりとりから ${elapsed}` : STATUS_NONE },
+    { key: "feel", label: "気持ち", text: feel.length ? feel.join("・") : STATUS_NONE },
+  ];
 }
