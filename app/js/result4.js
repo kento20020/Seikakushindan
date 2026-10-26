@@ -18,6 +18,7 @@
 //     いちばん下（操作のあと）：静かな1行「危ないときは：相談できる窓口 ›」（ui.js の helpFoot。右上はシェアなので、上の帯には付けない）
 //   外したもの：見出し『今回の回答で目立つ傾向』、主軸と補足のカード、8つの領域の線と絵、状態の見出し
 //   中の ID（B1-1・PAIR-7B-8B・テーマの名前）は画面に出さない
+//   U54：既定では補足の詳しい本文と8軸一覧を表示する（result_details.js）。上記の短い表示は ?rd=compact。
 //
 // ■ 前の形（決定 U44。?rc=u44。renderU44。下のコメントのまま）
 //   上：「←」・中央「診断結果」・右に「シェア」（app/js/share.js。文はサービス名と冒頭の見出し、リンクは app/?from=share。結果はリンクに載せない。決定 U45）
@@ -46,6 +47,7 @@ import { heroArt4, axisArt4, NAVY, ART_SIZE } from "./axis_art.js";
 import { shareResult, shareText4, shareTextCopy4 } from "./share.js";
 import { isCopyResult } from "./result_copy_version.js";
 import { safetyNote4, CONSULT_ROW_SUB } from "./safety.js";
+import { showResultDetails, detailModel, supportingDetails, detailedAxes } from "./result_details.js";
 
 export const RESULT_TITLE4 = "今回の回答で目立つ傾向";
 export const RESULT_NOTE4 = "今回の回答から見た傾向です。相手や状況によって変わることがあります。";
@@ -66,20 +68,22 @@ function renderCopy(root) {
   if (!r) { root.append(emptyView()); return; }
   try { recordDiagnosis4(r); } catch (err) { console.error(err); }
   const copy = copyOf4(r);
+  const details = showResultDetails() ? detailModel(r, copy) : null;
   const none = copy.kind === "none";
   root.append(h("div", { class: "a-dg-res a-d4-res a-d4-copy", "data-dv": "v4", "data-kind": copy.kind },
     topBar({ title: "診断結果", right: shareButtonCopy(copy) }),
     copyHero(r),
     h("h1", { class: "result-title", id: "a-d4-title" }, copy.title),
-    h("div", { class: "a-d4-copy-body" },
+    h("div", { class: "a-d4-copy-body", id: "result-main-copy" },
       copy.paragraphs.map((p) => h("p", null, p)),
-      copy.bridge ? h("p", { class: "a-d4-copy-bridge" }, copy.bridge) : null),
+      !details && copy.bridge ? h("p", { class: "a-d4-copy-bridge" }, copy.bridge) : null),
+    details ? supportingDetails(details) : null,
     copy.action
       ? h("div", { class: "a-d4-copy-action" },
         h("p", { class: "a-d4-copy-lead" }, ACTION_LEAD4),
         h("blockquote", { class: "a-d4-copy-quote" }, h("p", null, `「${copy.action}」`)))
       : null,
-    breakdown(r),
+    details ? detailedAxes(details) : breakdown(r),
     safetyBox(r),
     h("div", { class: "a-dg-res-foot" },
       h("div", { class: "a-card a-rows a-dg-res-rows" }, none
