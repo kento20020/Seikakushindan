@@ -920,6 +920,56 @@ html.a-dg-swiping, html.a-dg-swiping * { cursor: grabbing !important; }
 .a-d4-copy .a-dg-res-foot { margin-top: var(--sp-6); }
 .a-d3-sample { margin-top: var(--sp-6); }   /* 三択（決定 U49）：サンプルの結果のときだけ */
 
+/* 詳しい結果：主な傾向・補足・8軸。大きな結果タイトルは1つのまま。 */
+.a-result-supports { margin-top: var(--sp-6); }
+.a-result-support + .a-result-support { margin-top: var(--sp-5); }
+.a-result-domain-label {
+  margin-bottom: var(--sp-2);
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.a-result-explanation, .a-result-evidence, .a-result-answers dd {
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.8;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+.a-result-axes { margin-top: var(--sp-8); }
+.a-result-axis-list { margin-top: var(--sp-4); list-style: none; }
+.a-result-axis + .a-result-axis { border-top: 1px solid var(--line); }
+.a-result-axis-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 72px;
+  padding: var(--sp-3) 0;
+  cursor: pointer;
+  list-style: none;
+}
+.a-result-axis-summary::-webkit-details-marker { display: none; }
+.a-result-axis-summary > .a-ic { flex: none; color: var(--muted); }
+.a-result-axis details[open] > summary > .a-ic { transform: rotate(180deg); }
+.a-result-axis-name { flex: 1; min-width: 0; font-size: 15px; line-height: 1.7; }
+.a-result-axis-detail { padding-bottom: var(--sp-4); }
+.a-result-evidence { margin-top: var(--sp-3); color: var(--ink-2); }
+.a-result-reference { display: inline-flex; align-items: center; min-height: 44px; }
+.a-result-answers { margin-top: var(--sp-4); }
+.a-result-answers > div + div { margin-top: var(--sp-4); }
+.a-result-answers dt { margin-bottom: var(--sp-1); font-family: var(--sans); font-size: 13px; color: var(--muted); }
+.a-result-answers dd { margin: 0; }
+.a-result-scene { margin-bottom: var(--sp-1); color: var(--muted); }
+.a-result-axis-values { padding: 0 0 var(--sp-4); }
+.a-result-axis-track { position: relative; height: 4px; margin: 12px 6px; border-radius: 4px; background: var(--line-strong); }
+.a-result-axis-track::after { content: ""; position: absolute; left: 50%; top: -3px; width: 1px; height: 10px; background: var(--line-strong); }
+.a-result-axis-dot { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%; background: var(--ink-2); transform: translate(-50%, -50%); }
+.a-result-support, .a-result-axis details, #result-main-copy { scroll-margin-top: var(--sp-5); }
+
 /* 8つの領域（U44）：三択の「8つの軸」の行に、状態の見出しと本文を足す */
 .a-d4-dom { padding-bottom: var(--sp-4); }
 .a-d4-dom-titles { flex: 1; min-width: 0; }
