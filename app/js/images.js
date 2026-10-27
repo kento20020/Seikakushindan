@@ -111,7 +111,7 @@ function axisSection(slots, marks) {
     // 「（8つの軸 × 3パターン）」は途中で切らずに次の行へ（a-im-keep。幅が足りないときだけ中で折り返す）
     sectionHead(h("span", null, "新しい画面", h("span", { class: "a-im-keep" }, "（8つの軸 × 3パターン）")), { id: "a-im-axes-h" }),
     h("p", { class: "a-note a-im-sec-note" },
-      "左から A寄り（75:25）・まんなか（50:50）・B寄り（25:75）。絵は app/img/axes/ にあります（521×521）。絵を差し替えるときは、同じ名前のファイルを置き換えます。"),
+      `左から A寄り（75:25）・まんなか（50:50）・B寄り（25:75）。絵は app/img/axes/ にあります（${ART_SIZE}×${ART_SIZE}）。絵を差し替えるときは、同じ名前のファイルを置き換えます。`),
     h("ul", { class: "a-im-list" }, Object.values(AXIS_ART).map(t => {
       const list = slots.filter(s => s.domain === t.domain);
       const c = countOf(list);

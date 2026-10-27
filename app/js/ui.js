@@ -223,7 +223,7 @@ export function rowLink({ href = null, onClick = null, ic = null, text, sub = nu
 
 /**
  * 軸の絵（app/js/axis_art.js の artOf・axisArt・heroArt の1件）を枠に入れる。絵が無ければ（file が null）null
- *   file は app/ からの相対パス（img/axes/2-b.jpg）。大きさは 521×521
+ *   file は app/ からの相対パス（img/axes/2-b.jpg）。大きさは 627×627（U60）
  *   pos  … 見せる位置（object-position。例 "50% 35%"）  zoom … 拡大（例 1.4）
  *   soft … 縁をぼかす（a-pic-soft）  alt … 既定は ""（飾り。枠は aria-hidden にする）。意味のある絵なら alt に文を渡す
  */
@@ -233,7 +233,7 @@ export function artPic(art, { cls = null, alt = "", pos = null, zoom = null, sof
   if (pos) style["--pos"] = pos;
   if (zoom) style["--zoom"] = String(zoom);
   const box = h("div", { class: ["a-pic", soft && "a-pic-soft", cls], "data-art": art.id ?? null, "aria-hidden": alt ? null : "true" },
-    h("img", { src: art.file, alt, width: 521, height: 521, loading: eager ? "eager" : "lazy", decoding: "async" }));
+    h("img", { src: art.file, alt, width: 627, height: 627, loading: eager ? "eager" : "lazy", decoding: "async" }));
   for (const [k, v] of Object.entries(style)) box.style.setProperty(k, v);
   return box;
 }

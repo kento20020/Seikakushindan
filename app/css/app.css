@@ -74,7 +74,7 @@
      .a-input / .a-textarea … 入力欄（文字は 16px。iPhone で拡大されない）。.a-count … 「0 / 2000」
      .a-check          … チェック（label.a-check > input[type=checkbox] ＋ span.a-check-box ＋ 文）。押せる範囲は 44px 以上
    絵
-     .a-pic            … 軸の絵の枠（ui.js の artPic(art, opts)。絵は app/img/axes/、一覧は app/js/axis_art.js）。灰色の背景を地の色に寄せる（明るさ）
+     .a-pic            … 軸の絵の枠（ui.js の artPic(art, opts)。絵は app/img/axes/、一覧は app/js/axis_art.js）。画像本来の色と陰影を表示する
      .a-pic-soft       … 縁をぼかす（mask-image）。--pos（見せる位置）・--zoom（拡大）で切り取りを変える
    決まり：押せる部品は 44px 以上。焦点は --rose-ink の輪で見える。動きを減らす設定では動かさない。横スクロールを出さない
    ====================================================================== */
