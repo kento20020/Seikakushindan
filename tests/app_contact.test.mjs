@@ -124,7 +124,7 @@ test("送る中身：entry ごと。内容は前後の空白を除き、返事�
 // ---------------------------------------------------------------- メールの中身
 test("メールの中身：件名・本文（CRLF）・mailto: の URL", () => {
   const m = buildMail({ kind: "うまく動かない", body: "\n  結果が 出ません。\n2行目  \n", device: "iPhone・ホーム画面のアプリ" });
-  assert.equal(m.subject, "喧嘩の答え（試作）のお問い合わせ：うまく動かない");
+  assert.equal(m.subject, "恋コンパス（試作）のお問い合わせ：うまく動かない");
   assert.equal(m.text, "種類：うまく動かない\r\n端末：iPhone・ホーム画面のアプリ\r\n\r\n結果が 出ません。\r\n2行目");
   assert.ok(m.href.startsWith("mailto:bokuhagbpt@gmail.com?subject="), m.href.slice(0, 60));
   assert.ok(m.href.includes("%0D%0A") && !/%0A/.test(m.href.replace(/%0D%0A/g, "")), "改行は %0D%0A だけ");

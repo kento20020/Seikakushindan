@@ -14,8 +14,8 @@
 // 決まり：結果（傾向・回答）はリンクに一切載せない。印はどこにも送らない。タブを閉じれば消える
 import { h, toast } from "./ui.js";
 
-export const SHARE_TITLE = "喧嘩の答え";                     // 共有の窓の題（決定 U43）。アプリによっては捨てられるので、文の頭にもサービス名を入れる
-export const SHARE_LEAD = "喧嘩の答えで診断しました。";        // 文の1行目
+export const SHARE_TITLE = "恋コンパス";                     // 共有の窓の題（決定 U43・U59）。アプリによっては捨てられるので、文の頭にもサービス名を入れる
+export const SHARE_LEAD = "恋コンパスで診断しました。";        // 文の1行目
 export const SHARE_PARAM = "from";
 export const SHARE_VALUE = "share";
 export const FROM_SHARE_KEY = "a-from-share";                 // sessionStorage のキー
@@ -31,7 +31,7 @@ export function shareUrl(base = globalThis.location?.href) {
 
 /**
  * 24問（v4）の共有の文（持ち主の原稿の形。決定 U46）
- *   「喧嘩の答えで診断しました。\n{結果の画面のタイトル}」。答えがそろった領域が無い（kind "none"）・copy が無い・題が空は1行目だけ
+ *   「恋コンパスで診断しました。\n{結果の画面のタイトル}」。答えがそろった領域が無い（kind "none"）・copy が無い・題が空は1行目だけ
  */
 export function shareTextCopy4(copy) {
   const title = clean(copy?.title);
@@ -41,9 +41,9 @@ export function shareTextCopy4(copy) {
 
 /**
  * 24問（v4）の共有の文（前の形。?rc=u44）
- *   primary … 「喧嘩の答えで診断しました。\n今回の回答で目立つ傾向：{見出し}」
- *   flat    … 「喧嘩の答えで診断しました。\n{見出し}でした。」（見出しは engine4.js の LEAD_TITLE4.flat）
- *   none・lead が無い・見出しが空 … 「喧嘩の答えで診断しました。」
+ *   primary … 「恋コンパスで診断しました。\n今回の回答で目立つ傾向：{見出し}」
+ *   flat    … 「恋コンパスで診断しました。\n{見出し}でした。」（見出しは engine4.js の LEAD_TITLE4.flat）
+ *   none・lead が無い・見出しが空 … 「恋コンパスで診断しました。」
  */
 export function shareText4(lead) {
   const title = clean(lead?.title);
@@ -53,12 +53,12 @@ export function shareText4(lead) {
   return SHARE_LEAD;
 }
 
-/** 三択（v3）の共有の文（持ち主の原稿の形。決定 U49）：「喧嘩の答えで診断しました。\n{結果の画面のタイトル}」（24問と同じ形） */
+/** 三択（v3）の共有の文（持ち主の原稿の形。決定 U49）：「恋コンパスで診断しました。\n{結果の画面のタイトル}」（24問と同じ形） */
 export function shareTextCopy3(copy) {
   return shareTextCopy4(copy);
 }
 
-/** 三択（v3）の共有の文（前の形。?rc3=old）。見出しがあれば「喧嘩の答えで診断しました。\n今回の主軸：{見出し}」、無ければ1行目だけ */
+/** 三択（v3）の共有の文（前の形。?rc3=old）。見出しがあれば「恋コンパスで診断しました。\n今回の主軸：{見出し}」、無ければ1行目だけ */
 export function shareText3(main) {
   const headline = clean(main?.headline);
   return headline ? `${SHARE_LEAD}\n今回の主軸：${headline}` : SHARE_LEAD;

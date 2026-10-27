@@ -444,7 +444,7 @@ test("履歴（diagnosisRecord）：既定は題＝タイトル・下＝本文�
   useStorage(null);
 });
 
-test("シェア（shareTextCopy3）：「喧嘩の答えで診断しました。」＋改行＋タイトル（24問と同じ形）", () => {
+test("シェア（shareTextCopy3）：「恋コンパスで診断しました。」＋改行＋タイトル（24問と同じ形）", () => {
   assert.equal(shareTextCopy3(copyOf3(REAL.primary)), `${SHARE_LEAD}\n話して、ふたりの間をほどいていく。`);
   assert.equal(shareTextCopy3(copyOf3(REAL.pair)), `${SHARE_LEAD}\n${PAIR_7B_8B.title}`);
   assert.equal(shareTextCopy3(copyOf3(REAL.hold)), `${SHARE_LEAD}\n${OVERALL_COPY4.hold.title}`);

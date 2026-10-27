@@ -23,7 +23,7 @@ import { currentVersion, newDiagnosisVersion } from "./diagnosis_version.js";
 import { consultVersion } from "./consult_version.js";
 import { readFromShare, markFromShare } from "./share.js";
 
-const SITE = "喧嘩の答え";   // サービス名（決定 U43）。タブの題は「喧嘩の答え（試作）」・「画面の題｜喧嘩の答え（試作）」
+const SITE = "恋コンパス";   // サービス名（決定 U43・U59）。タブの題は「恋コンパス（試作）」・「画面の題｜恋コンパス（試作）」
 const ROUTES = {
   home: { load: () => import("./home.js"), tab: "home", title: "ホーム" },
   diagnose: { load: () => (newDiagnosisVersion() === "v4" ? import("./diagnose4.js") : import("./diagnose.js")), title: "診断" },

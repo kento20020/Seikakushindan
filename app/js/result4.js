@@ -5,7 +5,7 @@
 //   出し方は2つ（app/js/result_copy_version.js。既定は "v4.1"、URL の ?rc=u44 で前の形）
 //
 // ■ 持ち主の原稿の形（決定 U46。既定。render → renderCopy）。文は js/result_copy4.js（原稿の写しは js/data/result_copy4.js）
-//   上の帯：「←」・小さな「診断結果」（ページの名前。h1 にしない）・「シェア」（文は「喧嘩の答えで診断しました。」＋改行＋タイトル）
+//   上の帯：「←」・小さな「診断結果」（ページの名前。h1 にしない）・「シェア」（文は「恋コンパスで診断しました。」＋改行＋タイトル）
 //   その下は、この順だけ：
 //     1 絵：結果の文の主軸の領域の、選ばれた側の軸の絵（axis_art.js の heroArt4）。飾りなので alt は空。下に傾向の名前を付けない。主軸が無ければ出さない
 //     2 タイトル（h1。画面の中の見出しはこれ1つ。.result-title）
@@ -163,7 +163,7 @@ function breakdownRow(r, d, state) {
     state === "incomplete" ? h("p", { class: "a-d4-bd-hold" }, BREAKDOWN_HOLD4) : null);
 }
 
-// シェア（決定 U45・U46。中身は share.js）：文「喧嘩の答えで診断しました。」＋改行＋タイトル、リンクは app/?from=share
+// シェア（決定 U45・U46。中身は share.js）：文「恋コンパスで診断しました。」＋改行＋タイトル、リンクは app/?from=share
 function shareButtonCopy(copy) {
   return h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm a-dg-share", id: "a-dg-share", onclick: () => shareResult({ text: shareTextCopy4(copy) }) },
     icon("share", { size: 20 }), h("span", null, "シェア"));
@@ -316,7 +316,7 @@ function domainRow(r, d, compact = false) {
 }
 
 // ---------------------------------------------------------------- シェア（決定 U45。中身は share.js）
-//   文「喧嘩の答えで診断しました。」＋「今回の回答で目立つ傾向：{見出し}」（片側に強く寄らないときは「{見出し}でした。」）、リンクは app/?from=share
+//   文「恋コンパスで診断しました。」＋「今回の回答で目立つ傾向：{見出し}」（片側に強く寄らないときは「{見出し}でした。」）、リンクは app/?from=share
 function shareButton(lead) {
   return h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm a-dg-share", id: "a-dg-share", onclick: () => shareResult({ text: shareText4(lead) }) },
     icon("share", { size: 20 }), h("span", null, "シェア"));

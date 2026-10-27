@@ -202,7 +202,7 @@ function offlinePage() {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ECE6DE">
-<title>つながっていません｜喧嘩の答え</title>
+<title>つながっていません｜恋コンパス</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&amp;display=swap">
 <style>
   html, body { margin: 0; background: #ECE6DE; color: #2A2733; }

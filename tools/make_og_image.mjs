@@ -21,7 +21,7 @@
 //      app/sw.js の殻には入れない（アプリの画面では使わないため）
 //
 // 絵の中身（替えるときは下の COPY・ART を直す）
-//   地は #ECE6DE（app/ の地）。真ん中に大きく「喧嘩の答え」（Shippori Mincho 700）、細い線、その下に小さく2行。
+//   地は #ECE6DE（app/ の地）。真ん中に大きく「恋コンパス」（Shippori Mincho 700。サービス名。決定 U43・U59）、細い線、その下に小さく2行。
 //   左右の端に軸の絵（app/img/axes/*.jpg）を飾りとして置き、内側と縁をぼかして地に溶かす（明るさを上げて灰色の地を地の色に寄せる。app/ のホームと同じ）。
 //   LINE などは真ん中の正方形（630×630）に切り抜くことがあるので、文字はすべて真ん中の 630×630 の中に収める（書き出すときに確かめる）
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
@@ -43,7 +43,7 @@ const INK = "#2A2733";            // 文字（--ink）
 const INK2 = "#4A4652";           // 文字2（--ink-2）
 const ROSE = "#A15E58";           // 主の色（--rose）
 const COPY = {
-  title: "喧嘩の答え",
+  title: "恋コンパス",
   lines: ["恋人との喧嘩での動き方を整理する", "診断と相談"],
 };
 // 左右の飾りの絵（app/img/axes/。人物はどれも右を向いているので、左の絵が真ん中を向く）

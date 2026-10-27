@@ -2,7 +2,7 @@
 // 新しい画面（app/）の結果のシェアと、共有のリンクから来た人の入口のテスト。仕様：docs/app-screens.md §21（決定 U45）
 //  - app/js/share.js：読み込んだだけで document・window・navigator を触らない（Node で読める）
 //  - shareUrl：app/・app/index.html?dv=v3#result などから …/app/?from=share（ほかのクエリとハッシュは付けない。結果は載せない）
-//  - shareTextCopy4（24問・持ち主の原稿の形。決定 U46。既定）：「喧嘩の答えで診断しました。」＋改行＋結果の画面のタイトル。答えがそろわないときは1行目だけ
+//  - shareTextCopy4（24問・持ち主の原稿の形。決定 U46。既定）：「恋コンパスで診断しました。」＋改行＋結果の画面のタイトル。答えがそろわないときは1行目だけ
 //  - shareText4（24問・前の形。?rc=u44）：primary・flat・none・null。shareText3（三択）：見出しあり・なし
 //  - shareResult：navigator.share に { title, text, url } が渡る。閉じた（AbortError）ときは何もしない
 //  - readFromShare：?from=share・?dv=v3&from=share#home → ?dv=v3#home・?from=other は印なし・クエリなし
@@ -41,21 +41,21 @@ await test("shareUrl：app/ の入口に ?from=share（ほかのクエリとハ�
 });
 
 await test("文の頭とコピーの中身", () => {
-  assert.equal(SHARE_TITLE, "喧嘩の答え");
-  assert.equal(SHARE_LEAD, "喧嘩の答えで診断しました。");
+  assert.equal(SHARE_TITLE, "恋コンパス");
+  assert.equal(SHARE_LEAD, "恋コンパスで診断しました。");
   assert.equal(copyBody("あ", `${SITE}?from=share`), `あ\n${SITE}?from=share`);
   assert.equal(COPY_OK, "共有する文とリンクをコピーしました");
   assert.equal(COPY_NG, "コピーできませんでした");
 });
 
 // ---------------------------------------------------------------- 共有の文
-await test("shareTextCopy4（既定）：「喧嘩の答えで診断しました。」＋改行＋結果の画面と同じタイトル。答えがそろわないときは1行目だけ", () => {
+await test("shareTextCopy4（既定）：「恋コンパスで診断しました。」＋改行＋結果の画面と同じタイトル。答えがそろわないときは1行目だけ", () => {
   const ans = (v) => (v === null ? { status: "unknown", value: null } : { status: "answered", value: v });
   const of = (u, p, n) => computeResult4(Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].flatMap((d) => [[`U${d}`, ans(u)], [`P${d}`, ans(p)], [`N${d}`, ans(n)]])));
   const c = copyOf4(of(1, 1, 1));
-  assert.equal(shareTextCopy4(c), `喧嘩の答えで診断しました。\n${c.title}`);
-  assert.equal(shareTextCopy4(c), "喧嘩の答えで診断しました。\n話して、ふたりの間をほどいていく。");
-  assert.equal(shareTextCopy4(copyOf4(of(1, -1, null))), "喧嘩の答えで診断しました。\nいまの答えを、そのまま大切にする。");
+  assert.equal(shareTextCopy4(c), `恋コンパスで診断しました。\n${c.title}`);
+  assert.equal(shareTextCopy4(c), "恋コンパスで診断しました。\n話して、ふたりの間をほどいていく。");
+  assert.equal(shareTextCopy4(copyOf4(of(1, -1, null))), "恋コンパスで診断しました。\nいまの答えを、そのまま大切にする。");
   assert.equal(shareTextCopy4(copyOf4(of(null, null, null))), SHARE_LEAD, "答えがそろった領域が無い");
   assert.equal(shareTextCopy4(null), SHARE_LEAD);
   assert.equal(shareTextCopy4({ kind: "primary", title: " " }), SHARE_LEAD);
@@ -63,13 +63,13 @@ await test("shareTextCopy4（既定）：「喧嘩の答えで診断しました
 
 await test("shareText4：primary は「今回の回答で目立つ傾向：見出し」", () => {
   const lead = { kind: "primary", title: "「向き合う」を選びやすい", body: "…", domain: 1 };
-  assert.equal(shareText4(lead), "喧嘩の答えで診断しました。\n今回の回答で目立つ傾向：「向き合う」を選びやすい");
+  assert.equal(shareText4(lead), "恋コンパスで診断しました。\n今回の回答で目立つ傾向：「向き合う」を選びやすい");
 });
 
 await test("shareText4：flat は「見出しでした。」（LEAD_TITLE4.flat の今の文で、文として読める）", () => {
   assert.equal(LEAD_TITLE4.flat, "今回の回答では、片側に強く寄らない傾向");
   assert.equal(shareText4({ kind: "flat", title: LEAD_TITLE4.flat, body: "", domain: null }),
-    "喧嘩の答えで診断しました。\n今回の回答では、片側に強く寄らない傾向でした。");
+    "恋コンパスで診断しました。\n今回の回答では、片側に強く寄らない傾向でした。");
 });
 
 await test("shareText4：none・lead が無い・見出しが空は1行目だけ", () => {
@@ -81,7 +81,7 @@ await test("shareText4：none・lead が無い・見出しが空は1行目だけ
 });
 
 await test("shareText3：見出しがあれば「今回の主軸：見出し」、無ければ1行目だけ", () => {
-  assert.equal(shareText3({ id: "B1-A", headline: "まず向き合って、言葉にする" }), "喧嘩の答えで診断しました。\n今回の主軸：まず向き合って、言葉にする");
+  assert.equal(shareText3({ id: "B1-A", headline: "まず向き合って、言葉にする" }), "恋コンパスで診断しました。\n今回の主軸：まず向き合って、言葉にする");
   assert.equal(shareText3({ id: "x", headline: "" }), SHARE_LEAD);
   assert.equal(shareText3(null), SHARE_LEAD);
 });
@@ -108,7 +108,7 @@ await test("shareResult：navigator.share に { title, text, url } が渡る", a
     const r = await shareResult({ text: shareText3({ headline: "見出し" }), url: `${SITE}?from=share` });
     assert.equal(r, "shared");
   });
-  assert.deepEqual(got, [{ title: "喧嘩の答え", text: "喧嘩の答えで診断しました。\n今回の主軸：見出し", url: `${SITE}?from=share` }]);
+  assert.deepEqual(got, [{ title: "恋コンパス", text: "恋コンパスで診断しました。\n今回の主軸：見出し", url: `${SITE}?from=share` }]);
 });
 
 await test("shareResult：閉じた（AbortError）ときは何もしない（コピーしない）", async () => {
@@ -192,19 +192,19 @@ const meta = (attr, name) => {
 
 await test("OGP：要る項目があり、URL は絶対 URL", () => {
   assert.equal(meta("property", "og:type"), "website");
-  assert.equal(meta("property", "og:site_name"), "喧嘩の答え");
-  assert.equal(meta("property", "og:title"), "喧嘩の答え");
+  assert.equal(meta("property", "og:site_name"), "恋コンパス");
+  assert.equal(meta("property", "og:title"), "恋コンパス");
   assert.equal(meta("property", "og:description"), "恋人との喧嘩での動き方を、24問の「どっち？」で整理する診断と、次の一手を一緒に考える相談（試作）");
   assert.equal(meta("property", "og:url"), SITE);
   assert.equal(meta("property", "og:image"), `${SITE}img/og/og-1200x630.jpg`);
   assert.equal(meta("property", "og:image:width"), "1200");
   assert.equal(meta("property", "og:image:height"), "630");
-  assert.equal(meta("property", "og:image:alt"), "喧嘩の答え");
+  assert.equal(meta("property", "og:image:alt"), "恋コンパス");
   assert.equal(meta("property", "og:locale"), "ja_JP");
   assert.equal(meta("name", "twitter:card"), "summary_large_image");
   for (const k of ["og:url", "og:image"]) assert.match(meta("property", k), /^https:\/\//);
   // 今までの物は変えない
-  assert.match(html, /<title>喧嘩の答え（試作）<\/title>/);
+  assert.match(html, /<title>恋コンパス（試作）<\/title>/);
   assert.match(html, /<meta name="robots" content="noindex">/);
 });
 

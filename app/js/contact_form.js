@@ -128,7 +128,7 @@ export function buildBody({ kind, body, reply, device } = {}, cfg = CONTACT_FORM
 
 /**
  * メールの中身。画面は href を開く（利用者のメールのアプリが、宛先・件名・本文の入った形で開く）
- *   subject … 「喧嘩の答え（試作）のお問い合わせ：種類」（サービス名は決定 U43）
+ *   subject … 「恋コンパス（試作）のお問い合わせ：種類」（サービス名は決定 U43・U59）
  *   text    … 「種類：…」「端末：…」（端末は文を渡したときだけ）、空の行、内容（前後の空白を除く）。改行は CRLF（RFC 6068）
  *   href    … mailto:アドレス?subject=…&body=…。encodeURIComponent で符号化する
  *             （URLSearchParams は空白を "+" にし、メールのアプリによっては "+" のまま出るため使わない）
@@ -138,7 +138,7 @@ export function buildBody({ kind, body, reply, device } = {}, cfg = CONTACT_FORM
  */
 export function buildMail({ kind, body, device } = {}, mail = CONTACT_MAIL) {
   const crlf = (v) => v.replace(/\r\n|\r|\n/g, "\r\n");
-  const subject = `喧嘩の答え（試作）のお問い合わせ：${text(kind)}`;
+  const subject = `恋コンパス（試作）のお問い合わせ：${text(kind)}`;
   const lines = [`種類：${text(kind)}`];
   const dev = text(device).trim();
   if (dev) lines.push(`端末：${dev}`);

@@ -6,7 +6,7 @@
 //  - app/sw.js：版の番号・殻の一覧が相対・殻のファイルが実在する（文法は node --check app/sw.js で別に確かめる）
 //  - iPhone（§15.10。決定 U37）：index.html の meta（capable・上の帯）、起動画面（apple-touch-startup-image）の12本が縦向き・ファイルあり・
 //    PNG の画素が device-width×倍率 × device-height×倍率・同じ端末の重なりなし
-//  - サービス名「喧嘩の答え」（決定 U43）：マニフェスト・タブの題・iPhone の名前・つながらないときの画面がそろい、app/ の文に「16次元診断」が残っていない
+//  - サービス名「恋コンパス」（決定 U43・U59）：マニフェスト・タブの題・iPhone の名前・つながらないときの画面がそろい、app/ の文に前の名前（「16次元診断」・「喧嘩の答え」）が残っていない
 import assert from "node:assert/strict";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -42,19 +42,24 @@ test("マニフェストに要る項目がある", () => {
   assert.match(manifest.background_color, /^#[0-9A-Fa-f]{6}$/);
 });
 
-test("サービス名は「喧嘩の答え」（決定 U43）：マニフェスト・タブの題・iPhone の名前・つながらないときの画面・main.js", () => {
-  const NAME = "喧嘩の答え";
+test("サービス名は「恋コンパス」（決定 U43・U59）：マニフェスト・タブの題・iPhone の名前・つながらないときの画面・main.js", () => {
+  const NAME = "恋コンパス";
   assert.equal(manifest.name, NAME);
   assert.equal(manifest.short_name, NAME);
   assert.ok(manifest.description && !manifest.description.includes("16次元診断"), manifest.description);
   const html = readFileSync(join(APP, "index.html"), "utf8");
-  assert.match(html, /<title>喧嘩の答え（試作）<\/title>/);
-  assert.match(html, /<meta name="apple-mobile-web-app-title" content="喧嘩の答え">/);
-  assert.match(readFileSync(join(APP, "sw.js"), "utf8"), /<title>つながっていません｜喧嘩の答え<\/title>/);
-  assert.match(readFileSync(join(APP, "js", "main.js"), "utf8"), /const SITE = "喧嘩の答え";/);
-  // 画面の文・題に前の名前が残っていない（仮のアイコンは数字「16」の絵のままなので、app/img/ は見ない）
+  assert.match(html, /<title>恋コンパス（試作）<\/title>/);
+  assert.match(html, /<meta name="description" content="恋コンパス（試作）。[^"]+">/);
+  assert.match(html, /<meta name="apple-mobile-web-app-title" content="恋コンパス">/);
+  assert.match(readFileSync(join(APP, "sw.js"), "utf8"), /<title>つながっていません｜恋コンパス<\/title>/);
+  assert.match(readFileSync(join(APP, "js", "main.js"), "utf8"), /const SITE = "恋コンパス";/);
+  // 画面の文・題に前の名前が残っていない（U43 の前の「16次元診断」、U59 の前の「喧嘩の答え」）。
+  // 仮のアイコンは数字「16」の絵のままなので、app/img/ は見ない
   const files = ["index.html", "manifest.webmanifest", "sw.js", ...readdirSync(join(APP, "js")).filter((f) => f.endsWith(".js")).map((f) => join("js", f))];
-  for (const f of files) assert.ok(!readFileSync(join(APP, f), "utf8").includes("16次元診断"), `${f} に「16次元診断」が残っています`);
+  for (const f of files) {
+    const text = readFileSync(join(APP, f), "utf8");
+    for (const old of ["16次元診断", "喧嘩の答え"]) assert.ok(!text.includes(old), `${f} に「${old}」が残っています`);
+  }
 });
 
 test("theme_color は index.html の theme-color と同じ", () => {
@@ -120,7 +125,7 @@ test("index.html：iPhone の meta（capable を2つ・上の帯は default・�
   const bar = HTML.match(/<meta name="apple-mobile-web-app-status-bar-style" content="([^"]+)">/);
   assert.ok(bar, "apple-mobile-web-app-status-bar-style がありません");
   assert.equal(bar[1], "default", "black-translucent は帯の文字が白になり、明るい地の上で読めない");
-  assert.match(HTML, /<meta name="apple-mobile-web-app-title" content="喧嘩の答え">/);
+  assert.match(HTML, /<meta name="apple-mobile-web-app-title" content="恋コンパス">/);
   assert.match(HTML, /<meta name="theme-color" content="#ECE6DE">/);
 });
 

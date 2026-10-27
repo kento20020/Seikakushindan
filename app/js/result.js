@@ -5,7 +5,7 @@
 //
 // ■ 持ち主の原稿の形（決定 U49。既定。render → renderCopy）。文は js/result_copy3.js（原稿の写しは js/data/result_copy4.js。24問と同じ文）
 //   24問の結果（result4.js の renderCopy。決定 U46）と同じ並び・同じ部品（a-d4-copy-*・result-title・a-d4-bd・a-dg-res-rows）：
-//   上の帯：「←」・小さな「診断結果」（h1 にしない）・「シェア」（文は「喧嘩の答えで診断しました。」＋改行＋タイトル）
+//   上の帯：「←」・小さな「診断結果」（h1 にしない）・「シェア」（文は「恋コンパスで診断しました。」＋改行＋タイトル）
 //     1 絵：結果の文の主軸の領域の、選ばれた側の軸の絵（axis_art.js の heroArt3copy）。飾りなので alt は空。主軸が無ければ出さない
 //     2 タイトル（h1。画面の中の見出しはこれ1つ）
 //     3 本文（原稿の段落どおり。特別の組は2段落）  4 補足1文（あるときだけ）
@@ -150,7 +150,7 @@ function safetyBox3(r) {
     h("p", null, note.tail, helpLink()));
 }
 
-// シェア（決定 U45・U49）：文「喧嘩の答えで診断しました。」＋改行＋タイトル、リンクは app/?from=share
+// シェア（決定 U45・U49）：文「恋コンパスで診断しました。」＋改行＋タイトル、リンクは app/?from=share
 function shareButtonCopy(copy) {
   return h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm a-dg-share", id: "a-dg-share", onclick: () => shareResult({ text: shareTextCopy3(copy) }) },
     icon("share", { size: 20 }), h("span", null, "シェア"));
@@ -386,7 +386,7 @@ function axisRow(d, t, r) {
 }
 
 // ---------------------------------------------------------------- シェア（決定 U45。中身は share.js）
-//   文「喧嘩の答えで診断しました。」＋「今回の主軸：{主軸の見出し}」、リンクは app/?from=share（結果ごとのページは作らない）
+//   文「恋コンパスで診断しました。」＋「今回の主軸：{主軸の見出し}」、リンクは app/?from=share（結果ごとのページは作らない）
 function shareButton(r) {
   return h("button", { type: "button", class: "a-btn a-btn-outline a-btn-sm a-dg-share", id: "a-dg-share", onclick: () => shareResult({ text: shareText3(mainPattern(r)) }) },
     icon("share", { size: 20 }), h("span", null, "シェア"));
