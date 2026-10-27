@@ -267,8 +267,8 @@ test("見出しの半角の引用符を「」にする（jpQuotes）：置き換
 const appFile = (f) => new URL(`../app/${f}`, import.meta.url);
 
 test("軸の絵の一覧：8軸それぞれに色と a・mid・b の絵（ファイルがある。まんなかは U36）。B 側は紺", () => {
-  const colors = { 1: ["#2E9A8F", "#2E9188"], 2: ["#D9A23A", "#A47D38"], 3: ["#4F86CC", "#4E84C9"], 4: ["#C06A92", "#BD6990"],
-    5: ["#9468B6", "#9468B6"], 6: ["#DB7A45", "#BF6D42"], 7: ["#7F9545", "#768A43"], 8: ["#DE675F", "#D0625B"] };
+  const colors = { 1: ["#087F78", "#086E69"], 2: ["#AB771C", "#956617"], 3: ["#286BC2", "#225DAD"], 4: ["#B34178", "#A1376B"],
+    5: ["#7E49A5", "#7E49A5"], 6: ["#C26920", "#AD5717"], 7: ["#647E25", "#536D1E"], 8: ["#C24940", "#AD3C34"] };
   assert.deepEqual(Object.keys(AXIS_ART).map(Number), [1, 2, 3, 4, 5, 6, 7, 8]);
   for (const [d, [color, deep]] of Object.entries(colors)) {
     const t = AXIS_ART[d];
@@ -288,7 +288,7 @@ test("軸の絵の一覧：8軸それぞれに色と a・mid・b の絵（ファ
 test("axisArt：A の割合が 50% より多ければ a、少なければ b、ちょうど 50% は mid、答えなしは null", () => {
   const at = (states) => ({ states });
   const a = axisArt(2, axisView(at({ 2: { a: 3, b: 1 } }), 2));
-  assert.deepEqual(a, { id: "2-a", domain: 2, side: "a", file: "img/axes/2-a.jpg", alt: AXIS_ART[2].a.alt, color: "#D9A23A", deep: "#A47D38" });
+  assert.deepEqual(a, { id: "2-a", domain: 2, side: "a", file: "img/axes/2-a.jpg", alt: AXIS_ART[2].a.alt, color: "#AB771C", deep: "#956617" });
   const b = axisArt(2, axisView(at({ 2: { a: 1, b: 3 } }), 2));
   assert.equal(b.side, "b");
   assert.equal(b.file, "img/axes/2-b.jpg");
@@ -300,11 +300,11 @@ test("axisArt：A の割合が 50% より多ければ a、少なければ b、�
   assert.equal(mid.id, "1-mid");
   assert.equal(mid.file, "img/axes/1-mid.jpg", "まんなかの絵");
   assert.equal(mid.alt, AXIS_ART[1].mid.alt);
-  assert.equal(mid.color, "#2E9A8F");
+  assert.equal(mid.color, "#087F78");
   const none = axisArt(4, axisView(at({ 4: { a: 0, b: 0 } }), 4));
   assert.equal(none.side, null);
   assert.equal(none.file, null);
-  assert.equal(none.deep, "#BD6990", "答えなしでも色は返す");
+  assert.equal(none.deep, "#A1376B", "答えなしでも色は返す");
   assert.equal(axisArt(9, { pos: 0.2 }), null, "知らない軸");
   assert.equal(artSide(null), null);
   assert.equal(artSide({ pos: 0.4 }), "a");
