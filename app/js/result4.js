@@ -78,7 +78,7 @@ function renderCopy(root) {
     topBar({ title: "診断結果", right: shareButtonCopy(copy) }),
     copyHero(r),
     h("h1", { class: "result-title", id: "a-d4-title" }, copy.title),
-    story?.main ? h("p", { class: "a-story-main-label" }, badge("主軸", { tone: "ink" }), "あなたの動きの中心") : null,
+    story?.main ? h("p", { class: "a-story-main-label" }, badge("主軸", { tone: "ink" })) : null,
     h("div", { class: "a-d4-copy-body", id: "result-main-copy" },
       (story ? story.intro : copy.paragraphs).map((p) => h("p", null, p)),
       !story && !details && copy.bridge ? h("p", { class: "a-d4-copy-bridge" }, copy.bridge) : null),
@@ -262,7 +262,6 @@ const SIDE_CLASS = { A: "is-a", B: "is-b", mid: "is-mid" };
 function domainsSection(r, { compact = false } = {}) {
   return h("section", { class: "a-dg-axes a-d4-doms", "aria-labelledby": "a-d4-doms-h" },
     sectionHead(compact ? "8つの軸" : "8つの領域", { id: "a-d4-doms-h" }),
-    compact ? h("p", { class: "a-note a-axis-note" }, "●と％は、答えた問で選んだ割合です。性格の強さや診断の確かさを表す数字ではありません。") : null,
     h("ul", { class: "a-card a-dg-axis-list" }, DOMAIN_IDS4.map((d) => domainRow(r, d, compact))));
 }
 
@@ -294,7 +293,7 @@ function domainRow(r, d, compact = false) {
     pic,
     h("div", { class: "a-d4-dom-titles" },
       h("p", { class: "a-dg-axis-name" }, h("span", { class: "a-nowrap" }, `${d} ${D.name}`)),
-      compact ? h("p", { class: "a-dg-axis-lv" }, `選んだ数：${D.a} ${dom.a}・${D.b} ${dom.b}`) : h("h3", { class: "a-d4-dom-title", id: hid }, t.title))),
+      compact ? null : h("h3", { class: "a-d4-dom-title", id: hid }, t.title))),
   h("div", { class: "a-dg-axis-view a-d4-dom-view", role: "img", "aria-label": v.label },
     h("div", { class: "a-dg-axis-ends" },
       h("span", { class: ["a-dg-end", "a-dg-end-a", v.side === "A" && "is-lead"] }, D.a),

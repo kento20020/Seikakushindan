@@ -14,7 +14,7 @@
      --rose-soft 主の色の薄い地（選んだ状態・印の地）
      --slate 灰青（右の丸・B 側の点。白い矢印と 3:1 以上）  --slate-ink 灰青の文字  --slate-soft 灰青の薄い地
      --vermilion 朱（絵の赤い紙に合わせた小さな差し色。チェックの印など）  --night 墨（結果の主軸の帯・「主軸」の印）
-   文字：--serif（Shippori Mincho。見出し・短い文・部品の文字。既定）／--sans（ゴシック。長い本文：結果の detail・相談のカード）
+   文字：Shippori Mincho に統一（U60）。--sans は既存部品の互換名として同じ書体を参照
      大きさ：--fs-xs 12 / --fs-sm 13 / --fs-md 15 / --fs-base 16 / --fs-lg 18 / --fs-xl 21 / --fs-2xl 24 / --fs-3xl 27（px）
    形：--r-card 20px（カード） / --r-md 14px（入力欄・小さな面） / --r-pill 999px（ボタン・印）
    余白：--sp-1 4 … --sp-10 40（px）、--gutter（左右の余白 20px）、--col（PC で中央に置く列の幅 480px）
@@ -74,7 +74,7 @@
      .a-input / .a-textarea … 入力欄（文字は 16px。iPhone で拡大されない）。.a-count … 「0 / 2000」
      .a-check          … チェック（label.a-check > input[type=checkbox] ＋ span.a-check-box ＋ 文）。押せる範囲は 44px 以上
    絵
-     .a-pic            … 軸の絵の枠（ui.js の artPic(art, opts)。絵は app/img/axes/、一覧は app/js/axis_art.js）。灰色の背景を地の色に寄せる（明るさ）
+     .a-pic            … 軸の絵の枠（ui.js の artPic(art, opts)。絵は app/img/axes/、一覧は app/js/axis_art.js）。画像本来の色と陰影を表示する
      .a-pic-soft       … 縁をぼかす（mask-image）。--pos（見せる位置）・--zoom（拡大）で切り取りを変える
    決まり：押せる部品は 44px 以上。焦点は --rose-ink の輪で見える。動きを減らす設定では動かさない。横スクロールを出さない
    ====================================================================== */
@@ -87,15 +87,17 @@
   --ink: #2A2733;
   --ink-2: #4A4652;
   --muted: #66616D;
-  --line: #E2D8CF;
-  --line-strong: #CDBFB3;
+  --line: #DCD0C1;
+  --line-strong: #B6A58E;
+  --gold: #92713C;
+  --gold-line: #C7B18C;
   --field: #968880;
-  --rose: #A15E58;
-  --rose-hover: #92534D;
-  --rose-ink: #8C5049;
-  --rose-soft: #F0E0DB;
-  --slate: #8A91A3;
-  --slate-ink: #5E6679;
+  --rose: #8E3F50;
+  --rose-hover: #753244;
+  --rose-ink: #853547;
+  --rose-soft: #EFDEE0;
+  --slate: #455C80;
+  --slate-ink: #354B70;
   --slate-soft: #E3E5EA;
   --vermilion: #C4473D;
   --night: #272439;
@@ -104,7 +106,7 @@
 
   /* 文字 */
   --serif: "Shippori Mincho", "Hiragino Mincho ProN", "Hiragino Mincho Pro", "Yu Mincho", "YuMincho", "Noto Serif JP", "IPAMincho", serif;
-  --sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", "YuGothic", system-ui, sans-serif;
+  --sans: var(--serif);
   --fs-xs: 0.75rem;
   --fs-sm: 0.8125rem;
   --fs-md: 0.9375rem;
@@ -131,7 +133,7 @@
   --tabbar-h: 64px;
 
   /* 影・動き */
-  --shadow: 0 1px 2px rgb(74 52 40 / 0.05), 0 12px 28px -18px rgb(74 52 40 / 0.28);
+  --shadow: 0 1px 2px rgb(74 52 40 / 0.04), 0 10px 26px -18px rgb(74 52 40 / 0.24);
   --shadow-lift: 0 2px 6px rgb(39 36 57 / 0.12), 0 16px 32px -12px rgb(39 36 57 / 0.32);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --dur: 0.2s;
@@ -718,8 +720,7 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   object-position: var(--pos, 50% 45%);
   transform: scale(var(--zoom, 1));
   transform-origin: var(--pos, 50% 45%);
-  /* 軸の絵の背景の灰色（約 #C4BEB8）を、ページの地（#ECE6DE）に寄せる */
-  filter: brightness(1.2);
+  /* U60：画像自体の色と陰影を保つ。明るさで白飛びさせない。 */
 }
 .a-pic-soft {
   border-radius: 0;
@@ -776,7 +777,6 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   height: auto;
   max-width: none;
   aspect-ratio: 1;
-  filter: brightness(1.2);
   --img-fade: linear-gradient(to right, transparent 0, #000 26%), linear-gradient(to bottom, transparent 0, #000 10%, #000 80%, transparent 100%);
   -webkit-mask-image: var(--img-fade);
   -webkit-mask-composite: source-in;
@@ -1028,7 +1028,7 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
 .a-pwa-move-h { font-size: var(--fs-lg); font-weight: 500; line-height: 1.6; letter-spacing: 0.08em; word-break: auto-phrase; }
 .a-pwa-move-h + .a-pwa-sub { margin-top: var(--sp-2); }
 .a-pwa-label { display: block; margin-top: var(--sp-4); margin-bottom: var(--sp-2); font-size: var(--fs-md); letter-spacing: 0.08em; color: var(--ink); }
-.a-pwa-code { min-height: 120px; font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 1rem; line-height: 1.5; letter-spacing: 0; word-break: break-all; overflow-wrap: anywhere; }
+.a-pwa-code { min-height: 120px; font-family: var(--serif); font-size: 1rem; line-height: 1.5; letter-spacing: 0; word-break: break-all; overflow-wrap: anywhere; }
 .a-pwa-error { margin-top: var(--sp-3); font-size: var(--fs-md); line-height: 1.8; letter-spacing: 0.06em; color: var(--rose-ink); word-break: auto-phrase; }
 /* ホーム画面で使うのをやめるには（§15.11。<details>。閉じておく。開くと今の端末の手順が先、ほかの端末はそのあと） */
 .a-pwa-stop { margin-top: var(--sp-4); border-top: 1px solid var(--line); }
@@ -1182,7 +1182,7 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   border-radius: var(--r-md);
   background: var(--surface-2);
   color: var(--ink);
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--serif);
   font-size: 1rem;
   line-height: 1.6;
   letter-spacing: 0;
@@ -1261,8 +1261,6 @@ button.a-round:hover, .a-card-link:hover .a-round { background: var(--surface-2)
   background: var(--surface-2);
 }
 .a-im-frame img { width: 100%; height: 100%; object-fit: cover; }
-/* 軸の絵は、新しい画面と同じ明るさで見せる（.a-pic と同じ。背景の灰色を地に寄せる） */
-.a-im-frame-axis img { filter: brightness(1.2); }
 /* 準備中の枠：点線の縁を軸の色で、地は軸の色をごく薄く */
 .a-im-pending {
   display: grid;

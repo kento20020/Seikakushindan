@@ -80,7 +80,7 @@ function renderCopy(root) {
     topBar({ title: "診断結果", right: shareButtonCopy(copy) }),
     copyHero(r),
     h("h1", { class: "result-title", id: "a-d3-title" }, copy.title),
-    story?.main ? h("p", { class: "a-story-main-label" }, badge("主軸", { tone: "ink" }), "あなたの動きの中心") : null,
+    story?.main ? h("p", { class: "a-story-main-label" }, badge("主軸", { tone: "ink" })) : null,
     h("div", { class: "a-d4-copy-body", id: "result-main-copy" },
       (story ? story.intro : copy.paragraphs).map((p) => h("p", null, p)),
       !story && !details && copy.bridge ? h("p", { class: "a-d4-copy-bridge" }, copy.bridge) : null),
