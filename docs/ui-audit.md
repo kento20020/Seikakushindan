@@ -3,7 +3,7 @@
 - 状態：**段階0・1 実装済み（`?ui=v2`）、段階2・3 これから**（2026-10-16）。改善計画の段階0〜3、開発用の情報を `?dev=1` に移すこと、背景を暖かい中立色にすることは持ち主が承認済み（決定 U9〜U11）。トークンと部品の決まりは [design-tokens.md](design-tokens.md)
 - 目的：今ある機能はすべて残したまま、見た目と使い心地を商用アプリの水準に上げる
 - 前提：[ui-ux.md](ui-ux.md) で決めた方針（U1〜U8）。中心の利用者は恋人がいる20代前後の女性、主役は相談、本番は喧嘩の夜、世界観は「味方・落ち着き・確か」
-- 改善前の画面：[ui-audit/before/](ui-audit/before/)（`before-mobile-light.jpg`・`before-mobile-dark.jpg` が一覧）
+- 改善前の画面：[ui-audit/before/](ui-audit/before/)（`before-mobile-light.jpg`・`before-mobile-dark.jpg` が一覧）。結果と相談の画面に写っていたサンプルの名前（実在の人の名前）は、2026-10-29 に背景の色で塗りつぶした（U61。ほかは撮ったまま）
 
 ---
 
