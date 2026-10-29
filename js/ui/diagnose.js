@@ -72,7 +72,7 @@ function renderStart(el) {
 
     h("section", { class: "samples", "aria-labelledby": "samples-h" },
       h("h2", { id: "samples-h" }, "サンプルで試す"),
-      h("p", { class: "note" }, "実際の回答者2名の回答を流し込むと、質問を飛ばして結果まで進みます。"),
+      h("p", { class: "note" }, "架空の回答2件（実在の人の答えではありません）を流し込むと、質問を飛ばして結果まで進みます。"),
       h("div", { class: "row wrap-row" },
         SAMPLES.map((smp, i) => h("button", { class: "btn", "data-sample": i, onclick: () => runSample(i) }, `${smp.name}で診断を実行`))),
       h("p", { class: "note" }, "16の傾向スコアだけを持つ合成プロファイル P1〜P5 は、結果とロジックだけを見られます。"),

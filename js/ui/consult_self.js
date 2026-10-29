@@ -23,7 +23,7 @@ export function deviceResult() {
   } catch { return null; }
 }
 
-/** サンプル（石原・別宮）の結果。一度作ったら使い回す */
+/** サンプル（架空の例1・2）の結果。一度作ったら使い回す */
 export function sampleResult(type) {
   const key = SAMPLE_KEY[type];
   if (!key) return null;
@@ -59,7 +59,7 @@ export function mainPattern(result) {
 export function resolveSelf(state) {
   const dev = deviceResult();
   const type = effectiveType(state, !!dev);
-  const src = type === "three" ? dev : (type === "ishihara" || type === "bekku") ? sampleResult(type) : null;
+  const src = type === "three" ? dev : (type === "sample1" || type === "sample2") ? sampleResult(type) : null;
   if (!src) return { type: "none", name: null, estimated: false, base: null, domains: null, corrections: {}, main: null };
   const base = domainsFromProfile3(src.result.profile3);
   const corrections = activeCorrections(state, base);

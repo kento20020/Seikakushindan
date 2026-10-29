@@ -2,7 +2,7 @@
 // 傾向の絵（js/data/type_images.js）のテスト。仕様：docs/type-images.md
 //  - 16傾向のスロットがそろっている／絵がある（ready）ものはファイルと文言があり、準備中（pending）は file が null
 //  - tendencyKeyFor・domainTendencies3 の形
-//  - heroTendency：石原・別宮・P1〜P5 の結果で、絵のある傾向のキーか null（準備中の傾向のキーは返さない）。選び方の規則は差し替えた絵の表で確かめる
+//  - heroTendency：架空の例1・2、P1〜P5 の結果で、絵のある傾向のキーか null（準備中の傾向のキーは返さない）。選び方の規則は差し替えた絵の表で確かめる
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -87,7 +87,7 @@ test("tendencyKeyFor：A/B でも傾向名でも同じキー。分からなけ�
   assert.equal(tendencyKeyFor(undefined, "A"), null);
 });
 
-// ---------------------------------------------------------------- 3. 結果（石原・別宮・P1〜P5。設問の版はすべて：v1・v2・v3）
+// ---------------------------------------------------------------- 3. 結果（架空の例1・2、P1〜P5。設問の版はすべて：v1・v2・v3）
 const results = [];
 for (const v of VERSION_IDS) {
   for (const s of SAMPLES3) results.push({ name: `${s.key}/${v}`, r: fromLikertAnswers(s.answers, s.wording, { version: v }).result() });
@@ -113,7 +113,7 @@ test("domainTendencies3：8領域それぞれ { domain, key, tendency, tie, weak
   }
 });
 
-test("heroTendency：石原・別宮・P1〜P5（すべての版）で、絵のある傾向のキーか null。準備中の傾向は返さない", () => {
+test("heroTendency：架空の例1・2、P1〜P5（すべての版）で、絵のある傾向のキーか null。準備中の傾向は返さない", () => {
   for (const { name, r } of results) {
     const hero = heroTendency(r.profile3, r.select.chosen);
     if (hero === null) continue;

@@ -1,7 +1,8 @@
 // 16次元診断 判定エンジン v2
 // - 16傾向スコア（0〜100）から 172 パターン（156本＋弱い版16本）の充足と余裕を計算
 // - 「主軸1＋補強1〜2＋矛盾0〜1」の制約つき貪欲選択。各ステップの理由をトレースに残す
-// 参照実装: q80/selector_v2.py（Python）。tests/expected_v2.json と一致することを tests/engine.test.mjs で確認。
+// 参照実装: q80/selector_v2.py（Python）。tests/expected_v2.json の P1〜P5 と一致することを tests/engine.test.mjs で確認
+// （同じファイルの架空の例1・2 は JS の判定で出した値で、参照実装との照合ではない。決定 U61）。
 
 import { PATTERN_META } from "./data/patterns_meta.js";
 import { QUESTIONS } from "./data/questions.js";

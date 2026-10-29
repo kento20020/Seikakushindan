@@ -5,7 +5,7 @@
 //  - W追加は1問ごとに再集計して、優勢が決まった領域を打ち切る
 //  - 問題を変える：候補の順番、1枠2回まで、使い切ったら（候補が尽きたら）答えずに進む
 //  - 戻る、toJSON/fromJSON、固定64問
-//  - 5択回答からの推定（石原・別宮・P1〜P5）が最後まで動き、選択を5択版と並べて表示する
+//  - 5択回答からの推定（架空の例1・2、P1〜P5）が最後まで動き、選択を5択版と並べて表示する
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { createSession3, Session3, drive, fromLikertAnswers, fromScores, W_ITEMS, X_ITEMS, W_POOL, W_BASE, ITEM3,

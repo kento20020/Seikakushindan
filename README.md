@@ -47,7 +47,7 @@ js/ui/dom.js, labels.js 画面づくりの小道具・表示名
 js/ui/consult*.js       相談（試作）#consult の画面。consult.js 入力と流れ／consult_state.js 入力の状態と保存（DOM なし）／consult_self.js あなたのタイプ（三択の結果・サンプル）／consult_card.js 次の一手カード／consult_dev.js 判定の中身とプロンプト（開発用）
 js/data/questions.js    80問＋追加対決8問（自動生成）
 js/data/patterns*.js    パターンの構造（patterns_meta.js）と本文（patterns_text_*.js）
-js/data/samples.js      実回答2名（石原・別宮）と合成プロファイル P1〜P5
+js/data/samples.js      架空の回答2件（架空の例1・2。U61）と合成プロファイル P1〜P5
 js/data/item_review.js  設問レビュー（任意。無ければ空として扱う）
 js/data/type_images.js  傾向の絵（16傾向分）のデータ。絵・一言・準備中かどうかはここだけで決まる。絵を選ぶ関数（heroTendency など）もここ（docs/type-images.md）
 js/ui/type_images.js    三択の結果画面に出す傾向の絵（上の1枚と「8つの軸の絵」）
@@ -123,7 +123,7 @@ python3 -m http.server 8000
 ## テスト
 
 ```sh
-node tests/engine.test.mjs     # エンジンが Python 参照実装（tests/expected_v2.json）と一致するか
+node tests/engine.test.mjs     # エンジンが tests/expected_v2.json と一致するか（P1〜P5 は Python 参照実装、架空の例1・2 は JS の判定で出した値）
 node tests/patterns.test.mjs   # 172本すべてに本文があり、docs/design.md と一致するか
 node tests/adaptive.test.mjs   # 可変質問票（サンプル再現・追加質問の上限・言い換えの記録・固定80問）
 for t in tests/*.test.mjs; do node "$t"; done   # 全部（三択版 v1／v2／v3・テスト協力・集計を含む）
@@ -176,7 +176,7 @@ for t in tests/*.test.mjs; do node "$t"; done   # 全部（三択版 v1／v2／v
 | 選択 | 主軸1＋補強・矛盾（2〜4本） | 同じ（`engine.js` の `select` に評価関数 `evaluateAll3` を渡して共用） |
 
 - サブ画面：診断（開始・質問）／結果（左右と強さ、選ばれた本文、5択版との比較、AI統合用テキスト・結果JSON）／ロジック（TH3・7状態の余裕・発火した全パターン・選択トレース）／設問（W 48組＋対決由来の差し替え候補、X の行動文64本と xRounds、回答履歴）
-- サンプル「石原」「別宮」は5択版の実回答を三択の答えに変換して流した**推定**です（§5。W は同じ番号の設問どうしで高い方、同点は対決の向き。X は対応する行動文の回答で高い方）。P1〜P5 はスコアの高い方を選ぶ答えに変換します。結果画面で5択版の選択（`tests/expected_v2.json`）と並べて表示します
+- サンプル「架空の例1」「架空の例2」は5択版の架空の回答（実在の人の答えではない。U61）を三択の答えに変換して流した**推定**です（§5。W は同じ番号の設問どうしで高い方、同点は対決の向き。X は対応する行動文の回答で高い方）。P1〜P5 はスコアの高い方を選ぶ答えに変換します。結果画面で5択版の選択（`tests/expected_v2.json`。架空の例1・2 の分は JS の判定で出した値で、Python の参照実装との照合ではない）と並べて表示します
 - キーボード：← 左／→ 右／Space 問題を変える（使い切ったら答えずに進む）
 - 結果には**傾向の絵（たたき台）**も出ます（上の1枚と「8つの軸の絵」。絵・一言・準備中の枠は `js/data/type_images.js` の1ファイルで決まります）。選び方と差し替え手順は [`docs/type-images.md`](docs/type-images.md)
 
@@ -206,7 +206,7 @@ tests/engine3.test.mjs, tests/adaptive3.test.mjs, tests/version3.test.mjs
 
 - **一時的に古い版で開く**：URL に `?qv=v2` か `?qv=v1` を付ける（例 `https://kento20020.github.io/Seikakushindan/?qv=v2#three`、テスト協力なら `?fb=1&qv=v2#three`）。`?qv=v3` で v3。開始画面の「設問の版」でも選べます
 - **既定を v2（か v1）に戻す**：`js/three_version.js` の `DEFAULT_THREE_VERSION = "v3"` を `"v2"`（か `"v1"`）にする（1行。テストは `tests/version3.test.mjs` の「仕様の既定は v3」の確認1か所だけ直す）
-- 版の決まり方：URL の `?qv=` ＞ 保存中のセッションの版（途中再開は始めた版のまま）＞ 既定。サンプル（石原・別宮・P1〜P5）は開始画面で選んでいる版で流します
+- 版の決まり方：URL の `?qv=` ＞ 保存中のセッションの版（途中再開は始めた版のまま）＞ 既定。サンプル（架空の例1・2、P1〜P5）は開始画面で選んでいる版で流します
 - ライブラリとしての既定（`createSession3()` に `version` を渡さないとき）は互換のため v1。画面は常に解決した版を渡します
 - 送信テキスト（テスト協力モード）には `app`（設問バンクの version）と `qv` が入り、集計ページは v1・v2・v3 を一緒に読めます（再採点で「v2 のロジック」に切り替えて比べることもできます。v3 のロジックは v2 と同じ）。設問ごとの表では、同じ文の設問は版をまたいで1行にまとめ、文が違う設問だけ版ごとに別の行にします（v2 で書き換えて v3 でも同じ設問は `id_v2` の1行）
 - **設問 v2 に戻す**：`?qv=v2`、または `DEFAULT_THREE_VERSION` を `"v2"` にする（v3 のファイルは残したままでよい）

@@ -57,7 +57,7 @@
 ### 画面（`#consult`）
 
 - ヘッダーの「相談（試作）」リンクから開く（既定の画面は今までどおり `#three`）。入力 → `buildContext` → `respond(ctx, { endpoint: currentAiEndpoint(location.search) })` → カード。カードの下に `refineQuestions` の問いが出て、答えると `applyPatchToContext` → `respond` でカードだけを作り直し、答えは入力欄にも映す（ページは動かさない）
-- 「あなたのタイプ」は、この端末の三択の結果（三択画面が持つ結果。`localStorage` の `seikaku16:three:v1`。画面の側は読むだけで書き換えない）、サンプル（石原・別宮。5択回答を三択に流した結果）、診断なしから選ぶ。8領域は `domainsFromProfile3`、「これは違う」は `applySelfCorrections`（D5。直した領域は `source: "stated"`）、主軸は「この説明は当たっている」にチェックしたときだけ `selfMain.confirmed`
+- 「あなたのタイプ」は、この端末の三択の結果（三択画面が持つ結果。`localStorage` の `seikaku16:three:v1`。画面の側は読むだけで書き換えない）、サンプル（架空の例1・2。5択回答を三択に流した結果。U61）、診断なしから選ぶ。8領域は `domainsFromProfile3`、「これは違う」は `applySelfCorrections`（D5。直した領域は `source: "stated"`）、主軸は「この説明は当たっている」にチェックしたときだけ `selfMain.confirmed`
 - 相手の8問は `domainsFromChoices`（A／B／分からない）。相談文（600字まで）・状況のタップ項目は judge の入力（consult-scoring.md §1）にそのまま対応する。深夜は「自動」なら入力に入れず `buildContext` が `now` から決める。一緒に住んでいる はオンのときだけ `couple.livingTogether: true` を渡す（オフは「していない」とは言い切らない）
 - 危ないサインは1つでもあれば `danger: true`。「「別れるなら死ぬ」と言われた」は `safety.partnerThreat`、「自分を傷つけたい気持ちがある」は `safety.selfHarm`。**相談文に `SELF_HARM_RE`（死にたい・消えたい など）が入っているときも、チェックがなくても `danger: true`・`selfHarm` にする**（画面に理由を出す）。相手の脅しの言葉（`PARTNER_THREAT_RE`）は「死ぬほど〜」のような言い方で誤って止めないよう、チェックのときだけ
 - 保存は `localStorage` の `consult-form-v1`（入力・選択・相談文。カードは保存しない）。使えない環境でもそのまま動く。どこにも送らない（AI は `aiEndpoint` と `aiEndpointHosts` を設定するまで呼ばない）

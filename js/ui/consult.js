@@ -102,7 +102,7 @@ function step(no, title, sub, ...body) {
 }
 
 // ---------------------------------------------------------------- 1. あなたのタイプ
-const SAMPLE_TYPES = { ishihara: true, bekku: true };   // サンプル：石原／別宮（開発・検証用）
+const SAMPLE_TYPES = { sample1: true, sample2: true };   // サンプル：架空の例1／架空の例2（開発・検証用）
 
 function selfStep() {
   const sum = h("span", { class: "cs-sum" });

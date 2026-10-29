@@ -45,7 +45,7 @@ test("選択肢の値は judge の入力の列挙（consult-scoring.md §1）と
   assert.deepEqual(GROUPS.lateNight.options.map(o => o[0]), ["auto", "yes", "no"]);
   assert.deepEqual(GROUPS.coupleMedium.options.map(o => o[0]), ["", "call", "text"]);
   assert.deepEqual(Object.keys(TOGGLES).sort(), ["afterMakeup", "livingTogether", "ongoing", "repeat", "talkScheduled"]);
-  assert.deepEqual(SELF_TYPES.map(t => t[0]), ["three", "ishihara", "bekku", "none"]);
+  assert.deepEqual(SELF_TYPES.map(t => t[0]), ["three", "sample1", "sample2", "none"]);
   assert.equal(DANGER_ITEMS.length, 7);
 });
 
@@ -148,8 +148,8 @@ test("相談文に自分を傷つける言葉（死にたい・消えたい な�
   assert.equal(buildContext(buildArgs(st2, { now: NOW })).result.gate, null);
 });
 
-test("本人のタイプ：サンプル石原・別宮は8領域と主軸を持つ。診断なしは self を渡さない", () => {
-  for (const [type, name] of [["ishihara", "サンプル：石原"], ["bekku", "サンプル：別宮"]]) {
+test("本人のタイプ：サンプル架空の例1・2は8領域と主軸を持つ。診断なしは self を渡さない", () => {
+  for (const [type, name] of [["sample1", "サンプル：架空の例1"], ["sample2", "サンプル：架空の例2"]]) {
     const st = defaultState(); st.selfType = type;
     const self = resolveSelf(st);
     assert.equal(self.type, type); assert.equal(self.name, name);
@@ -167,7 +167,7 @@ test("本人のタイプ：サンプル石原・別宮は8領域と主軸を持�
   assert.equal(self.type, "none"); assert.equal(self.domains, null);
   assert.ok(!("self" in buildArgs(st, { selfDomains: self.domains, selfMain: self.main, now: NOW })));
   assert.equal(sampleResult("none"), null);
-  assert.equal(sampleResult("ishihara"), sampleResult("ishihara"), "サンプルは使い回す");
+  assert.equal(sampleResult("sample1"), sampleResult("sample1"), "サンプルは使い回す");
 });
 
 test("effectiveType：選んでいなければ（端末の結果があれば三択・なければ診断なし）。三択を選んでも結果がなければ診断なし", () => {
@@ -175,12 +175,12 @@ test("effectiveType：選んでいなければ（端末の結果があれば三�
   assert.equal(effectiveType(st, true), "three");
   assert.equal(effectiveType(st, false), "none");
   st.selfType = "three"; assert.equal(effectiveType(st, false), "none"); assert.equal(effectiveType(st, true), "three");
-  st.selfType = "bekku"; assert.equal(effectiveType(st, true), "bekku");
+  st.selfType = "sample2"; assert.equal(effectiveType(st, true), "sample2");
   st.selfType = null; st.selfType = "none"; assert.equal(effectiveType(st, true), "none");
 });
 
 test("「これは違う」：反対の向き・conf sure・source stated。直す前の向きが変わったら無効（activeCorrections）", () => {
-  const st = defaultState(); st.selfType = "ishihara";
+  const st = defaultState(); st.selfType = "sample1";
   const base = resolveSelf(st).base;
   const d = 2;
   assert.equal(base[d].side, "A");
@@ -196,7 +196,7 @@ test("「これは違う」：反対の向き・conf sure・source stated。直�
   assert.ok(rows.every(r => ["確か", "弱め", "不明", "直した"].includes(r.tag)));
   assert.ok(rows.filter(r => r.d !== d).every(r => r.tag !== "直した"));
   // 診断が変わって、直す前の向きが合わなくなった直しは使わない
-  st.corrections[3] = { from: "B", to: "A" };   // 石原の領域3 は A（from: B は合わない）
+  st.corrections[3] = { from: "B", to: "A" };   // 架空の例1の領域3 は A（from: B は合わない）
   assert.equal(activeCorrections(st, base)[3], undefined);
   // 直した領域は L2（本人が直した）に出る
   const ctx = buildContext(buildArgs(st, { selfDomains: fixed.domains, now: NOW }));
@@ -205,7 +205,7 @@ test("「これは違う」：反対の向き・conf sure・source stated。直�
 });
 
 test("不明な領域（診断で決まらなかった）は row.known が false（「これは違う」を出さない）", () => {
-  const st = defaultState(); st.selfType = "bekku";
+  const st = defaultState(); st.selfType = "sample2";
   const self = resolveSelf(st);
   const rows = domainRows(self);
   for (const r of rows) assert.equal(r.known, !!self.base[r.d].side);
@@ -236,7 +236,7 @@ test("sanitizeState：壊れた保存値は既定に戻る・範囲外の値は�
 
 test("保存：consult-form-v1 に書いて読める。壊れた JSON・storage なし・例外を投げる storage でも動く", () => {
   const st = fakeStorage();
-  const s = defaultState(); s.selfType = "bekku"; s.partner[4] = "A"; s.text = "メモ";
+  const s = defaultState(); s.selfType = "sample2"; s.partner[4] = "A"; s.text = "メモ";
   assert.equal(saveState(s, st), true);
   assert.ok(st._m.has("consult-form-v1")); assert.equal(STORAGE_KEY, "consult-form-v1");
   assert.deepEqual(loadState(st), s);
@@ -253,7 +253,7 @@ test("保存：consult-form-v1 に書いて読める。壊れた JSON・storage 
 });
 
 test("問いの答え（refineQuestions の patch）：画面の状態に映したあとの再計算が、applyPatchToContext と同じ結果になる", async () => {
-  const st = defaultState(); st.selfType = "ishihara";
+  const st = defaultState(); st.selfType = "sample1";
   Object.assign(st, { lastSender: "self", elapsed: "lt3h", selfLast: "explain" });
   const self = resolveSelf(st);
   const ctx0 = buildContext(buildArgs(st, { selfDomains: self.domains, selfMain: self.main, now: NOW }));
@@ -282,7 +282,7 @@ test("問いの答え（refineQuestions の patch）：画面の状態に映し�
 });
 
 test("カードは入力が同じ・now が同じなら毎回同じ（画面の再計算で内容が揺れない）", async () => {
-  const st = defaultState(); st.selfType = "bekku"; st.partner[1] = "A";
+  const st = defaultState(); st.selfType = "sample2"; st.partner[1] = "A";
   const self = resolveSelf(st);
   const mk = () => templateRespond(buildContext(buildArgs(st, { selfDomains: self.domains, selfMain: self.main, now: NOW })));
   assert.deepEqual(mk(), mk());

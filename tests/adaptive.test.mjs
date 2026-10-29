@@ -1,6 +1,7 @@
 // node tests/adaptive.test.mjs
 // 可変質問票（js/adaptive.js）のテスト。
-//  - 実回答サンプル（石原・別宮）が tests/expected_v2.json の16スコア・対決・選択を再現する
+//  - 架空の例1・2（js/data/samples.js）の16スコア・対決・選択が tests/expected_v2.json と同じ。
+//    その値は JS の判定で出したもの（tools/make_fictional_samples.mjs）なので、Python の参照実装との照合ではなく、判定が変わっていないことの確かめ（決定 U61）
 //  - 全部「3」の回答者には追加質問（1傾向2問まで・全体16問まで）と追加対決が入る
 //  - 「別の言い方で聞く」で表現の番号が記録される
 //  - adaptive=false は固定80問
@@ -20,10 +21,16 @@ function test(name, fn) {
 /** 回答関数 f(current) で最後まで答える。聞いた設問の数を返す */
 function runAll(s, f) { let n = 0; while (!s.isDone()) { s.answer(f(s.current())); n++; if (n > 500) throw new Error("loop"); } return n; }
 
-// ---------------------------------------------------------------- 1. 実回答サンプル
-for (const [i, name] of [[0, "石原"], [1, "別宮"]]) {
+// ---------------------------------------------------------------- 1. 架空の例（JS の判定で出した値と同じか）
+for (const [i, name] of [[0, "架空の例1"], [1, "架空の例2"]]) {
   const exp = expected.find(c => c.name === name);
   const sample = SAMPLES[i];
+  test(`${name}: samples.js の expected と tests/expected_v2.json が同じで、どちらも「JS の判定で出した値」と書いてある`, () => {
+    assert.ok(sample.name.startsWith(name), sample.name);
+    assert.equal(exp.source, "js"); assert.equal(sample.expectedFrom, "js");
+    assert.deepEqual(sample.expected, exp.expected.map(e => e.id));
+    assert.deepEqual(Object.fromEntries(Object.entries(exp.answers).map(([k, v]) => [+k, v])), sample.answers);
+  });
   test(`${name}: 80問シート → 16スコアが expected_v2 と一致（±0.6）`, () => {
     const r = scoreFromAnswerMap(sample.answers, sample.wording);
     for (const t of TRAITS) assert.ok(Math.abs(r.scores[t] - exp.scores[t]) <= 0.6, `${t}: ${r.scores[t]} vs ${exp.scores[t]}`);
@@ -207,7 +214,7 @@ test("adaptive=false：固定80問（全部3でも追加なし）", () => {
 
 test("一貫性：基本平均との差が1.5以上なら不一致", () => {
   const r = scoreFromAnswerMap(SAMPLES[0].answers, 0);
-  const q51 = r.consistency.find(c => c.itemId === "Q51");   // 石原：Q51=1、向き合う4問の平均4.25
+  const q51 = r.consistency.find(c => c.itemId === "Q51");   // 架空の例1：Q51=1、向き合う4問の平均4.75（わざと食い違わせてある）
   assert.equal(q51.flag, "不一致");
   assert.equal(r.consistency.length, 8);
   assert.equal(Object.keys(DOMAINS).length, r.duelDetail.length);
