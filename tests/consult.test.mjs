@@ -425,7 +425,7 @@ function checkFromProfile3(profile3, label) {
   }
   return doms;
 }
-test("domainsFromProfile3：実回答サンプル（三択に変換）で8領域・side は A/B/null・domainFlags3 と一致", () => {
+test("domainsFromProfile3：80問シートのサンプル（架空の例1・2を三択に変換）で8領域・side は A/B/null・domainFlags3 と一致", () => {
   const confs = new Set();
   for (const smp of SAMPLES3) {
     const p3 = fromLikertAnswers(smp.answers, smp.wording).result().profile3;
@@ -562,7 +562,7 @@ test("人ごとの層：本人の主軸は「当たっている」（confirmed =
   assert.ok(text.includes(t.caveat));
   assert.equal(buildPersonLayer({ selfMain: { id: "NOPE", confirmed: true } }).selfMain, null);
 });
-test("人ごとの層：X の level・W の数・点数・相手のパターンを入れない（実回答サンプルで確かめる）", () => {
+test("人ごとの層：X の level・W の数・点数・相手のパターンを入れない（80問シートのサンプル＝架空の例1・2で確かめる）", () => {
   for (const smp of SAMPLES3) {
     const r = fromLikertAnswers(smp.answers, smp.wording).result();
     const L = buildPersonLayer({ self: domainsFromProfile3(r.profile3), partner: domainsFromProfile3(r.profile3), couple: COUPLE,
@@ -577,7 +577,8 @@ test("人ごとの層：X の level・W の数・点数・相手のパターン�
     JSON.parse(json, (k, v) => { if (typeof v === "number") nums.push([k, v]); if (typeof v === "string" && k !== "id") strs.push(v); return v; });   // id はパターン ID（S03 など）
     assert.ok(nums.every(([k, v]) => (k === "d" || /^\d+$/.test(k)) && v >= 1 && v <= 8), JSON.stringify(nums));
     assert.ok(strs.every(v => !/[0-9０-９]/.test(v)), `${smp.key}：文字列に数字 ${strs.filter(v => /[0-9０-９]/.test(v))}`);
-    assert.ok(text.split("\n").every(line => !/[0-9０-９]/.test(line.replace(/^[1-8] /, "").replace(/、[1-8] /g, "、"))), `${smp.key}：文字列の数字は領域番号だけ`);
+    // 領域番号は行頭（「1 衝突への…」）・「不明：3 …」の先頭・「、」の後ろに出る（架空の例2 は領域3 が不明）
+    assert.ok(text.split("\n").every(line => !/[0-9０-９]/.test(line.replace(/^[1-8] /, "").replace(/(^不明：|、)[1-8] /g, "$1"))), `${smp.key}：文字列の数字は領域番号だけ`);
     assert.ok(!("partner" in L && "main" in L.partner), "相手のパターンは入れない");
   }
 });

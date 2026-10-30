@@ -207,7 +207,7 @@ function startView() {
 
     h("section", { class: "samples dev-only", "aria-labelledby": "t3-samples-h" },
       h("h2", { id: "t3-samples-h" }, "サンプルで試す"),
-      h("p", { class: "note" }, "5択版の実回答2名を三択の答えに変換して流し、結果まで進みます（同じ番号の設問どうしで高い方を選ぶ、など）。実際に三択で答えた結果ではないので、画面には「5択回答からの推定」と出します。"),
+      h("p", { class: "note" }, "5択版の架空の回答2件を三択の答えに変換して流し、結果まで進みます（同じ番号の設問どうしで高い方を選ぶ、など）。実際に三択で答えた結果ではないので、画面には「5択回答からの推定」と出します。"),
       h("div", { class: "row wrap-row" },
         SAMPLES3.map((smp, i) => h("button", { class: "btn", "data-t3-sample": i, onclick: () => runSample3(i) }, smp.label))),
       h("p", { class: "note" }, "16スコアだけの合成プロファイル P1〜P5 は、スコアの高い方を選ぶ答えに変換します（左右の差が10未満の領域は拮抗させる）。"),
@@ -708,7 +708,7 @@ function compareBlock(r) {
       h("span", { class: "t3-cmp-head" }, PATTERN_BY_ID[id]?.headline ?? "")))));
   return h("section", { class: "block t3-compare dev-only", "aria-labelledby": "t3-cmp-h", id: "t3-compare" },
     h("h2", { id: "t3-cmp-h" }, "5択版との比較"),
-    h("p", { class: "note" }, "同じ回答者の5択版の選択（参照実装 tests/expected_v2.json）と、三択版の選択を並べています。"),
+    h("p", { class: "note" }, "同じ回答者の5択版の選択（tests/expected_v2.json。P1〜P5 は Python 参照実装、架空の例1・2 は JS の判定で出した値）と、三択版の選択を並べています。"),
     h("p", { class: ["refcheck", all ? "ok" : "t3-partial"], id: "t3-cmp-summary" },
       `共通 ${common.length}本${common.length ? `（${common.join("・")}）` : ""}／5択版 ${exp.length}本・三択版 ${got.length}本／主軸は${main5 === main3 ? `一致（${main3}）` : `不一致（5択 ${main5 ?? "なし"}・三択 ${main3 ?? "なし"}）`}`),
     h("div", { class: "t3-cmp" },

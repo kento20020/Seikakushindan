@@ -12,12 +12,12 @@ export const SHORT_TEXT_MAX = 20;
 /** あなたのタイプの選び方 */
 export const SELF_TYPES = [
   ["three", "この端末の三択の結果を使う"],
-  ["ishihara", "サンプル：石原"],
-  ["bekku", "サンプル：別宮"],
+  ["sample1", "サンプル：架空の例1"],
+  ["sample2", "サンプル：架空の例2"],
   ["none", "診断なし"],
 ];
 /** サンプルの種類 → SAMPLES3 の key */
-export const SAMPLE_KEY = { ishihara: "石原", bekku: "別宮" };
+export const SAMPLE_KEY = { sample1: "架空の例1", sample2: "架空の例2" };
 
 /**
  * 単一選択の項目。[値, 表示, 補足?]。値は judge の入力（docs/consult-scoring.md §1）と同じ

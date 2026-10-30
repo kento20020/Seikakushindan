@@ -111,7 +111,7 @@ export function back() { if (store.session?.back()) { persist(); emit(); } }
 export function runSample(i, tab = "result") {
   const s = SAMPLES[i];
   store.session = sessionFromAnswerMap(s.answers, s.wording);
-  store.source = { type: "sample", name: s.name, expected: s.expected, wording: s.wording };
+  store.source = { type: "sample", name: s.name, expected: s.expected, expectedFrom: s.expectedFrom, wording: s.wording };
   store.result = buildFromSession(store.session, store.source);
   store.screen = "start";
   persist(); go(tab);

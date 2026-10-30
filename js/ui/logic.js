@@ -66,8 +66,10 @@ function referenceCheck(r) {
   if (!exp) return null;
   const got = r.select.chosen.map(x => x.meta.id);
   const ok = JSON.stringify(got) === JSON.stringify(exp);
+  // 架空の例（expectedFrom: "js"）の expected は JS の判定で出した値。参照実装との照合ではない（決定 U61）
+  const from = r.source?.expectedFrom === "js" ? "JS の判定で出した値（参照実装との照合ではない）" : "Python 参照実装（selector_v2.py）";
   return h("p", { class: ["refcheck", ok ? "ok" : "ng"] },
-    `Python 参照実装（selector_v2.py）の選択 ${exp.join("・")} と ${ok ? "一致" : `不一致（こちらは ${got.join("・")}）`}`);
+    `${from}の選択 ${exp.join("・")} と ${ok ? "一致" : `不一致（こちらは ${got.join("・")}）`}`);
 }
 
 function thresholdTable() {
