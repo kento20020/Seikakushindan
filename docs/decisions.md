@@ -284,3 +284,13 @@
 - 画面の写し：`docs/ui-audit/before/` の8枚（`05-result-*`・`06-consult-*`・`before-mobile-*`）に写っていたサンプルの名前を、背景の色で塗りつぶした（名前の所だけ。ほかは撮ったまま）。
 - **expected の出どころが変わる**：架空の例の expected（選ばれる解釈パターンの id）と、`tests/expected_v2.json` の2件の16スコア・対決・選択は、今の JS の判定（`js/adaptive.js` の `scoreFromAnswerMap` → `js/engine.js` の `select`）で出した値。Python の参照実装（q80/）はこのリポジトリに無いので、参照実装との照合ではない（samples.js の `expectedFrom: "js"`、expected_v2.json の `source: "js"`。ロジックタブと「5択版との比較」の注記もそう書く）。参照実装と照らし合わせているのは P1〜P5（16スコアだけ、対決なし）だけになり、80問の答え → 16スコア・対決の計算と、対決を使う選択は、参照実装と照らし合わせなくなった。判定を変えてテストが落ちたら、変わったのが意図どおりかを確かめてから、道具で出し直す。
 - 反映先：`js/data/samples.js`・`samples3.js`・`questions.js`（先頭の注記と notes.source）・`item_review.js`、`js/engine.js`（注記）、`js/ui/consult_state.js`・`consult_self.js`・`consult.js`・`logic.js`・`store.js`・`three.js`・`diagnose.js`、`tools/make_fictional_samples.mjs`（新規）、`tests/expected_v2.json`・`adaptive.test.mjs`・`adaptive3.test.mjs`・`engine.test.mjs`・`consult_ui_state.test.mjs`・`consult.test.mjs`・`type_images.test.mjs`、`README.md`・`CLAUDE.md`、[design.md](design.md) STEP4、[three-choice-logic.md](three-choice-logic.md) §5、[type-images.md](type-images.md)（例の表）、[consult-ai.md](consult-ai.md)、[app-screens.md](app-screens.md)・[ui-audit.md](ui-audit.md)・[session-log-2026-10-16.md](session-log-2026-10-16.md)（名前だけ）、この決定記録の U10（名前だけ）、`docs/ui-audit/before/` の画面の写し8枚（名前を塗りつぶした）。
+
+### U62：選択式プロフィール画面の試作（2026-10-31）
+
+- 持ち主が選んだ項目は、職業・就学状況、年齢、恋愛で大切にしたいこと、相手との関係性、交際期間の5つ。自由記述を使わず、まず画面だけを作る依頼。
+- `app/#profile` を追加し、マイページから開ける。職業と関係性は単一選択、大切にしたいことは複数選択、年齢・期間はプルダウン。項目は任意。「選んだ内容を確認」→一覧→「選び直す」まで試せる。
+- 選択肢と期間の区切りは試作用の提案。交際前・相手なしでは期間は対象外。結婚している場合は交際開始から、別れた相手では交際していた期間。関係性を対象外へ変えた場合は期間をクリアする。
+- 今回は画面試作のみ。保存・アカウント登録・相談への反映・外部送信は追加しない。画面上にも明記。選択は画面内のメモリだけで、離脱・再読み込みで消える。
+- U60の明朝体・濃いローズ・金色の細い枠を使用。選択済みは色とチェックで示し、標準のradio/checkbox/selectでキーボード操作もできる。
+- 実装：`app/js/profile.js`、`app/css/profile.css`、`main.js`、`mypage.js`、`index.html`。既存の診断・相談・保存には変更を加えない。
+- 確認：UTCで既存41テストファイル成功。Chromium 320/390/1280pxで5項目の表示、選択、複数選択、確認と再編集、関係性による期間の制御、再読み込みでのリセット、保存領域が変わらないこと、横スクロールとページエラーがないことを確認。

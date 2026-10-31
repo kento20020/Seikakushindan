@@ -259,6 +259,11 @@ function view() {
       eyebrow("MY PAGE"),
       h("h1", { class: "a-h1" }, "マイページ")),
 
+    h("section", { "aria-labelledby": "a-me-profile" },
+      sectionHead("プロフィール", { id: "a-me-profile", aside: "お試し" }),
+      h("div", { class: "a-card a-rows" },
+        rowLink({ href: "#profile", ic: "person", text: "プロフィールを作成", sub: "5つの項目を選んで、内容を確認できます。" }))),
+
     h("section", { "aria-labelledby": "a-me-account" },
       sectionHead("アカウント", { id: "a-me-account" }),
       h("div", { class: "a-card a-me-card" },

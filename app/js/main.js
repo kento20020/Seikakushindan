@@ -33,6 +33,7 @@ const ROUTES = {
   account: { load: () => import("./account.js"), title: "アカウント" },
   history: { load: () => import("./history.js"), tab: "history", title: "履歴" },
   mypage: { load: () => import("./mypage.js"), tab: "mypage", title: "マイページ" },
+  profile: { load: () => import("./profile.js"), title: "プロフィール" },
   images: { load: () => import("./images.js"), title: "診断結果の絵" },   // 診断結果の絵の一覧（§14）
   types: { load: () => import("./types.js"), title: "診断結果の一覧" },   // 診断結果の一覧（8軸×3のタイプ図鑑。§16）
   contact: { load: () => import("./contact.js"), title: "お問い合わせ" },   // お問い合わせ（今はメールのアプリで送る。Google フォームを入れればフォームへ。§17）
